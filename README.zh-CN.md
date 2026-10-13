@@ -16,7 +16,7 @@
 
 设计完成后，前往 [OpenSci 官网](https://opensci-optic.com/)，继续完成光学元件选购、装配配置和硬件订购。
 
-**[快速开始](docs/zh-CN/getting-started.md) · [用户指南](docs/zh-CN/README.md) · [PyPI](https://pypi.org/project/opensci-engine/) · [官网](https://opensci-optic.com/) · [问题反馈](https://github.com/JunLin615/opensci-engine/issues)**
+**[Agent 指南（英文）](AGENT_GUIDE.md) · [快速开始](docs/zh-CN/getting-started.md) · [用户指南](docs/zh-CN/README.md) · [PyPI](https://pypi.org/project/opensci-engine/) · [官网](https://opensci-optic.com/) · [问题反馈](https://github.com/JunLin615/opensci-engine/issues)**
 
 ## 你可以做什么
 
