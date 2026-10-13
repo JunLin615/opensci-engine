@@ -1,47 +1,42 @@
 """Run a catalog-based beam expander and export its results.
 
-运行目录中的扩束系统示例，并导出结果。
-Usage / 用法: python examples/beam_expander.py --out run-example
+Usage: python examples/beam_expander.py --out run-example [--details]
 """
 
-import argparse
-import json
 from pathlib import Path
 
-from opensci_engine.local import (
-    example_project_of_kind,
-    run_optical_project,
-    verify_run_artifacts,
-)
+from opensci_engine.local import example_project_of_kind, run_optical_project
 from opensci_engine.results import load_run
 
+if __package__:
+    from .result_summary import ArgumentParser, emit_cli, summarize_run
+else:
+    from result_summary import ArgumentParser, emit_cli, summarize_run
 
-def main():
-    parser = argparse.ArgumentParser(description=__doc__)
-    parser.add_argument("--out", type=Path, default=Path("run-example"))
-    args = parser.parse_args()
 
+def run_example(output_dir=Path("run-example"), *, details=False):
+    """Run once, preserve the complete native artifacts, and summarize them."""
+    output_dir = Path(output_dir)
     project = example_project_of_kind("beam_expander")
-    run = run_optical_project(project, output_dir=args.out)
-    problems = verify_run_artifacts(run.artifacts.directory)
-    if problems:
-        raise RuntimeError(f"Run verification: {problems}")
-
-    results = load_run(args.out)
-    csv_path = args.out.parent / f"{args.out.name}-arrivals.csv"
+    run_optical_project(project, output_dir=output_dir)
+    summary = summarize_run(output_dir, details=details)
+    results = load_run(output_dir)
+    csv_path = output_dir.parent / f"{output_dir.name}-arrivals.csv"
     csv_path.write_bytes(results.export("arrivals", "csv"))
-    print(json.dumps({
-        "status": run.status.value,
-        "targets": [
-            {"id": target.target_id, "status": target.status.value, "value": target.value}
-            for target in run.result.targets
-        ],
-        "power_budget": results.power_budget(),
-        "run_directory": str(args.out),
-        "arrivals_csv": str(csv_path),
-        "view_command": f'opensci-engine view "{args.out}"',
-    }, indent=2, ensure_ascii=False))
+    summary["exports"] = {"arrivals_csv": str(csv_path)}
+    return summary
+
+
+def main(argv=None):
+    def workflow():
+        parser = ArgumentParser(description=__doc__)
+        parser.add_argument("--out", type=Path, default=Path("run-example"), help="Run artifact directory")
+        parser.add_argument("--details", action="store_true", help="Include the complete power ledger")
+        args = parser.parse_args(argv)
+        return run_example(args.out, details=args.details)
+
+    return emit_cli(workflow)
 
 
 if __name__ == "__main__":
-    main()
+    raise SystemExit(main())
