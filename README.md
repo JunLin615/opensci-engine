@@ -85,6 +85,7 @@ Try the runnable [beam expander](examples/beam_expander.py) and [ideal-lens focu
 | Your first optical design | [Read](docs/en/getting-started.md) | [阅读](docs/zh-CN/getting-started.md) |
 | Catalog and reproducible projects | [Read](docs/en/catalog.md) | [阅读](docs/zh-CN/catalog.md) |
 | Results, visualization, and export | [Read](docs/en/results.md) | [阅读](docs/zh-CN/results.md) |
+| Measurement cleaning, fitting, and reference normalization | [Read](docs/en/measurements.md) | [阅读](docs/zh-CN/measurements.md) |
 | From design to hardware | [Read](docs/en/hardware.md) | [阅读](docs/zh-CN/hardware.md) |
 
 These guides and examples target the published **0.6.1** package. Find available package versions in the [PyPI release history](https://pypi.org/project/opensci-engine/#history).
