@@ -38,6 +38,50 @@ opensci-engine project verify run
 
 编写脚本时，设计命令退出码 `0` 对应 PASS/WARNING/NOT_APPLICABLE，`1` 对应 FAIL，`2` 对应 UNKNOWN，`3` 对应 OUT_OF_MODEL_SCOPE。文件和命令用法错误使用其他退出码，详见命令行参考。
 
+## 示例中的精简摘要
+
+在仓库根目录运行示例：
+
+```bash
+python examples/beam_expander.py --out run-example
+python examples/ideal_lens_focus.py --out run-ideal-focus
+```
+
+每个示例向标准输出写入一个 JSON 摘要。结构化字段名使用英文，诊断信息写入标准错误。默认输出包含整体 `status`、`engine_status`、可为空的 `validation_status`，以及目标标识、指标、实际值、单位、适用的上下界、判定结果和可用的消息或问题代码。摘要还保留需要处理的 `issues`、`model_scope_issues` 和 `element_models`，以及 `identity` 和 `integrity` 信息。存在功率数据时，精简的 `power_budget` 仅包含标量汇总值和 `total_sinks`；添加 `--details` 可查看完整功率明细。
+
+`artifacts` 和 `exports` 字段指向磁盘上的完整数据。扩束示例保存原生本地运行记录和到达光束 CSV，并提供打开三维场景的 `view_command`。理想透镜示例无需下载目录，会将请求、仿真结果、光线和到达光束数据保存在 `--out` 指定的目录中。其底层 API 结果不包含原生本地运行清单或三维查看器命令。两个示例的默认输出目录分别为 `run-example` 和 `run-ideal-focus`。
+
+读取已保存的原生本地运行记录，无需重新仿真：
+
+```bash
+python examples/result_summary.py run-example
+python examples/result_summary.py run-example --details
+```
+
+摘要工具先验证已保存的运行记录，再通过公开结果 API 生成摘要。此命令读取扩束示例或 `opensci-engine project run` 生成的原生本地运行产物；理想透镜示例的输出是底层 API 结果文件集。[result_summary.py](../../examples/result_summary.py) 提供可复用的 Python 函数 `summarize_results(results, *, artifacts=None, details=False)` 和 `summarize_run(directory, *, details=False)`，两者均返回可用于 JSON 输出的字典。
+
+示例脚本和已保存运行摘要命令使用以下退出码：
+
+| 退出码 | 报告的结果 |
+| --- | --- |
+| `0` | `PASS`、`WARNING` 或 `NOT_APPLICABLE` |
+| `1` | `FAIL` |
+| `2` | `UNKNOWN` |
+| `3` | `OUT_OF_MODEL_SCOPE` |
+| `4` | 输入、产物完整性、运行时或命令用法错误 |
+
+设计结果即使未通过，也会生成 JSON 摘要并保留完整数据。退出码 `4` 会向标准错误写入 JSON 错误信息，标准输出为空。这些示例错误码与引擎 CLI 的文件和用法错误码分别定义。
+
+理想透镜示例可通过 `--maximum-radius-mm` 修改目标上限（默认 `0.05`）。以下命令分别使用默认目标、预期不通过的更严格目标和无效输入：
+
+```bash
+python examples/ideal_lens_focus.py --out run-focus-default
+python examples/ideal_lens_focus.py --out run-focus-strict --maximum-radius-mm 0.001
+python examples/ideal_lens_focus.py --maximum-radius-mm -1
+```
+
+半径上限必须为有限非负数，`nan` 也属于无效输入。每条命令运行后，可立即在 PowerShell 中查看 `$LASTEXITCODE`，或在 POSIX shell 中查看 `$?`。两个示例均支持 `--details`，用于在摘要中包含完整功率明细；完整光线数据可通过已保存的产物路径访问。
+
 ## 查看与分享
 
 ```bash
