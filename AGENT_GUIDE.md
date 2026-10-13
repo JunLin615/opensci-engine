@@ -10,7 +10,8 @@ human walkthrough, select [English](docs/en/README.md) or
 
 Run commands from the repository root in an activated Python 3.11+ virtual
 environment. Use the [installation guide](docs/en/installation.md) only if setup
-is needed. The verified engine baseline is **0.6.1**, shared with both READMEs;
+is needed. The verified engine baseline is **0.6.1**, recorded in
+[engine-baseline.json](engine-baseline.json) and shared with both READMEs;
 [validation evidence](docs/result-summary-validation.md) records the environment
 and catalog used. To reproduce it:
 
@@ -24,6 +25,8 @@ The `protected` extra supports hardware previews; optical simulation alone needs
 only `opensci-engine==0.6.1`. A newer installed version is not automatically a
 verified baseline. Examples follow released engine APIs; implement engine changes
 in `opensci`, then update this repository against the published package.
+Use the [alignment workflow](docs/engine-alignment.md) to check another release
+without changing the verified baseline.
 
 ## Select a task
 

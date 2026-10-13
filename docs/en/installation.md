@@ -75,6 +75,8 @@ uv tool upgrade opensci-engine
 
 Run `opensci-engine doctor` to see the installed version. To reproduce the version used by this guide, install `"opensci-engine[protected]==0.6.1"`.
 
+[engine-baseline.json](../../engine-baseline.json) records the verified release and test environment. Maintainers can check another released version with the [alignment workflow](../engine-alignment.md); a successful candidate check does not automatically change this baseline.
+
 ## Common setup questions
 
 | Symptom | Next step |
