@@ -35,12 +35,17 @@ in `opensci`, then update this repository against the published package.
 | Inspect full power ledger | `python examples/result_summary.py run-example --details` | Summary plus complete power entries and rows |
 | Find catalog lenses at 780 nm | `python -m opensci_engine catalog list --category LENS --wavelength-nm 780 --limit 5` | Bounded candidate list; [catalog guide](docs/en/catalog.md) for filters and releases |
 | Change wavelength, positions or targets | Follow [editing recipe](docs/agent-recipes.md) after creating `run-example` | New validated project and run, preserving the original |
+| Clean and fit detector CSV | `python examples/analyze_measurements.py examples/data/measurements/detector_response.csv --x input_power_mW --signal signal_V --background dark_V --x-unit mW --signal-unit V --out run-detector` | Fit/row summary, original input, audit CSV, provenance and residual plot; [measurement guide](docs/en/measurements.md) for reference normalization |
+
+Measurement analysis runs independently of the engine; install its plotting
+dependency with `python -m pip install -r requirements-examples.txt`. Set
+`--maximum-rmse` in response units when an acceptance bound is required. Review
+excluded rows and residuals; successful fitting alone does not validate a detector.
 
 The catalog example may download public data on first use. A saved project pins
 its catalog release. On a download failure, check connectivity and the catalog
 guide; use the ideal-lens route for an independent installation check. Generic
-sweeps and measurement-processing helpers are not yet delivered; do not invent
-commands for them.
+sweeps are not yet delivered; do not invent commands for them.
 
 ## Inputs and units
 

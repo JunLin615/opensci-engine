@@ -108,3 +108,13 @@ Its builder positions are mm; the wavelength is nm; directions and normals are
 unit vectors. This low-level request differs from the native catalog project
 schema above. Preserve the full request/result/rays, and summarize the public
 `results_from_engine` result as the example does.
+
+## Process measured CSV data
+
+Use the [measurement workflow](en/measurements.md) for background subtraction,
+reference normalization, and response fitting without a simulation. Supply
+explicit column names and units; use a fresh output directory. It preserves input
+bytes, every row's exclusion reasons, and fit residuals. Compare the fitted values
+and your configured RMSE bound alongside the diagnostics before drawing a
+scientific conclusion. The two synthetic datasets are demonstrations, not
+independent agent-performance evaluation tasks.

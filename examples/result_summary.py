@@ -9,9 +9,6 @@ import json
 from pathlib import Path
 import sys
 
-from opensci_engine.results import ResultsError, load_run
-
-
 EXIT_CODES = {
     "PASS": 0, "WARNING": 0, "NOT_APPLICABLE": 0,
     "FAIL": 1, "UNKNOWN": 2, "OUT_OF_MODEL_SCOPE": 3,
@@ -32,6 +29,8 @@ def summarize_results(results, *, artifacts=None, details=False):
     All targets and diagnostics are retained. Only the power overview is reduced;
     complete power entries and rays remain in the supplied artifact files.
     """
+    from opensci_engine.results import ResultsError
+
     description = results.describe()
     integrity = description["integrity"]
     if integrity["checked"] and not integrity["consistent"]:
@@ -81,6 +80,8 @@ def summarize_results(results, *, artifacts=None, details=False):
 
 def summarize_run(directory, *, details=False):
     """Read and verify a native local run; do not modify its files."""
+    from opensci_engine.results import load_run
+
     directory = Path(directory)
     results = load_run(directory)
     artifacts = {"run_directory": directory, "manifest": directory / "manifest.json"}
