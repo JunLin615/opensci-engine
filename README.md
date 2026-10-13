@@ -16,7 +16,7 @@ Build optical systems, simulate light propagation, and explore the results on yo
 
 When a design is ready, continue to [OpenSci](https://opensci-optic.com/) for optical components, assembly configurations, and hardware orders.
 
-**[Get started](docs/en/getting-started.md) · [User guide](docs/en/README.md) · [PyPI](https://pypi.org/project/opensci-engine/) · [Website](https://opensci-optic.com/) · [Feedback](https://github.com/JunLin615/opensci-engine/issues)**
+**[Agent guide](AGENT_GUIDE.md) · [Get started](docs/en/getting-started.md) · [User guide](docs/en/README.md) · [PyPI](https://pypi.org/project/opensci-engine/) · [Website](https://opensci-optic.com/) · [Feedback](https://github.com/JunLin615/opensci-engine/issues)**
 
 ## What you can do
 

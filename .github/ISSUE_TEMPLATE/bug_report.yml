@@ -1,36 +1,44 @@
-name: Bug report / 问题报告
-description: Help us reproduce a problem / 帮助我们复现问题
+name: Bug report
+description: Help us reproduce a problem with the engine, examples, or documentation.
 title: "[Bug] "
 body:
+  - type: markdown
+    attributes:
+      value: |
+        Write your report in your preferred language; English is not required.
+        User guides: [English](https://github.com/JunLin615/opensci-engine/blob/main/docs/en/README.md) · [简体中文](https://github.com/JunLin615/opensci-engine/blob/main/docs/zh-CN/README.md).
+        Maintainers: use English by default for issue summaries and triage notes; preserve the reporter's original wording.
   - type: textarea
     id: summary
     attributes:
-      label: What happened? / 遇到了什么问题？
-      description: Describe your task, the actual result, and the expected result. / 描述你的任务、实际结果和预期结果。
+      label: What happened?
+      description: Describe your task, the actual result, and the expected result.
     validations:
       required: true
   - type: textarea
     id: steps
     attributes:
-      label: Steps to reproduce / 复现步骤
-      description: Include the commands or a small example project. / 附上运行命令或一个小型示例项目。
+      label: Steps to reproduce
+      description: Include the exact commands or a small example project, with input values and units. Include the catalog version if relevant.
     validations:
       required: true
   - type: input
     id: version
     attributes:
-      label: Engine version / 引擎版本
-      description: Shown by opensci-engine doctor. / 可通过 opensci-engine doctor 查看。
+      label: Installed engine version
+      description: >-
+        Run `opensci-engine doctor` or `python -c "from importlib.metadata import version; print(version('opensci-engine'))"`
+        in the environment that reproduces the problem.
       placeholder: "0.6.1"
     validations:
       required: true
   - type: input
     id: environment
     attributes:
-      label: Environment / 运行环境
+      label: Environment
       placeholder: "Windows 11, Python 3.12"
   - type: textarea
     id: output
     attributes:
-      label: Relevant output / 相关输出
-      description: Add the error code, target results, or screenshots. / 附上错误码、目标结果或截图。
+      label: Result status and relevant output
+      description: Include the reported status, process exit code, target values with units and bounds, and relevant issue codes, messages, suggested actions, or traceback. Attach a screenshot if helpful.
