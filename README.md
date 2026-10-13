@@ -1,0 +1,96 @@
+<p align="center">
+  <a href="https://opensci-optic.com/"><img src="assets/logo.svg" alt="OpenSci" width="88"></a>
+</p>
+
+# OpenSci Engine
+
+**Optical design, simulation, and a path to real hardware.**
+
+English · [简体中文](README.zh-CN.md)
+
+[![PyPI](https://img.shields.io/pypi/v/opensci-engine.svg)](https://pypi.org/project/opensci-engine/)
+[![Python](https://img.shields.io/pypi/pyversions/opensci-engine.svg)](https://pypi.org/project/opensci-engine/)
+[![Website](https://img.shields.io/badge/website-opensci--optic.com-167D8D)](https://opensci-optic.com/)
+
+Build optical systems, simulate light propagation, and explore the results on your own computer. OpenSci Engine combines a catalog of optical components, deterministic physics, structured scientific results, and an interactive 3D view in one Python package. Use it directly or through your own coding agent.
+
+When a design is ready, continue to [OpenSci](https://opensci-optic.com/) for optical components, assembly configurations, and hardware orders.
+
+**[Get started](docs/en/getting-started.md) · [User guide](docs/en/README.md) · [PyPI](https://pypi.org/project/opensci-engine/) · [Website](https://opensci-optic.com/) · [Feedback](https://github.com/JunLin615/opensci-engine/issues)**
+
+## What you can do
+
+| Design | Simulate | Explore | Build |
+| --- | --- | --- | --- |
+| Find optics and define positions, sources, and targets | Trace rays, propagate Gaussian beams, and evaluate polarization and interference | Inspect a 3D scene, compare target values, and export scientific data | Turn a validated design into a component selection and hardware order |
+
+- **Local computation:** run on Windows, macOS, or Linux with Python 3.11+.
+- **Reproducible projects:** preserve engine identity, catalog versions, numerical settings, and result hashes.
+- **Scientific outputs:** examine observation planes, beam states, ray paths, power budgets, and wavefront data.
+- **Python and CLI:** integrate into notebooks, scripts, parameter studies, and agent workflows.
+- **Connected hardware workflow:** continue from local design to purchasing and assembly through OpenSci.
+
+## Install
+
+```bash
+python -m pip install "opensci-engine[protected]"
+opensci-engine doctor
+```
+
+Prefer an isolated command-line tool? Use `uv tool install "opensci-engine[protected]"`.
+See the [installation guide](docs/en/installation.md) for virtual environments and upgrades.
+
+## Run your first design
+
+```bash
+opensci-engine catalog sync
+opensci-engine project example --kind beam_expander > project.json
+opensci-engine project run project.json --out-dir run
+opensci-engine view run
+```
+
+The first command downloads the current optical catalog. The example creates a two-lens beam expander; the run produces simulation results, a Local Validation record, and a 3D scene. The viewer opens locally in your browser.
+
+For Windows PowerShell 5.1, create the JSON file with `opensci-engine project example --kind beam_expander | Out-File -Encoding utf8 project.json`.
+
+Inspect and export the same run:
+
+```bash
+opensci-engine results describe run
+opensci-engine export arrivals run --format csv --out arrivals.csv
+opensci-engine project verify run
+```
+
+## Use Python
+
+```python
+from opensci_engine.local import example_project_of_kind, run_optical_project
+from opensci_engine.results import load_run
+
+project = example_project_of_kind("beam_expander")
+run = run_optical_project(project, output_dir="run-python")
+print(run.status.value)
+
+results = load_run("run-python")
+print(results.power_budget())
+```
+
+Try the runnable [beam expander](examples/beam_expander.py) and [ideal-lens focus](examples/ideal_lens_focus.py) examples.
+
+## Documentation
+
+| Guide | English | 简体中文 |
+| --- | --- | --- |
+| Installation and upgrades | [Read](docs/en/installation.md) | [阅读](docs/zh-CN/installation.md) |
+| Your first optical design | [Read](docs/en/getting-started.md) | [阅读](docs/zh-CN/getting-started.md) |
+| Catalog and reproducible projects | [Read](docs/en/catalog.md) | [阅读](docs/zh-CN/catalog.md) |
+| Results, visualization, and export | [Read](docs/en/results.md) | [阅读](docs/zh-CN/results.md) |
+| From design to hardware | [Read](docs/en/hardware.md) | [阅读](docs/zh-CN/hardware.md) |
+
+These guides and examples target the published **0.6.1** package. Find available package versions in the [PyPI release history](https://pypi.org/project/opensci-engine/#history).
+
+## Get involved
+
+Questions, example designs, bug reports, and documentation improvements are welcome in English or Chinese. [Open an issue](https://github.com/JunLin615/opensci-engine/issues/new/choose) or send a documentation or example pull request.
+
+This repository brings together the user documentation, examples, and community feedback for OpenSci Engine. Install the engine from [PyPI](https://pypi.org/project/opensci-engine/) and explore the full platform at [opensci-optic.com](https://opensci-optic.com/).

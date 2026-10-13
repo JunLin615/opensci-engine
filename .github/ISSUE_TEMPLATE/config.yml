@@ -1,0 +1,8 @@
+blank_issues_enabled: true
+contact_links:
+  - name: OpenSci website / OpenSci 官网
+    url: https://opensci-optic.com/
+    about: Explore optical products, design tools, and hardware services. / 了解光学产品、设计工具与硬件服务。
+  - name: User guide / 用户指南
+    url: https://github.com/JunLin615/opensci-engine#documentation
+    about: Installation, examples, and workflows in English and Chinese. / 中英文安装说明、示例和工作流程。

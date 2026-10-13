@@ -1,0 +1,36 @@
+name: Bug report / 问题报告
+description: Help us reproduce a problem / 帮助我们复现问题
+title: "[Bug] "
+body:
+  - type: textarea
+    id: summary
+    attributes:
+      label: What happened? / 遇到了什么问题？
+      description: Describe your task, the actual result, and the expected result. / 描述你的任务、实际结果和预期结果。
+    validations:
+      required: true
+  - type: textarea
+    id: steps
+    attributes:
+      label: Steps to reproduce / 复现步骤
+      description: Include the commands or a small example project. / 附上运行命令或一个小型示例项目。
+    validations:
+      required: true
+  - type: input
+    id: version
+    attributes:
+      label: Engine version / 引擎版本
+      description: Shown by opensci-engine doctor. / 可通过 opensci-engine doctor 查看。
+      placeholder: "0.6.1"
+    validations:
+      required: true
+  - type: input
+    id: environment
+    attributes:
+      label: Environment / 运行环境
+      placeholder: "Windows 11, Python 3.12"
+  - type: textarea
+    id: output
+    attributes:
+      label: Relevant output / 相关输出
+      description: Add the error code, target results, or screenshots. / 附上错误码、目标结果或截图。
