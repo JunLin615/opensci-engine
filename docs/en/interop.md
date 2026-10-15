@@ -11,8 +11,9 @@ deviations.
 
 **These examples require opensci-engine 0.8.0 or newer.** They use the linear optical
 network with per-path group delays, native components and the `TABULATED_THIN_LENS`
-model kind; the guides for the 0.6.1 package do not cover them. Each script checks the
-installed version and stops with a clear message on an older engine.
+model kind; the guides for the 0.6.1 package do not cover them. The scripts that run
+the Engine check the installed version and stop with a clear message on an older engine;
+the external-side scripts read only exported files and do not import the Engine.
 
 | Topic | OpenSci provides | External tool computes | Example |
 | --- | --- | --- | --- |
@@ -37,11 +38,20 @@ python -m venv .venv-optimization
 .venv-optimization/bin/python -m pip install -r examples/interop/optimization/requirements-optimization.txt
 ```
 
-On Windows use `.venv-optimization\Scripts\python`. The requirements files pin the
-verified versions; the third-party packages are never dependencies of
-`opensci-engine` itself. Every script prints one JSON summary on stdout and exits with
-0 when all its comparisons are inside their stated tolerances, 1 when one is not, and
-4 on an error (a JSON error on stderr).
+On Windows use `.venv-optimization\Scripts\python`. Each requirements file starts with
+`opensci-engine>=0.8.0`; pip resolves it only where opensci-engine 0.8.0 is available
+from your package index. With an engine wheel or source tree of 0.8.0 that you already
+have, install it first (`python -m pip install <path to the wheel or source tree>`) and
+then the requirements file. The files pin the verified versions of the third-party
+packages, which are never dependencies of `opensci-engine` itself.
+
+Every script prints one JSON summary on stdout. Its `outcome` compares OpenSci with an
+external tool or an independent reference, and is not an OpenSci run status:
+`WITHIN_TOLERANCE` (exit 0) when every comparison is inside its stated tolerance,
+`OUT_OF_TOLERANCE` (exit 1) when one is not, `COMPLETED` (exit 0) for a step that only
+produces data, and exit 4 with a JSON error on stderr for an error. OpenSci's own
+statuses (`PASS`, `WARNING`, `OUT_OF_MODEL_SCOPE`, ...) appear separately as
+`engine_status`.
 
 ## Optimization and tolerance
 
@@ -87,9 +97,11 @@ in the stop's plane (`RunResults.handoff`, also `opensci-engine results handoff 
 wavelength, medium, beam axes, Jones vector, the stop outline in the plane's frame and
 the field-construction convention with its applicability; plus the lens parameters
 from the Project, the Engine's own focal-plane result and the run identity. The script
-checks the handoff against the pupil-plane state 1 mm upstream propagated by ABCD. `external_focus.py` reads
-only these files. It constructs the sampled field under a stated convention
-(`tem00_field.py`):
+checks the handoff against the pupil-plane state 1 mm upstream propagated by ABCD.
+`external_focus.py` reads only these files. OpenSci does not export a field: intensity
+or power alone does not determine a complex field, and the sparse pupil rays of a run
+are not a sampled pupil field. The script therefore constructs the sampled field from
+the Gaussian state under a stated convention (`tem00_field.py`):
 
 * field `E ~ exp[i(k·r − ωt)]`; `U = sqrt(2P/(π w_x w_y)) exp(−x²/w_x² − y²/w_y²) exp(+ik(x²/2R_x + y²/2R_y))`
   in the beam axes, `R > 0` for a diverging beam; Gouy phase and piston omitted;
@@ -104,7 +116,7 @@ convergence study); prysm and POPPY recompute the normalized radial profile, Dif
 the absolute peak; a Hankel integral (`hankel_reference.py`) is the independent
 reference. Results of the validated run:
 
-| Stop radius | Engine status | Engine focal peak vs reference | LightPipes finest vs reference (convergence spread) |
+| Stop radius | Engine status | Engine focal peak vs reference | LightPipes finest grid: relative peak error (convergence spread) |
 | --- | --- | --- | --- |
 | 3 mm | `PASS` | +0.024 % | 3e-8 (1e-7) |
 | 1.2 mm (5.6 % of the power blocked) | `WARNING` `GAUSSIAN_TRUNCATION` | **+62 %** | −1.0e-4 (1.7e-4) |
@@ -114,7 +126,9 @@ The Engine's transmitted power equals `1 − exp(−2a²/w²)` in every case. It
 irradiance is a paraxial Gaussian quantity: exact for the open stop, but after a
 `GAUSSIAN_TRUNCATION` warning only the power is reliable and the focal irradiance needs
 a diffraction calculation like this one. prysm and POPPY agree with the reference
-profile to 4e-7, Diffractio's absolute peak to 3e-5.
+profile to 4e-7; both compute the same discrete Fourier transform of the same sampled
+field, so together they are one cross-check of the sampling, not two independent
+references. Diffractio's absolute peak agrees to 3e-5.
 
 Diffractio 1.0.0 requires numpy < 2 and cannot share an environment with
 opensci-engine. Install `requirements-diffractio.txt` in a second environment and run
@@ -142,7 +156,8 @@ The Project's lasers only define the network's modes, wavelength and polarizatio
 Every quantum quantity comes from `quantum_inputs.json`: one photon per source in the
 V mode; Gaussian wavepackets (rms intensity duration 0.25 ps for the HOM cases, 1000 ps
 for the MZI) with zero-delay indistinguishability 0.95; one threshold detector per output
-plane with efficiency 0.8 and a dark-count probability (0, and 0.01 in one case).
+plane with efficiency 0.8 and a dark-count probability per gate (0, and 0.01 in the
+lossless HOM case and the lossy 1 mm MZI case).
 `run_quantum.py` never imports opensci-engine:
 
 * it reads `T[output, input]` (Perceval `Unitary(Matrix(U))` and Piquasso
@@ -162,7 +177,10 @@ Piquasso recomputes the same distribution as the p-weighted mixture of
 indistinguishable and distinguishable photons. The closed-form reference
 (`reference.py`) uses no exported data: 2 × 2 splitter algebra, the SCHOTT N-BK7
 Sellmeier formula, Fresnel loss of the uncoated faces and the Gaussian wavepacket
-overlap. In the validated run Perceval matched the reference to 4e-8 and Piquasso to
+overlap. For lossy layouts it takes the loss amplitudes of both photons from
+`L = I − M†M`, so loss through a shared element interferes as it does physically,
+and threshold detection with dark counts acts on the complete photon-number
+distribution (one, two or no photons at each detector). In the validated run Perceval matched the reference to 4e-8 and Piquasso to
 2e-9 over all cases; the HOM dip visibility over the scan was 0.9491 (reference
 0.9491; analytic 0.95 at infinite delay range). Compensating the 3 mm window by its
 phase delay leaves a 0.163 ps group-delay mismatch and lowers the photons'
@@ -185,62 +203,72 @@ python examples/interop/metasurface/step3_fit_model.py run-interop-metasurface
 python examples/interop/metasurface/step4_engine_check.py run-interop-metasurface
 ```
 
+The external results are split into three sets that play different roles:
+
+| Set | Content | Used for |
+| --- | --- | --- |
+| Table | 10 wavelengths, 490–580 nm, 30 µm beam, normal incidence | the model rows |
+| Calibration | 5 wavelengths between the rows (495, 515, 525, 545, 565 nm), a 20 µm beam, field angles 2, 5, 8 and 20° at 532 nm | the error bounds and the domain |
+| Test | 4 other wavelengths (505, 535, 555, 575 nm), a 25 µm beam at 545 nm, 1.5° at 555 nm | only the final check |
+
 1. **Unit cells** (grcwa): zeroth-order complex transmission of pillars 40–150 nm in
    radius (period 325 nm, height 600 nm, constant indices TiO2 2.43 / SiO2 1.46, normal
-   incidence, x polarization) at the ten table wavelengths 490–580 nm and five hold-out
-   wavelengths. The flux-normalized amplitude `t·sqrt(T/|t|²)` is used, because `|t|²`
-   alone is not a power fraction across media of different index.
+   incidence, x polarization) at all 19 wavelengths. The flux-normalized amplitude
+   `t·sqrt(T/|t|²)` is used, because `|t|²` alone is not a power fraction across media of
+   different index.
 2. **Focusing** (numpy): local periodic approximation and scalar angular-spectrum
-   propagation of a 30 µm Gaussian beam; focus position, second-moment radius and
-   focusing efficiency per wavelength, at field angles 2, 5, 8 and 20° and for a 20 µm
-   beam.
+   propagation; focus position, second-moment radius and focusing efficiency for every
+   case. Tilted inputs reuse the normal-incidence cell responses, an approximation that
+   worsens with angle.
 3. **Model**: one row per table wavelength (equivalent thin-lens focal length from the
    Gaussian focusing law; transmittance = focusing efficiency / Gaussian power inside the
-   clear aperture), optical power and transmittance interpolated linearly in
-   wavelength, error bounds per supported metric from the hold-out comparison plus the
-   external numerical spread (RCWA orders 101/201, propagation windows 1024/2048
-   samples), the largest field angle whose deviations stay inside those bounds as
-   `max_field_angle_deg`, the validated beam radius rounded up by 0.1 µm as
-   `max_beam_radius_mm` (the Engine compares radii without a tolerance), `LINEAR_X`
-   as validated polarization, and the tool versions plus the SHA-256 of the unit-cell
-   library as evidence. The result is `metalens_model.json`.
-4. **OpenSci check**: the model is declared in a catalog-free Project and traced for
-   every table and hold-out wavelength, in one multi-line run, at small field angles,
-   and for the counterexamples.
+   clear aperture), optical power and transmittance interpolated linearly in wavelength.
+   Each supported metric's error bound is the largest deviation over the calibration set
+   plus the external numerical spread (RCWA orders 101/201, propagation windows
+   1024/2048 samples). For the field-angle domain, step 3 runs the model in OpenSci at
+   each calibration angle and compares the Engine's focus with the external focus; the
+   largest angle reached without leaving the bounds becomes `max_field_angle_deg`. The
+   validated beam radius, rounded up by 0.1 µm because the Engine compares radii without
+   a tolerance, becomes `max_beam_radius_mm`; `LINEAR_X` is the validated polarization;
+   tool versions and the SHA-256 of the unit-cell library are the evidence. The result
+   is `metalens_model.json`.
+4. **OpenSci check**: the model is declared in a catalog-free Project. The Engine must
+   reproduce the model's own thin-lens prediction, stay inside the stated errors on the
+   test set, and refuse the counterexamples. The calibration set's deviations are
+   reported as an envelope only: they set the bounds, so they cannot test them.
 
-Results of the validated run (unit cells with 101 RCWA orders, 1024 × 1024 propagation
-grid; external spread from 201 orders and a 2048-sample grid: 0.50 % in focus position,
-0.71 % in spot radius, 0.015 in efficiency):
+Results of the validated run (external spread: 0.50 % in focus position, 0.71 % in
+spot radius, 0.015 in efficiency):
 
-| Quantity | Table rows (10) | Hold-out wavelengths (5) | 20 µm input beam | Stated model error |
-| --- | --- | --- | --- | --- |
-| Focus position | exact by construction | ≤ 0.30 µm (0.16 %) | 0.08 µm | `waist_distance_*_mm` ± 0.0014 mm |
-| Spot radius (Engine Gaussian vs external second moment) | −3.0 … −7.3 % | −3.0 … −5.1 % | −0.6 % | `waist_radius_*_mm` ± 8.1 % |
-| Delivered power | exact by construction | −5.4 … +15.9 % | +0.03 % | `power_W` ± 19 % |
+| Quantity | Calibration set (sets the bound) | Test set (checks it) | Stated model error |
+| --- | --- | --- | --- |
+| Focus position | ≤ 0.30 µm | ≤ 0.32 µm | `waist_distance_*_mm` ± 0.0014 mm |
+| Spot radius (Engine Gaussian vs external second moment) | −3.0 … −7.3 % | −1.6 … −5.8 % | `waist_radius_*_mm` ± 8.1 % |
+| Delivered power | −5.4 … +15.9 % | −3.6 … +15.7 % | `power_W` ± 19 % |
 
-The focal position follows the external result closely across the band; the ideal
-Gaussian focus is 3–7 % smaller than the external spot (phase discretization of the
-cells), which the stated radius error carries. The focusing efficiency changes from
-0.64 to 0.95 within 10 nm, so linear interpolation between rows predicts the power of
-a hold-out wavelength only to 16 %; denser rows or `transmittance_interpolation:
-POINTS_ONLY` give a tighter power model. At 2° field angle the external focus stays
-within the stated errors; at 5° its axial position moves by 1.56 µm, more than the
-1.4 µm bound, so `max_field_angle_deg` is 2. The Engine reproduced the thin-lens
-prediction of the model to 6e-16 in every in-domain case, also with all 15 wavelengths
-as spectral lines of one source; the power not delivered into the focus appears as the
-element's `UNMODELLED_RESPONSE` sink in the power budget.
+All test cases stay inside the stated errors. The focal position follows the external
+result closely across the band; the ideal Gaussian focus is 2–7 % smaller than the
+external spot (phase discretization of the cells), which the stated radius error carries.
+The focusing efficiency changes from 0.64 to 0.95 within 10 nm, so linear interpolation
+between rows predicts the delivered power only to about 16 %; denser rows or
+`transmittance_interpolation: POINTS_ONLY` give a tighter power model. At 2° the
+Engine's focus stays inside the bounds (axial −0.23 µm, spot −5.2 %); at 5° the external
+focus moves 1.56 µm toward the lens while the Engine's does not, more than the 1.4 µm
+bound, so `max_field_angle_deg` is 2. The Engine reproduced the model's thin-lens
+prediction to 6e-16, also with all 19 wavelengths as spectral lines of one source; the
+power not delivered into the focus appears as the element's `UNMODELLED_RESPONSE` sink in
+the power budget.
 
-Counterexamples: a 450 nm source is outside the 490–580 nm rows and the run is
-`OUT_OF_MODEL_SCOPE` (`MODEL_WAVELENGTH_OUTSIDE_BAND`). At 20° the external focus lies
-15.6 µm closer to the lens and 5.6 µm closer to the axis than the thin-lens prediction,
-with a 68 % larger spot and 13 % less power; the run is `OUT_OF_MODEL_SCOPE`
-(`MODEL_FIELD_ANGLE_EXCEEDED`), as are 5° and 8°. A target asking for a metric the
-model was not validated for (`peak_irradiance_W_per_mm2`) through the element is
-`OUT_OF_MODEL_SCOPE` with `METRIC_NOT_VALIDATED_FOR_ELEMENT` and carries no value.
-`--model per-wavelength-ideal` runs the same comparison with one `IDEAL_THIN_LENS` per
-wavelength; that kind cannot state a field-angle domain and returns `WARNING` at 20°.
-All runs report `GAUSSIAN_TRUNCATION` because the 100 µm aperture clips 0.4 % of the
-30 µm beam; the Engine counts that power loss itself.
+Counterexamples, all `OUT_OF_MODEL_SCOPE`: a 450 nm source, outside the 490–580 nm rows
+(`MODEL_WAVELENGTH_OUTSIDE_BAND`); 5°, 8° and 20° (`MODEL_FIELD_ANGLE_EXCEEDED`; at 20°
+the external focus lies 15.6 µm closer to the lens and 5.6 µm closer to the axis than
+the Engine's, with a 68 % larger spot and 13 % less power); and a target asking for a
+metric the model was not validated for (`peak_irradiance_W_per_mm2`) through the element
+(`METRIC_NOT_VALIDATED_FOR_ELEMENT`, no value). `--model per-wavelength-ideal` runs the
+same comparison with one `IDEAL_THIN_LENS` per wavelength; that kind cannot state a
+field-angle domain and returns `WARNING` at 5°, 8° and 20°. All runs report
+`GAUSSIAN_TRUNCATION` because the 100 µm aperture clips 0.4 % of the 30 µm beam; the
+Engine counts that power loss itself.
 
 Other unit-cell solvers fit the same pipeline as long as step 1 writes the same library
 fields: meent (MIT) and torcwa (LGPL) install with pip; DFlat (`dflat-opt`) and metabox
@@ -249,9 +277,10 @@ TensorFlow 2.11, so it belongs in its own environment exchanging files. Only grc
 (GPLv3, as declared in its package metadata) was executed for this example.
 
 A single external focus does not define a general component. The model is valid only
-for its wavelength rows, field angles up to `max_field_angle_deg`, input beam radii up
-to `max_beam_radius_mm` (validated at 20 and 30 µm, stated as 30.1 µm), x polarization and the listed
-metrics; a target asking for another metric through the element is outside the model's
-scope. It states no phase, so the network export and wavefront results refuse paths
-through it. Its accuracy is bounded by the external reference itself: the local
-periodic approximation and scalar propagation neglect cell coupling and vector effects.
+for its wavelength rows, field angles up to `max_field_angle_deg`, input beam radii up to
+`max_beam_radius_mm` (calibrated at 20 and 30 µm, tested at 25 µm, stated as 30.1 µm), x
+polarization and the listed metrics; a target asking for another metric through the
+element is outside the model's scope. It states no phase, so the network export and
+wavefront results refuse paths through it. Its accuracy is bounded by the external
+reference itself: the local periodic approximation and scalar propagation neglect cell
+coupling and vector effects.

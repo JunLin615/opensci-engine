@@ -38,13 +38,13 @@ import time
 import numpy as np
 
 if __package__:
-    from ..common import ArgumentParser, emit, environment, write_json
+    from ..common import ArgumentParser, comparison_status, emit, environment, write_json
     from . import network_io as nio
     from . import reference as ref
 else:
     sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
     sys.path.insert(0, str(Path(__file__).resolve().parent))
-    from common import ArgumentParser, emit, environment, write_json
+    from common import ArgumentParser, comparison_status, emit, environment, write_json
     import network_io as nio
     import reference as ref
 
@@ -253,9 +253,9 @@ def run_example(directory, inputs_path):
                       "note": "1 - min/max of P_cc over the scanned delays; the scan ends at |delay| = 1 ps, where the "
                               "wavepacket overlap is exp(-4) of its zero-delay value"}
     checks = {key: {"value": worst[key], "tolerance": TOLERANCES[key]} for key in TOLERANCES if key in worst}
-    status = "PASS" if not unexpected and all(c["value"] <= c["tolerance"] for c in checks.values()) else "FAIL"
+    status = comparison_status(not unexpected and all(c["value"] <= c["tolerance"] for c in checks.values()))
     figure = plot_scan(scan, directory / "hom_delay_scan.png") if scan else None
-    report = {"example": "interop/quantum", "status": status, "requires": "network exports from opensci-engine>=0.8.0",
+    report = {"example": "interop/quantum", "outcome": status, "requires": "network exports from opensci-engine>=0.8.0",
               "environment": environment("perceval-quandela", "exqalibur", "piquasso", "numba", "numpy", "scipy"),
               "licenses_as_reported_upstream": {
                   "perceval-quandela": "MIT", "exqalibur": "CC BY-NC-ND 4.0 (package metadata; required by Perceval)",
@@ -266,7 +266,7 @@ def run_example(directory, inputs_path):
     table = {name: ({"refused": case.get("refused") or case.get("refusal")} if "perceval_pcc" not in case else
                     {"p": round(case["indistinguishability"], 9), "perceval": round(case["perceval_pcc"], 10),
                      "reference": round(case["reference"]["pcc"], 10)}) for name, case in cases.items()}
-    return {"example": "interop/quantum", "status": status, "checks": checks, "unexpected_outcomes": unexpected,
+    return {"example": "interop/quantum", "outcome": status, "checks": checks, "unexpected_outcomes": unexpected,
             "hom_visibility": visibility, "cases": table, "report": str(directory / "quantum_report.json"),
             "figure": figure}
 

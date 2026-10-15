@@ -4,12 +4,18 @@
   group index n_g = n - lambda dn/dlambda (analytic derivative).
 * Uncoated window at normal incidence: Fresnel power reflectance R = ((n-1)/(n+1))^2
   per face, ghost reflections not followed; flux-normalized amplitude 1 - R for two faces.
-* Splitter: symmetric lossless 50:50 beam splitter BS = [[1, i], [i, 1]] / sqrt(2)
-  (any phase convention gives the same photon statistics for these layouts).
+* Splitter: symmetric lossless 50:50 beam splitter BS = [[1, i], [i, 1]] / sqrt(2). The
+  HOM statistics do not depend on the splitter's phase convention; the MZI statistics do
+  not either as long as both splitters follow the same convention.
 * Two photons, one per input, with mutual indistinguishability p (|<psi_A|psi_B>|^2)
-  through a 2 x 2 amplitude matrix M[output, input] (losses into separate channels):
+  through a 2 x 2 amplitude matrix M[output, input]. Lost light leaves through loss
+  modes whose Gram matrix is L = I - M^H M (any passive completion of M gives the same
+  L), so loss amplitudes of the two photons interfere when they share a lossy element:
   P(1,1) = |a|^2 + |b|^2 + 2 p Re(a b*), a = M[0,A] M[1,B], b = M[0,B] M[1,A];
-  P(2,0) = (1 + p) |M[0,A] M[0,B]|^2, and the one-photon / zero-photon terms.
+  P(2,0) = (1 + p) |M[0,A] M[0,B]|^2;
+  P(1,0) = |M[0,A]|^2 L[B,B] + |M[0,B]|^2 L[A,A] + 2 p Re(M[0,A] conj(M[0,B]) L[A,B]);
+  P(0,0) = L[A,A] L[B,B] + p |L[A,B]|^2 (p-weighted mix of the indistinguishable and
+  distinguishable cases; the probabilities sum to 1).
 * Gaussian wavepackets with rms intensity duration sigma: p(dt) = p0 exp(-dt^2 / (4 sigma^2)).
 * Threshold detectors of efficiency eta and dark-count probability d per gate:
   P(click | n photons) = 1 - (1 - d)(1 - eta)^n.
@@ -57,14 +63,19 @@ def two_photon_distribution(m, p):
     """Photon-number probabilities {(n1, n2): P} at two outputs for photons in inputs 0 and 1 of M[out, in]."""
     m = np.asarray(m, dtype=complex)
     a, b = m[0, 0] * m[1, 1], m[0, 1] * m[1, 0]
-    loss = [1.0 - abs(m[0, j]) ** 2 - abs(m[1, j]) ** 2 for j in (0, 1)]
+    loss = np.eye(2) - m.conj().T @ m  # Gram matrix of the loss amplitudes, L[j, k] = sum_l conj(N[l, j]) N[l, k]
+
+    def one(i):
+        return (abs(m[i, 0]) ** 2 * loss[1, 1].real + abs(m[i, 1]) ** 2 * loss[0, 0].real
+                + 2.0 * p * (m[i, 0] * np.conj(m[i, 1]) * loss[0, 1]).real)
+
     return {
         (1, 1): float(abs(a) ** 2 + abs(b) ** 2 + 2.0 * p * (a * np.conj(b)).real),
         (2, 0): float((1.0 + p) * abs(m[0, 0] * m[0, 1]) ** 2),
         (0, 2): float((1.0 + p) * abs(m[1, 0] * m[1, 1]) ** 2),
-        (1, 0): float(abs(m[0, 0]) ** 2 * loss[1] + abs(m[0, 1]) ** 2 * loss[0]),
-        (0, 1): float(abs(m[1, 0]) ** 2 * loss[1] + abs(m[1, 1]) ** 2 * loss[0]),
-        (0, 0): float(loss[0] * loss[1]),
+        (1, 0): float(one(0)),
+        (0, 1): float(one(1)),
+        (0, 0): float(loss[0, 0].real * loss[1, 1].real + p * abs(loss[0, 1]) ** 2),
     }
 
 

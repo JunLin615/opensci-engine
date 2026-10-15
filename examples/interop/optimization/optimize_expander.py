@@ -11,7 +11,9 @@ only, no Engine data) gives the reference optimum and the reference value of eve
 evaluated design.
 
 Every evaluation is logged with its run identity (project hash, Engine input hash,
-result hash, engine build id) in ``evaluations.jsonl``. The optimizer chooses the
+result hash, engine build id) and run status in ``evaluations.jsonl``. A run
+whose status is not PASS, WARNING or FAIL (for example OUT_OF_MODEL_SCOPE or UNKNOWN)
+is an infeasible design: the optimizer receives a penalty instead of its value. The optimizer chooses the
 values; OpenSci computes each design. Project ``retained_dofs`` are design intent,
 not optimizer variables.
 
@@ -28,10 +30,10 @@ import sys
 import time
 
 if __package__:
-    from ..common import ArgumentParser, decimal_text, emit, environment, require_engine, run_identity, write_json
+    from ..common import ArgumentParser, comparison_status, decimal_text, emit, environment, require_engine, run_identity, write_json
 else:
     sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
-    from common import ArgumentParser, decimal_text, emit, environment, require_engine, run_identity, write_json
+    from common import ArgumentParser, comparison_status, decimal_text, emit, environment, require_engine, run_identity, write_json
 
 WAVELENGTH_NM = 532.0
 WAIST_MM = 0.5
@@ -41,6 +43,11 @@ OUTPUT_X_MM = 700.0
 BOUNDS_MM = (150.0, 250.0)  # L1-L2 separation searched by the optimizers
 PLUS_X = [0.7071067811865476, 0.0, 0.7071067811865476, 0.0]  # local +Z along design +X
 METRIC = "divergence_half_angle_x_rad"
+# Run statuses whose metric value is a computed result (FAIL: the target bound is not met, the value is still valid).
+# Any other status (OUT_OF_MODEL_SCOPE, UNKNOWN, NOT_APPLICABLE, ...) or a missing value makes the design infeasible: the
+# optimizer receives INFEASIBLE_PENALTY_RAD and the evaluation is logged with feasible = false.
+FEASIBLE_STATUSES = ("PASS", "WARNING", "FAIL")
+INFEASIBLE_PENALTY_RAD = 1.0
 # Tolerance study: uniform mounting errors about the optimum (mm) and a relative waist error.
 TOLERANCES = {"L1_x_mm": 0.5, "L2_x_mm": 0.5, "waist_rel": 0.05}
 
@@ -125,14 +132,16 @@ class EngineObjective:
         document = edited_project(separation_mm, l1_shift_mm=l1_shift_mm, waist_mm=waist_mm)
         results = self._load_run(self._run(self._load_project(document)))
         target = next(t for t in results.result.targets if t.target_id == "collimated")
-        value = target.value if target.value is not None else math.inf
         statuses = results.describe()["status"]
+        run_status = statuses.get("validation_status") or statuses["engine_status"]
+        feasible = run_status in FEASIBLE_STATUSES and target.value is not None and math.isfinite(target.value)
+        value = target.value if feasible else INFEASIBLE_PENALTY_RAD
         self.count += 1
         record = {
             "evaluation": self.count, "stage": stage,
             "inputs": {"L1_x_mm": L1_X_MM + l1_shift_mm, "L2_x_mm": L1_X_MM + separation_mm, "waist_radius_mm": waist_mm},
             "metric": METRIC, "value": target.value, "unit": target.unit, "target_status": target.status.value,
-            "run_status": statuses.get("validation_status") or statuses["engine_status"],
+            "run_status": run_status, "feasible": feasible,
             "reference_value": reference_divergence(separation_mm, l1_shift_mm=l1_shift_mm, waist_mm=waist_mm),
             "seconds": round(time.perf_counter() - started, 4),
             "identity": run_identity(results),
@@ -188,7 +197,10 @@ def run_example(out_dir, *, optuna_trials=60, seed=1, sobol_n=128):
     reference_si = sobol.analyze(problem, reference_values, calc_second_order=False, seed=seed)
 
     log = [json.loads(line) for line in (out_dir / "evaluations.jsonl").read_text(encoding="utf-8").splitlines()]
-    rel = [abs(r["value"] / r["reference_value"] - 1.0) for r in log if r["value"] is not None]
+    infeasible = [r["evaluation"] for r in log if not r["feasible"]]
+    if any(not r["feasible"] for r in log if r["stage"] == "tolerance"):
+        raise RuntimeError("an Engine run in the tolerance sample was infeasible; Sobol indices would be meaningless")
+    rel = [abs(r["value"] / r["reference_value"] - 1.0) for r in log if r["feasible"]]
     engine_vs_reference = max(rel)
     optuna_theta_excess = study.best_value / reference.fun - 1.0
     checks = {
@@ -197,10 +209,10 @@ def run_example(out_dir, *, optuna_trials=60, seed=1, sobol_n=128):
         "optuna_best_divergence_excess_rel": {"value": optuna_theta_excess, "tolerance": 0.01},
         "sobol_ST_max_abs_diff": {"value": float(np.max(np.abs(engine_si["ST"] - reference_si["ST"]))), "tolerance": 1e-6},
     }
-    status = "PASS" if all(c["value"] <= c["tolerance"] for c in checks.values()) else "FAIL"
+    status = comparison_status(all(c["value"] <= c["tolerance"] for c in checks.values()))
     identities = {(r["identity"]["engine_build_id"]) for r in log}
     report = {
-        "example": "interop/optimization", "status": status, "requires": "opensci-engine>=0.8.0",
+        "example": "interop/optimization", "outcome": status, "requires": "opensci-engine>=0.8.0",
         "environment": environment("scipy", "optuna", "SALib", "numpy"),
         "reference": {"method": "ABCD Gaussian beam, numpy only", "optimum_separation_mm": reference.x,
                       "optimum_divergence_rad": reference.fun},
@@ -220,14 +232,16 @@ def run_example(out_dir, *, optuna_trials=60, seed=1, sobol_n=128):
                       "reference": {name: {key: float(reference_si[key][i]) for key in ("S1", "S1_conf", "ST", "ST_conf")}
                                     for i, name in enumerate(problem["names"])}},
         "checks": checks,
-        "evaluations": len(log), "mean_seconds_per_evaluation": round(sum(r["seconds"] for r in log) / len(log), 4),
+        "evaluations": len(log), "run_statuses": {st: sum(1 for r in log if r["run_status"] == st)
+                                                  for st in sorted({r["run_status"] for r in log})},
+        "infeasible_evaluations": infeasible, "mean_seconds_per_evaluation": round(sum(r["seconds"] for r in log) / len(log), 4),
         "engine_build_ids": sorted(identities), "engine_version": installed,
         "first_evaluation_identity": log[0]["identity"],
         "files": {"evaluations": str(out_dir / "evaluations.jsonl"), "baseline_project": str(out_dir / "project-baseline.json")},
     }
     write_json(out_dir / "report.json", report)
-    return {key: report[key] for key in ("example", "status", "reference", "scipy", "optuna", "checks",
-                                         "evaluations", "engine_build_ids", "files")} | {
+    return {key: report[key] for key in ("example", "outcome", "reference", "scipy", "optuna", "checks",
+                                         "evaluations", "run_statuses", "engine_build_ids", "files")} | {
         "report": str(out_dir / "report.json")}
 
 

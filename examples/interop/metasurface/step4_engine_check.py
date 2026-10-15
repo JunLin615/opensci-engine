@@ -1,24 +1,28 @@
 """Step 4: use the fitted metalens model in OpenSci and check it (requires opensci-engine 0.8.0).
 
 The step-3 ``TABULATED_THIN_LENS`` model is declared in a catalog-free Project and
-traced with the same 30 um Gaussian input as the external calculation (waist at the
-metasurface, x polarization). For every table and hold-out wavelength the Engine's
-waist position, waist radius and delivered power are compared with
+traced with the same Gaussian input as the external calculation (waist at the
+metasurface, x polarization). The Engine's waist position, waist radius and delivered
+power are compared with
 
-* the step-3 thin-lens prediction (the Engine must reproduce the model it was given),
-* the external focus (the deviation must stay inside the model's stated errors).
+* the step-3 thin-lens prediction: the Engine must reproduce the model it was given;
+* the external focus on the test set (four test wavelengths, a 25 um beam, a 1.5 deg
+  field angle), which step 3 never used: the deviation must stay inside the model's
+  stated errors.
 
-One Project with a multi-line source shows the chromatic focus of the whole table in
+The calibration set (table rows, calibration wavelengths, 20 um beam, accepted field
+angles) set those errors in step 3, so its deviations are reported as an envelope, not
+counted as a check. One Project with a multi-line source traces every wavelength in
 one run. Outside the model's domain the Engine must not return a result as valid:
 
 * a 450 nm source (outside the 490-580 nm rows): ``OUT_OF_MODEL_SCOPE``;
-* a 20 deg field angle (beyond ``max_field_angle_deg``): ``OUT_OF_MODEL_SCOPE``;
+* every calibration angle beyond ``max_field_angle_deg``: ``OUT_OF_MODEL_SCOPE``;
 * a target asking for a metric the model was not validated for: ``OUT_OF_MODEL_SCOPE``.
 
 ``--model per-wavelength-ideal`` runs the same comparison with one IDEAL_THIN_LENS per
 wavelength (focal length and transmittance interpolated from the same rows), the
 single-line equivalent of the tabulated model; that model kind cannot state a field-
-angle domain, so its 20 deg result is reported, not judged.
+angle domain, so its results beyond the angle domain are reported, not judged.
 
 Usage: python examples/interop/metasurface/step4_engine_check.py run-interop-metasurface [--model tabulated]
 """
@@ -32,14 +36,14 @@ from pathlib import Path
 import sys
 
 if __package__:
-    from ..common import ArgumentParser, decimal_text, emit, environment, pose, require_engine, run_identity, write_json
-    from .step1_unit_cells import HOLDOUT_NM, TABLE_NM
+    from ..common import ArgumentParser, comparison_status, decimal_text, emit, environment, pose, require_engine, run_identity, write_json
+    from .step1_unit_cells import CALIBRATION_NM, TABLE_NM, TEST_NM
     from .step3_fit_model import aperture_fraction, interpolate, thin_lens_focus
 else:
     sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
     sys.path.insert(0, str(Path(__file__).resolve().parent))
-    from common import ArgumentParser, decimal_text, emit, environment, pose, require_engine, run_identity, write_json
-    from step1_unit_cells import HOLDOUT_NM, TABLE_NM
+    from common import ArgumentParser, comparison_status, decimal_text, emit, environment, pose, require_engine, run_identity, write_json
+    from step1_unit_cells import CALIBRATION_NM, TABLE_NM, TEST_NM
     from step3_fit_model import aperture_fraction, interpolate, thin_lens_focus
 
 LENS_X_MM, HEIGHT_MM, PLANE_X_MM = 0.0, 50.0, 0.3
@@ -147,6 +151,24 @@ def within(errors, bounds):
             and abs(errors["power_rel_err"]) <= bounds["power_rel"])
 
 
+def field_entry(outcome, row, max_angle):
+    beam = outcome["beams"][0] if outcome["beams"] else {}
+    entry = {"tilt_deg": row["tilt_deg"], "wavelength_nm": row["wavelength_nm"], "set": row.get("set"),
+             "inside_model_domain": row["tilt_deg"] <= max_angle, "status": outcome["status"],
+             "issues": outcome["issues"], "model_scope_issues": outcome["model_scope_issues"],
+             "target_issue_codes": outcome["target_issue_codes"],
+             "engine": {k: beam.get(k) for k in ("waist_axial_um", "waist_lateral_um", "waist_radius_um", "power_W")},
+             "external": {"z_focus_um": row["z_focus_um"], "lateral_um": row["focus_xy_um"][0], "w_focus_um": row["w_focus_um"],
+                          "power_W": 0.001 * row["focusing_efficiency"]}}
+    if beam.get("waist_axial_um") is not None:
+        entry["engine_vs_external"] = {
+            "z_abs_err_um": beam["waist_axial_um"] - row["z_focus_um"],
+            "lateral_abs_err_um": beam["waist_lateral_um"] - row["focus_xy_um"][0],
+            "w_rel_err": beam["waist_radius_um"] / row["w_focus_um"] - 1,
+            "power_rel_err": beam["power_W"] / (0.001 * row["focusing_efficiency"]) - 1}
+    return entry
+
+
 def run_example(directory, mode):
     installed = require_engine()
     directory = Path(directory)
@@ -157,81 +179,73 @@ def run_example(directory, mode):
     waist_um, clear_um = design["input_waist_radius_um"], design["diameter_um"] / 2
     rows = model_rows(model)
     bounds = bounds_of(model)
+    max_angle = float(model["model"]["max_field_angle_deg"])
     external = {(r["wavelength_nm"], r["tilt_deg"], r["input_waist_radius_um"]): r for r in table["rows"]}
 
-    cases = {}
-    for lam in TABLE_NM + HOLDOUT_NM:
-        outcome = run(project(model, mode, wavelengths_nm=[lam], waist_um=waist_um))
+    def normal_case(lam, waist, row, role):
+        outcome = run(project(model, mode, wavelengths_nm=[lam], waist_um=waist))
         f_um, transmittance = interpolate(rows, lam)
-        entry = {"role": "table row" if lam in TABLE_NM else "hold-out", "status": outcome["status"],
-                 "issues": outcome["issues"], "identity": outcome["identity"]}
-        entry.update(compare(outcome["beams"][0], external[(lam, 0.0, waist_um)], model, waist_um, clear_um, f_um,
-                             transmittance))
+        entry = {"role": role, "status": outcome["status"], "issues": outcome["issues"], "identity": outcome["identity"]}
+        entry.update(compare(outcome["beams"][0], row, model, waist, clear_um, f_um, transmittance))
         entry["within_stated_errors"] = within(entry["engine_vs_external"], bounds)
-        cases[f"{lam}nm"] = entry
-    for (lam, tilt, waist), row in external.items():
-        if tilt == 0.0 and waist != waist_um:
-            outcome = run(project(model, mode, wavelengths_nm=[lam], waist_um=waist))
-            f_um, transmittance = interpolate(rows, lam)
-            entry = {"role": "beam-size check", "status": outcome["status"], "issues": outcome["issues"]}
-            entry.update(compare(outcome["beams"][0], row, model, waist, clear_um, f_um, transmittance))
-            entry["within_stated_errors"] = within(entry["engine_vs_external"], bounds)
-            cases[f"{lam}nm_input_{waist:g}um"] = entry
+        return entry
 
-    max_angle = float(model["model"]["max_field_angle_deg"])
+    calibration, test = {}, {}
+    for lam in TABLE_NM + CALIBRATION_NM:
+        calibration[f"{lam}nm"] = normal_case(lam, waist_um, external[(lam, 0.0, waist_um)],
+                                              "table row" if lam in TABLE_NM else "calibration wavelength")
+    for lam in TEST_NM:
+        test[f"{lam}nm"] = normal_case(lam, waist_um, external[(lam, 0.0, waist_um)], "test wavelength")
+    for (lam, tilt, waist), row in sorted(external.items()):
+        if tilt == 0.0 and waist != waist_um:
+            target = test if row.get("set") == "test" else calibration
+            target[f"{lam}nm_input_{waist:g}um"] = normal_case(lam, waist, row, f"{row.get('set', 'calibration')} beam size")
+
     field = {}
     for (lam, tilt, waist), row in sorted(external.items()):
-        if tilt == 0.0:
-            continue
-        outcome = run(project(model, mode, wavelengths_nm=[lam], waist_um=waist, tilt_deg=tilt))
-        beam = outcome["beams"][0] if outcome["beams"] else {}
-        entry = {"tilt_deg": tilt, "inside_model_domain": tilt <= max_angle, "status": outcome["status"],
-                 "issues": outcome["issues"], "model_scope_issues": outcome["model_scope_issues"],
-                 "target_issue_codes": outcome["target_issue_codes"],
-                 "engine": {k: beam.get(k) for k in ("waist_axial_um", "waist_lateral_um", "waist_radius_um", "power_W")},
-                 "external": {"z_focus_um": row["z_focus_um"], "lateral_um": row["focus_xy_um"][0], "w_focus_um": row["w_focus_um"],
-                              "power_W": 0.001 * row["focusing_efficiency"]}}
-        if beam.get("waist_axial_um") is not None:
-            entry["engine_vs_external"] = {
-                "z_abs_err_um": beam["waist_axial_um"] - row["z_focus_um"],
-                "lateral_abs_err_um": beam["waist_lateral_um"] - row["focus_xy_um"][0],
-                "w_rel_err": beam["waist_radius_um"] / row["w_focus_um"] - 1,
-                "power_rel_err": beam["power_W"] / (0.001 * row["focusing_efficiency"]) - 1}
-        field[f"{tilt:g}deg"] = entry
+        if tilt > 0.0:
+            outcome = run(project(model, mode, wavelengths_nm=[lam], waist_um=waist, tilt_deg=tilt))
+            field[f"{lam}nm_{tilt:g}deg"] = field_entry(outcome, row, max_angle)
 
     counter = {"450nm": run(project(model, mode, wavelengths_nm=[450.0], waist_um=waist_um,
                                     band_override=(rows[0]["wavelength_nm"], rows[-1]["wavelength_nm"])))}
-    counter["450nm"]["expected"] = "OUT_OF_MODEL_SCOPE"
-    counter["450nm"]["expected_code"] = "MODEL_WAVELENGTH_OUTSIDE_BAND"
-    counter["20deg"] = {k: field["20deg"][k] for k in ("status", "issues", "model_scope_issues", "target_issue_codes",
-                                                        "engine", "external")}
-    counter["20deg"]["expected"] = "OUT_OF_MODEL_SCOPE" if mode == "tabulated" else "not stated by IDEAL_THIN_LENS"
-    counter["20deg"]["expected_code"] = "MODEL_FIELD_ANGLE_EXCEEDED" if mode == "tabulated" else None
+    counter["450nm"].update(expected="OUT_OF_MODEL_SCOPE", expected_code="MODEL_WAVELENGTH_OUTSIDE_BAND")
+    beyond = [f for f in field.values() if not f["inside_model_domain"]]
+    for entry in beyond:
+        name = f"{entry['tilt_deg']:g}deg"
+        counter[name] = {k: entry[k] for k in ("status", "issues", "model_scope_issues", "target_issue_codes", "engine",
+                                                "external")}
+        if mode == "tabulated":
+            counter[name].update(expected="OUT_OF_MODEL_SCOPE", expected_code="MODEL_FIELD_ANGLE_EXCEEDED")
+        else:
+            counter[name].update(expected="not stated by IDEAL_THIN_LENS", expected_code=None)
+    multi_line = None
     if mode == "tabulated":
         counter["unsupported_metric"] = run(project(model, mode, wavelengths_nm=[532], waist_um=waist_um,
                                                     target_metric="peak_irradiance_W_per_mm2"))
-        counter["unsupported_metric"]["expected"] = "OUT_OF_MODEL_SCOPE"
-        counter["unsupported_metric"]["expected_code"] = "METRIC_NOT_VALIDATED_FOR_ELEMENT"
-        multi = run(project(model, mode, wavelengths_nm=list(TABLE_NM + HOLDOUT_NM), waist_um=waist_um))
+        counter["unsupported_metric"].update(expected="OUT_OF_MODEL_SCOPE", expected_code="METRIC_NOT_VALIDATED_FOR_ELEMENT")
+        all_lines = TABLE_NM + CALIBRATION_NM + TEST_NM
+        multi = run(project(model, mode, wavelengths_nm=list(all_lines), waist_um=waist_um))
         lines = {round(b["wavelength_nm"]): b for b in multi["beams"]}
         multi_line = {"status": multi["status"], "issues": multi["issues"], "identity": multi["identity"], "lines": {}}
-        for lam in TABLE_NM + HOLDOUT_NM:
+        for lam in all_lines:
             f_um, transmittance = interpolate(rows, lam)
-            multi_line["lines"][f"{lam}nm"] = compare(lines[lam], external[(lam, 0.0, waist_um)], model, waist_um, clear_um,
-                                                      f_um, transmittance)
-    else:
-        multi_line = None
+            multi_line["lines"][f"{lam}nm"] = compare(lines[lam], external[(lam, 0.0, waist_um)], model, waist_um,
+                                                      clear_um, f_um, transmittance)
     for outcome in counter.values():
         codes = set(outcome["issues"]) | set(outcome.get("target_issue_codes", [])) | set(outcome["model_scope_issues"])
         outcome["as_expected"] = ((outcome["status"] == outcome["expected"] and outcome["expected_code"] in codes)
                                   if outcome["expected"].isupper() else None)
 
-    in_domain = list(cases.values()) + [f for f in field.values() if f["inside_model_domain"]]
+    test_field = [f for f in field.values() if f["set"] == "test"]
+    calibration_field = [f for f in field.values() if f["set"] != "test" and f["inside_model_domain"]]
+    test_cases = list(test.values())
+    in_domain = list(calibration.values()) + test_cases + calibration_field + test_field
     checks = {
-        "engine_vs_model_rel": {"value": max(c["engine_vs_model_rel"] for c in cases.values()), "tolerance": MODEL_AGREEMENT_REL},
-        "in_domain_cases_within_stated_errors": {"value": sum(1 for c in cases.values() if not c["within_stated_errors"])
-                                                 + sum(1 for f in field.values() if f["inside_model_domain"]
-                                                       and not within_field(f, bounds)), "tolerance": 0},
+        "engine_vs_model_rel": {"value": max(c["engine_vs_model_rel"] for c in list(calibration.values()) + test_cases),
+                                "tolerance": MODEL_AGREEMENT_REL},
+        "test_cases_outside_stated_errors": {"value": sum(1 for c in test_cases if not c["within_stated_errors"])
+                                             + sum(1 for f in test_field if not within_field(f, bounds)), "tolerance": 0},
         "in_domain_runs_out_of_scope": {"value": sum(1 for c in in_domain if c["status"] == "OUT_OF_MODEL_SCOPE")
                                         + (1 if multi_line and multi_line["status"] == "OUT_OF_MODEL_SCOPE" else 0),
                                         "tolerance": 0},
@@ -241,21 +255,24 @@ def run_example(directory, mode):
     if multi_line:
         checks["multi_line_engine_vs_model_rel"] = {"value": max(l["engine_vs_model_rel"] for l in multi_line["lines"].values()),
                                                     "tolerance": MODEL_AGREEMENT_REL}
-    status = "PASS" if all(c["value"] <= c["tolerance"] for c in checks.values()) else "FAIL"
-    holdouts = [c for c in cases.values() if c["role"] == "hold-out"]
-    report = {"example": "interop/metasurface step 4", "status": status, "model_mode": mode, "engine_version": installed,
+    outcome = comparison_status(all(c["value"] <= c["tolerance"] for c in checks.values()))
+    # The calibration set defined the bounds: its deviations are reported as an envelope, not as a check.
+    envelope = {"calibration_cases_outside_bounds": sum(1 for c in calibration.values() if not c["within_stated_errors"])
+                + sum(1 for f in calibration_field if not within_field(f, bounds))}
+    report = {"example": "interop/metasurface step 4", "outcome": outcome, "model_mode": mode, "engine_version": installed,
               "environment": environment("numpy"), "stated_errors": bounds, "max_field_angle_deg": max_angle,
-              "checks": checks, "cases": cases, "field_angles": field, "counterexamples": counter,
-              "multi_line": multi_line, "in_domain_count": len(in_domain)}
+              "checks": checks, "calibration_envelope": envelope, "test_cases": test, "calibration_cases": calibration,
+              "field_angles": field, "counterexamples": counter, "multi_line": multi_line}
     write_json(directory / f"step4_report_{mode}.json", report)
-    return {"example": report["example"], "status": status, "model_mode": mode, "checks": checks,
-            "stated_errors": bounds,
-            "holdout_max_abs": {k: max(abs(c["engine_vs_external"][k]) for c in holdouts)
-                                for k in ("z_rel_err", "w_rel_err", "power_rel_err")},
+    keys = ("z_abs_err_um", "z_rel_err", "w_rel_err", "power_rel_err")
+    return {"example": report["example"], "outcome": outcome, "model_mode": mode, "checks": checks,
+            "stated_errors": bounds, "calibration_envelope": envelope,
+            "test_max_abs": {k: max(abs(c["engine_vs_external"][k]) for c in test_cases) for k in keys},
+            "test_field_angles": [{"tilt_deg": f["tilt_deg"], "wavelength_nm": f["wavelength_nm"], "status": f["status"],
+                                   **(f.get("engine_vs_external") or {})} for f in test_field],
             "counterexamples": {k: {"status": v["status"], "expected": v["expected"], "as_expected": v["as_expected"],
                                     "issues": v["issues"] + v["model_scope_issues"],
-                                    "target_issue_codes": v.get("target_issue_codes", [])}
-                                for k, v in counter.items()},
+                                    "target_issue_codes": v.get("target_issue_codes", [])} for k, v in counter.items()},
             "report": str(directory / f"step4_report_{mode}.json")}
 
 

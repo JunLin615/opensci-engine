@@ -13,7 +13,7 @@
 我的设计：<Project 文件或描述>。目标：<指标，例如 output 平面的输出发散半角，单位 rad>；
 变量：<元件 id 和字段，以及范围和单位>；需要分析的容差：<字段及 ± 范围>。
 
-1. 阅读 opensci-engine 配套仓库中的 Agent 指南和 docs/en/interop.md、`opensci-engine --help`、
+1. 阅读 opensci-engine 配套仓库中的 Agent 指南和 docs/zh-CN/interop.md、`opensci-engine --help`、
    `opensci-engine results metrics`，以及所选优化器的官方文档。
 2. 把目标写成带单位和选择器的 OpenSci 目标指标，把变量写成按 id 修改的 Project 字段，并说明分工：
    OpenSci 计算每个设计，优化器决定下一组取值。Project 中的 retained_dofs 是设计意图，不是优化变量。
@@ -33,7 +33,7 @@
 光路：<Project 文件或描述：光源、光阑或孔径、透镜、观察面>。
 问题：<例如焦面峰值辐照度，以及 50 um 半径内的环围功率>。
 
-1. 阅读 opensci-engine 配套仓库的 docs/en/interop.md、`opensci-engine results --help` 及其中给出的
+1. 阅读 opensci-engine 配套仓库的 docs/zh-CN/interop.md、`opensci-engine results --help` 及其中给出的
    场构造约定，以及所选衍射软件的官方文档。
 2. 说明哪些数据来自 OpenSci（高斯光束状态、功率、孔径几何、平面坐标系），哪些来自外部软件（衍射场）。
    仅有光强不能确定复场，稀疏光线也不等于采样的瞳面场：说明你构造的是什么场、基于哪些假设
@@ -53,7 +53,7 @@
 用它做独立交叉校验。光路：<Project 文件或描述>。量子输入：每个光源的光子数 <...>、偏振模式 <H/V>、
 波包 <形状、均方根时长、零延迟不可区分度>、探测器 <类型、效率、暗计数概率、对应的观察面>。
 
-1. 阅读 opensci-engine 配套仓库的 docs/en/interop.md、`opensci-engine project network --help`、
+1. 阅读 opensci-engine 配套仓库的 docs/zh-CN/interop.md、`opensci-engine project network --help`、
    导出网络中的 conventions 字段，以及 Perceval 关于线路、噪声模型和模拟器的文档。
 2. 说明分工：OpenSci 导出线性光学网络（模式、含损耗的传输矩阵 T、带光程和群延迟的路径、约定）；
    Perceval 计算光子统计。光子数、波包、不可区分度和探测器都由我提供，不能从 Project 中的经典激光推断。
@@ -73,14 +73,15 @@
 把超表面透镜的响应转为 OpenSci 的 TABULATED_THIN_LENS 模型并用于我的光路。
 超表面：<材料、晶格、柱体族、设计波长、焦距、口径>。使用范围：<波长、入射光束尺寸、视场角、偏振>。
 
-1. 阅读 opensci-engine 配套仓库的 docs/en/interop.md、`opensci-engine schema project` 中的
+1. 阅读 opensci-engine 配套仓库的 docs/zh-CN/interop.md、`opensci-engine schema project` 中的
    TABULATED_THIN_LENS 字段，以及所选电磁工具的文档。metabox 运行于 Python 3.8：放在独立环境中，通过文件交换数据。
 2. 说明分工：外部工具计算单元响应和聚焦（并说明所用近似，如局部周期近似、标量传播）；OpenSci 在声明的有效域内
    把拟合后的表格当作薄聚焦元件使用。一次外部聚焦结果不能定义一个通用元件。
 3. 检查已安装工具，只询问缺失的物理输入（材料、尺寸、上述使用范围）。
-4. 在波长表和留出波长上计算响应，覆盖需要支持的视场角和光束尺寸，并做数值收敛检查。拟合表格行，设定有效域
-   （波长范围、max_field_angle_deg、max_beam_radius_mm、已验证偏振），由留出比较加收敛分散给出各指标的误差上限，
-   记录工具版本和源数据的 SHA-256。用该模型运行 OpenSci，并检查有效域外的输入得到 OUT_OF_MODEL_SCOPE。
+4. 在三组互不重叠的情况上计算响应并做数值收敛检查：表格波长（模型行）、标定情况（表格行之间的波长、需要支持的
+   光束尺寸和视场角）以及不作他用的测试情况。拟合表格行；由标定组加收敛分散给出各指标的误差上限和有效域（波长范围、
+   由 OpenSci 运行与外部焦点比较得到的 max_field_angle_deg、max_beam_radius_mm、已验证偏振）；记录工具版本和源数据的
+   SHA-256。只在测试组上用 OpenSci 检验最终模型，并检查有效域外的输入得到 OUT_OF_MODEL_SCOPE。
 5. 分开报告：外部结果（含收敛分散）、模型及其有效域、OpenSci 运行（状态、问题、身份）及其与外部结果的偏差。
    该虚拟元件是仿真模型，不是可订购的产品。给出图和文件。
 6. 如果工具不可用，或数据不足以在所需精度内支撑模型，报告完成的最后一步，并把外部结果保留为单独报告。

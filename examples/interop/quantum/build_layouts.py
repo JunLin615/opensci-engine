@@ -173,7 +173,7 @@ def run_example(out_dir):
         manifest["cases"][name] = entry
     write_json(out_dir / "networks.json", manifest)
     unexpected = [n for n, c in manifest["cases"].items() if (c["exit_code"] == 0) == (c["kind"] == "refusal")]
-    return {"example": "interop/quantum (OpenSci side)", "status": "FAIL" if unexpected else "PASS",
+    return {"example": "interop/quantum (OpenSci side)", "outcome": "UNEXPECTED_RESULT" if unexpected else "COMPLETED",
             "engine_version": installed, "exported": sum(c["exit_code"] == 0 for c in manifest["cases"].values()),
             "refused": {n: c.get("refusal") for n, c in manifest["cases"].items() if c["exit_code"] != 0},
             "unexpected": unexpected, "manifest": str(out_dir / "networks.json")}

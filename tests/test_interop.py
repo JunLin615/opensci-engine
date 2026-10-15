@@ -131,6 +131,35 @@ class QuantumReferenceTests(unittest.TestCase):
         dark = self.ref.coincidence_probability(distribution, 0.8, 0.01)
         self.assertGreater(dark, clean)
 
+    def test_lossy_two_photon_distribution_matches_an_explicit_unitary_completion(self):
+        np = self.np
+
+        def brute_force(m, p):
+            u = self.nio.dilate(m)  # 4 x 4: outputs 0, 1 and two loss modes
+            groups = [0, 1, 2, 2]  # loss modes merged into one "lost" group
+            together, apart = {}, {}
+            for i in range(4):
+                for j in range(i, 4):
+                    sub = u[np.ix_([i, j], [0, 1])]
+                    perm = sub[0, 0] * sub[1, 1] + sub[0, 1] * sub[1, 0]
+                    prob = abs(perm) ** 2 / (2.0 if i == j else 1.0)
+                    key = (sum(g == 0 for g in (groups[i], groups[j])), sum(g == 1 for g in (groups[i], groups[j])))
+                    together[key] = together.get(key, 0.0) + prob
+            for i in range(4):
+                for j in range(4):
+                    prob = abs(u[i, 0]) ** 2 * abs(u[j, 1]) ** 2
+                    key = (sum(g == 0 for g in (groups[i], groups[j])), sum(g == 1 for g in (groups[i], groups[j])))
+                    apart[key] = apart.get(key, 0.0) + prob
+            return {k: p * together.get(k, 0.0) + (1 - p) * apart.get(k, 0.0) for k in set(together) | set(apart)}
+
+        for matrix in (self.ref.mzi_matrix(1.0), self.ref.mzi_matrix(1.0003), self.ref.hom_matrix(window_mm=3.0)):
+            for p in (0.0, 0.6, 0.95):
+                closed = self.ref.two_photon_distribution(matrix, p)
+                explicit = brute_force(matrix, p)
+                self.assertAlmostEqual(sum(closed.values()), 1.0, places=12)
+                for key, value in closed.items():
+                    self.assertAlmostEqual(value, explicit.get(key, 0.0), places=12, msg=(key, p))
+
     def test_balanced_mzi_swaps_the_photons(self):
         distribution = self.ref.two_photon_distribution(self.ref.mzi_matrix(0.0), 0.3)
         self.assertAlmostEqual(distribution[(1, 1)], 1.0, places=12)

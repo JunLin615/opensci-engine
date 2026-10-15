@@ -260,9 +260,9 @@ def analyze_case(path):
         checks["cross_check_peak_rel"] = max(absolute)
     if "transmitted_power_rel_err" in engine_cmp:
         checks["engine_power_rel"] = abs(engine_cmp["transmitted_power_rel_err"])
-    status = "PASS" if all(checks[k] <= TOLERANCES[k] for k in checks) else "FAIL"
+    outcome = "WITHIN_TOLERANCE" if all(checks[k] <= TOLERANCES[k] for k in checks) else "OUT_OF_TOLERANCE"
     report = {
-        "handoff": str(path), "status": status, "identity": case["identity"], "stop_radius_mm": a,
+        "handoff": str(path), "comparison_status": outcome, "identity": case["identity"], "stop_radius_mm": a,
         "beam_at_stop": {k: beam[k] for k in ("w_x_mm", "r_x_mm", "power_W", "wavelength_nm")},
         "transmitted_fraction": reference.transmitted_fraction,
         "reference": {"method": "Hankel integral (scipy quad)", "peak_W_per_mm2": ref_peak, f"encircled_fraction_{rho}mm": ref_ee,
@@ -316,10 +316,12 @@ def run_example(directory):
     figure = plot(reports, directory / "focus_profiles.png")
     summary = {
         "example": "interop/diffraction (external side)",
-        "status": "PASS" if all(r["status"] == "PASS" for r in reports) else "FAIL",
+        "outcome": ("WITHIN_TOLERANCE" if all(r["comparison_status"] == "WITHIN_TOLERANCE" for r in reports)
+                    else "OUT_OF_TOLERANCE"),
         "environment": environment("numpy", "scipy", "LightPipes", "prysm", "poppy", "diffractio", "matplotlib"),
         "cases": [{
-            "stop_radius_mm": r["stop_radius_mm"], "status": r["status"], "engine_status": r["engine"]["status"],
+            "stop_radius_mm": r["stop_radius_mm"], "comparison_status": r["comparison_status"],
+            "engine_status": r["engine"]["status"],
             "engine_issues": r["engine"]["issues"], "reference_peak_W_per_mm2": r["reference"]["peak_W_per_mm2"],
             "engine_peak_rel_err": r["engine"].get("peak_rel_err"),
             "engine_diffraction_accurate": r["engine"]["diffraction_accurate"],

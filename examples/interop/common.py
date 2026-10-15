@@ -16,8 +16,14 @@ import platform
 import sys
 
 MINIMUM_ENGINE = (0, 8, 0)
-EXIT_CODES = {"PASS": 0, "FAIL": 1}
+# Outcome words of these scripts. They describe a comparison with an external or independent reference (or a
+# completed production step), never an OpenSci run status.
+EXIT_CODES = {"WITHIN_TOLERANCE": 0, "COMPLETED": 0, "OUT_OF_TOLERANCE": 1, "UNEXPECTED_RESULT": 1}
 ERROR_EXIT = 4
+
+
+def comparison_status(within):
+    return "WITHIN_TOLERANCE" if within else "OUT_OF_TOLERANCE"
 
 
 class ArgumentParser(argparse.ArgumentParser):
@@ -122,13 +128,13 @@ def json_safe(value):
 def emit(workflow):
     """Run ``workflow``; print one compact JSON summary on stdout, diagnostics on stderr.
 
-    Exit 0 = every comparison within its stated tolerance (PASS), 1 = a comparison
-    outside its tolerance (FAIL), 4 = error (JSON error on stderr).
+    ``summary["outcome"]``: ``WITHIN_TOLERANCE`` / ``COMPLETED`` -> exit 0, ``OUT_OF_TOLERANCE`` /
+    ``UNEXPECTED_RESULT`` -> exit 1; any error -> exit 4 (JSON error on stderr).
     """
     try:
         with redirect_stdout(sys.stderr):
             summary = workflow()
-        code = EXIT_CODES[summary["status"]]
+        code = EXIT_CODES[summary["outcome"]]
         output = json.dumps(json_safe(summary), ensure_ascii=True, allow_nan=False, separators=(",", ":"))
     except Exception as exc:  # noqa: BLE001 - every failure becomes a JSON error
         error = {"error": {"code": getattr(exc, "code", type(exc).__name__), "message": str(exc)}}

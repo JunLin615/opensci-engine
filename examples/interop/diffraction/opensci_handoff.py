@@ -181,7 +181,7 @@ def run_example(out_dir, stop_radii_mm):
         focus = handoff["engine_focus"]
         cases[case_dir.name] = {"stop_radius_mm": radius, "engine_status": focus["status"], "issues": focus["issues"],
                                 "gaussian_valid": focus.get("gaussian_valid"), "handoff": str(case_dir / "handoff.json")}
-    return {"example": "interop/diffraction (OpenSci side)", "status": "PASS", "engine_version": installed, "cases": cases}
+    return {"example": "interop/diffraction (OpenSci side)", "outcome": "COMPLETED", "engine_version": installed, "cases": cases}
 
 
 def main(argv=None):

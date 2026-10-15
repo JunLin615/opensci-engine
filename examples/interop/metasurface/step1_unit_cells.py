@@ -41,8 +41,10 @@ PERIOD_UM, HEIGHT_UM = 0.325, 0.60
 N_TIO2, N_SIO2 = 2.43, 1.46
 GRID = 128
 RADII_UM = tuple(float(r) for r in np.round(np.linspace(0.040, 0.150, 45), 6))
+# Model rows; calibration wavelengths (set the error bounds); test wavelengths (used only to check the finished model).
 TABLE_NM = (490, 500, 510, 520, 532, 540, 550, 560, 570, 580)
-HOLDOUT_NM = (495, 515, 525, 545, 565)
+CALIBRATION_NM = (495, 515, 525, 545, 565)
+TEST_NM = (505, 535, 555, 575)
 
 
 def cell(radius_um, wavelength_um, n_g):
@@ -90,7 +92,7 @@ def run_example(out_dir, n_g, wavelengths_nm):
     out_dir.mkdir(parents=True, exist_ok=True)
     path.write_text(json.dumps(library, separators=(",", ":")), encoding="utf-8")
     energy = max(abs(r + t - 1.0) for lam in wavelengths_nm for _, r, t, _ in rows[lam])
-    summary = {"example": "interop/metasurface step 1", "status": "PASS" if energy < 1e-3 else "FAIL",
+    summary = {"example": "interop/metasurface step 1", "outcome": "COMPLETED" if energy < 1e-3 else "UNEXPECTED_RESULT",
                "environment": environment("grcwa", "numpy"), "library": str(path), "solves": len(RADII_UM) * len(rows),
                "seconds": round(seconds, 1), "max_abs_R_plus_T_minus_1": energy,
                "phase_span_waves": {str(lam): float(np.ptp(np.unwrap(np.angle([row[0] for row in rows[lam]]))) / (2 * np.pi))
@@ -104,8 +106,8 @@ def main(argv=None):
         parser = ArgumentParser(description=__doc__.split("\n\n")[0])
         parser.add_argument("--out", type=Path, default=Path("run-interop-metasurface"), help="output directory")
         parser.add_argument("--nG", type=int, default=101, help="number of RCWA Fourier orders (default 101)")
-        parser.add_argument("--wavelengths-nm", type=int, nargs="+", default=list(TABLE_NM + HOLDOUT_NM),
-                            help="wavelengths in nm (default: table rows and hold-out wavelengths)")
+        parser.add_argument("--wavelengths-nm", type=int, nargs="+", default=list(TABLE_NM + CALIBRATION_NM + TEST_NM),
+                            help="wavelengths in nm (default: table rows, calibration and test wavelengths)")
         args = parser.parse_args(argv)
         return run_example(args.out, args.nG, sorted(set(args.wavelengths_nm)))
 

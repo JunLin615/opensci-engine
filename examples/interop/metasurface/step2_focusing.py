@@ -15,7 +15,9 @@ finds the axial position of the intensity maximum and reports there:
 * ``transmitted_fraction``: power leaving the metasurface / incident power.
 
 LPA neglects coupling between neighbouring cells of different radius; scalar
-propagation neglects the vector field. Both are stated limits of this reference.
+propagation neglects the vector field. Tilted inputs reuse the normal-incidence cell
+responses (only the incident phase ramp changes), an approximation that worsens with
+angle. These are stated limits of this reference.
 
 Usage: python examples/interop/metasurface/step2_focusing.py run-interop-metasurface [--samples 1024] [--nG 101]
 """
@@ -38,9 +40,14 @@ else:
 
 DESIGN = {"focal_length_um": 200.0, "design_wavelength_nm": 532, "diameter_um": 100.0, "input_waist_radius_um": 30.0,
           "minimum_atom_transmittance": 0.8}
-EXTRA_CASES = ({"wavelength_nm": 532, "tilt_deg": 2.0}, {"wavelength_nm": 532, "tilt_deg": 5.0},
-               {"wavelength_nm": 532, "tilt_deg": 8.0}, {"wavelength_nm": 532, "tilt_deg": 20.0},
-               {"wavelength_nm": 532, "input_waist_radius_um": 20.0})
+# Calibration cases set the field-angle and beam-size domain; test cases only check the finished model.
+EXTRA_CASES = ({"wavelength_nm": 532, "tilt_deg": 2.0, "set": "calibration"},
+               {"wavelength_nm": 532, "tilt_deg": 5.0, "set": "calibration"},
+               {"wavelength_nm": 532, "tilt_deg": 8.0, "set": "calibration"},
+               {"wavelength_nm": 532, "tilt_deg": 20.0, "set": "calibration"},
+               {"wavelength_nm": 532, "input_waist_radius_um": 20.0, "set": "calibration"},
+               {"wavelength_nm": 555, "tilt_deg": 1.5, "set": "test"},
+               {"wavelength_nm": 545, "input_waist_radius_um": 25.0, "set": "test"})
 
 
 class Metalens:
@@ -120,8 +127,8 @@ def run_example(directory, samples, n_g, wavelengths_nm, extra):
     started = time.perf_counter()
     rows = [lens.focus(lam) for lam in wavelengths]
     if extra:
-        rows += [lens.focus(case["wavelength_nm"], case.get("tilt_deg", 0.0), case.get("input_waist_radius_um"))
-                 for case in EXTRA_CASES if str(case["wavelength_nm"]) in library["t"]]
+        rows += [dict(lens.focus(case["wavelength_nm"], case.get("tilt_deg", 0.0), case.get("input_waist_radius_um")),
+                      set=case["set"]) for case in EXTRA_CASES if str(case["wavelength_nm"]) in library["t"]]
     table = {
         "schema": "opensci-interop-example/metasurface-focus-table/1",
         "library": library_path.name, "design": dict(DESIGN, atoms_used=lens.atoms_used),
@@ -131,7 +138,7 @@ def run_example(directory, samples, n_g, wavelengths_nm, extra):
     }
     path = directory / f"focus_nG{n_g}_N{samples}.json"
     write_json(path, table)
-    return {"example": "interop/metasurface step 2", "status": "PASS", "environment": environment("numpy", "scipy"),
+    return {"example": "interop/metasurface step 2", "outcome": "COMPLETED", "environment": environment("numpy", "scipy"),
             "focus_table": str(path), "cases": len(rows), "seconds": table["seconds"]}
 
 

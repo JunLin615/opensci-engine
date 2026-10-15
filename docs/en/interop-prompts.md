@@ -111,12 +111,14 @@ diameter>. Use range: <wavelengths, input beam size, field angles, polarization>
    general component.
 3. Check installed tools and ask me only for missing physical inputs (materials, dimensions, the use
    range above).
-4. Compute the response over a wavelength table plus hold-out wavelengths, at the field angles and
-   beam sizes to be supported, with a numerical convergence check. Fit the rows, set the validity
-   domain (wavelength span, max_field_angle_deg, max_beam_radius_mm, validated polarizations) and
-   per-metric error bounds from the hold-out comparison plus the convergence spread, record tool
-   versions and the SHA-256 of the source data. Run OpenSci with the model and check that
-   out-of-domain inputs give OUT_OF_MODEL_SCOPE.
+4. Compute the response with a numerical convergence check on three separate sets: table
+   wavelengths (the model rows), calibration cases (wavelengths between the rows, beam sizes and
+   field angles to be supported) and test cases not used for anything else. Fit the rows; set the
+   per-metric error bounds and the domain (wavelength span, max_field_angle_deg from OpenSci runs
+   compared with the external focus, max_beam_radius_mm, validated polarizations) from the
+   calibration set plus the convergence spread; record tool versions and the SHA-256 of the source
+   data. Check the finished model in OpenSci on the test set only, and check that out-of-domain
+   inputs give OUT_OF_MODEL_SCOPE.
 5. Report separately: the external results (with convergence spread), the model and its domain, and
    OpenSci's runs (statuses, issues, identities) with their deviation from the external results. The
    virtual component is a simulation model, not an orderable product. Show plots and files.
