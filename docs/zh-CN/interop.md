@@ -49,7 +49,7 @@ python examples/interop/diffraction/opensci_handoff.py --out run-interop-diffrac
 python examples/interop/diffraction/external_focus.py run-interop-diffraction
 ```
 
-`opensci_handoff.py` 对光阑半径 3、1.2 和 0.5 mm 分别运行 Project，并为每种情况写出 `handoff.json`：光阑处的高斯状态（半径、波前曲率半径、M²、功率、波长、介质、光束坐标轴）、来自 Project 的光阑和透镜参数、引擎自己的焦面结果以及运行身份。`external_focus.py` 只读取这些文件，并按明确约定构造采样场（`tem00_field.py`）：
+`opensci_handoff.py` 对光阑半径 3、1.2 和 0.5 mm 分别运行 Project，并为每种情况写出 `handoff.json`：引擎在光阑所在平面的观察面上给出的横截面交接数据（`RunResults.handoff`，也可用 `opensci-engine results handoff RUN --monitor ID --element ID`），包括各轴高斯 q、半径、波前曲率半径、M²、功率、波长、介质、光束坐标轴、Jones 矢量、该平面坐标系中的光阑轮廓，以及场构造约定和适用条件；另外还有来自 Project 的透镜参数、引擎自己的焦面结果和运行身份。脚本会用上游 1 mm 处 pupil 面的状态经 ABCD 传播来核对交接数据。`external_focus.py` 只读取这些文件，并按明确约定构造采样场（`tem00_field.py`）：
 
 * 场 `E ~ exp[i(k·r − ωt)]`；在光束坐标轴中 `U = sqrt(2P/(π w_x w_y)) exp(−x²/w_x² − y²/w_y²) exp(+ik(x²/2R_x + y²/2R_y))`，发散光束 `R > 0`；省略 Gouy 相位和整体相位；`|U|²` 的积分等于光束功率；
 * 只适用于两个方向 M² = 1 的情况（否则脚本拒绝）；仅凭 M² > 1 不能确定模式组成或相干性；
@@ -102,7 +102,7 @@ python examples/interop/metasurface/step4_engine_check.py run-interop-metasurfac
 
 1. **单元**（grcwa）：半径 40–150 nm 柱体（周期 325 nm，高 600 nm，常数折射率 TiO2 2.43 / SiO2 1.46，正入射，x 偏振）在 490–580 nm 十个表格波长和五个留出波长上的零级复透射系数。使用通量归一化振幅 `t·sqrt(T/|t|²)`，因为在折射率不同的介质之间，仅 `|t|²` 并不是功率比例。
 2. **聚焦**（numpy）：局部周期近似和标量角谱传播 30 µm 高斯光束；给出各波长的焦点位置、二阶矩半径和聚焦效率，以及 2、5、8、20° 视场角和 20 µm 光束的结果。
-3. **模型**：每个表格波长一行（由高斯聚焦公式得到等效薄透镜焦距；透过率 = 聚焦效率 / 通光孔径内的高斯功率），光焦度和透过率随波长线性插值；各支持指标的误差上限 = 留出比较的最大偏差 + 外部数值分散（RCWA 级次 101/201、传播窗口 1024/2048 采样）；偏差保持在上限内的最大视场角作为 `max_field_angle_deg`，已验证的光束半径作为 `max_beam_radius_mm`，`LINEAR_X` 为已验证偏振；证据中记录工具版本和单元库的 SHA-256。结果为 `metalens_model.json`。
+3. **模型**：每个表格波长一行（由高斯聚焦公式得到等效薄透镜焦距；透过率 = 聚焦效率 / 通光孔径内的高斯功率），光焦度和透过率随波长线性插值；各支持指标的误差上限 = 留出比较的最大偏差 + 外部数值分散（RCWA 级次 101/201、传播窗口 1024/2048 采样）；偏差保持在上限内的最大视场角作为 `max_field_angle_deg`，已验证的光束半径向上取整 0.1 µm 后作为 `max_beam_radius_mm`（引擎比较半径时不带容差），`LINEAR_X` 为已验证偏振；证据中记录工具版本和单元库的 SHA-256。结果为 `metalens_model.json`。
 4. **OpenSci 检查**：在无目录 Project 中声明该模型，对每个表格波长和留出波长、一次多谱线运行、小视场角以及反例分别追迹。
 
 验证运行结果（单元计算用 101 个 RCWA 级次，传播网格 1024 × 1024；外部数值分散取自 201 级次和 2048 采样网格：焦点位置 0.50 %，光斑半径 0.71 %，效率 0.015）：
@@ -113,10 +113,10 @@ python examples/interop/metasurface/step4_engine_check.py run-interop-metasurfac
 | 光斑半径（引擎高斯 vs 外部二阶矩） | −3.0 … −7.3 % | −3.0 … −5.1 % | −0.6 % | `waist_radius_*_mm` ± 8.1 % |
 | 输出功率 | 按构造精确 | −5.4 … +15.9 % | +0.03 % | `power_W` ± 19 % |
 
-焦点位置在整个波段内都与外部结果吻合；理想高斯焦斑比外部光斑小 3–7 %（单元相位离散所致），这部分由声明的半径误差承担。聚焦效率在 10 nm 内从 0.64 变到 0.95，因此行间线性插值对留出波长功率的预测只能达到 16 %；更密的表格行或 `transmittance_interpolation: POINTS_ONLY` 可以得到更紧的功率模型。2° 视场角时外部焦点仍在声明误差内；5° 时其轴向位置移动 1.56 µm，超过 1.4 µm 的上限，因此 `max_field_angle_deg` 为 2。所有有效域内情况下，引擎复现模型薄透镜预测的偏差为 4e-7。
+焦点位置在整个波段内都与外部结果吻合；理想高斯焦斑比外部光斑小 3–7 %（单元相位离散所致），这部分由声明的半径误差承担。聚焦效率在 10 nm 内从 0.64 变到 0.95，因此行间线性插值对留出波长功率的预测只能达到 16 %；更密的表格行或 `transmittance_interpolation: POINTS_ONLY` 可以得到更紧的功率模型。2° 视场角时外部焦点仍在声明误差内；5° 时其轴向位置移动 1.56 µm，超过 1.4 µm 的上限，因此 `max_field_angle_deg` 为 2。所有有效域内情况下，引擎复现模型薄透镜预测的偏差为 6e-16；把 15 个波长作为同一光源的多条谱线一次运行，结果相同；未进入焦斑的功率在功率预算中显示为该元件的 `UNMODELLED_RESPONSE` 汇。
 
-反例：450 nm 光源在 490–580 nm 表格范围之外，运行结果为 `OUT_OF_MODEL_SCOPE`（`MODEL_WAVELENGTH_OUTSIDE_BAND`）。20° 时外部焦点比薄透镜预测更靠近透镜 15.6 µm、更靠近光轴 5.6 µm，光斑大 68 %，功率少 13 %：模型的 `max_field_angle_deg` 使这一输入超出模型范围。`step4_engine_check.py` 还检查：经过该元件、要求不支持指标（`peak_irradiance_W_per_mm2`）的目标为 `OUT_OF_MODEL_SCOPE`；并以一个多谱线光源一次追迹全部 15 个波长。`--model per-wavelength-ideal` 用每个波长一个 `IDEAL_THIN_LENS` 做同样比较；该类型无法声明视场角有效域，20° 时返回 `WARNING`。所有运行都报告 `GAUSSIAN_TRUNCATION`，因为 100 µm 口径截去了 30 µm 光束 0.4 % 的功率；引擎自身已计入这部分损耗。
+反例：450 nm 光源在 490–580 nm 表格范围之外，运行结果为 `OUT_OF_MODEL_SCOPE`（`MODEL_WAVELENGTH_OUTSIDE_BAND`）。20° 时外部焦点比薄透镜预测更靠近透镜 15.6 µm、更靠近光轴 5.6 µm，光斑大 68 %，功率少 13 %；运行结果为 `OUT_OF_MODEL_SCOPE`（`MODEL_FIELD_ANGLE_EXCEEDED`），5° 和 8° 同样如此。经过该元件、要求模型未验证指标（`peak_irradiance_W_per_mm2`）的目标为 `OUT_OF_MODEL_SCOPE`，代码 `METRIC_NOT_VALIDATED_FOR_ELEMENT`，且不给出数值。`--model per-wavelength-ideal` 用每个波长一个 `IDEAL_THIN_LENS` 做同样比较；该类型无法声明视场角有效域，20° 时返回 `WARNING`。所有运行都报告 `GAUSSIAN_TRUNCATION`，因为 100 µm 口径截去了 30 µm 光束 0.4 % 的功率；引擎自身已计入这部分损耗。
 
 只要第 1 步写出相同的库字段，其他单元求解器也可接入同一流程：meent（MIT）和 torcwa（LGPL）可用 pip 安装；DFlat（`dflat-opt`）和 metabox 依赖 gdspy，在 Windows 上需要 C 编译器，metabox 还要求 Python 3.8 和 TensorFlow 2.11，应放在独立环境中通过文件交换。本示例只实际运行了 grcwa（其软件包元数据声明 GPLv3）。
 
-一次外部聚焦结果不能定义通用元件。该模型只在其波长范围、不超过 `max_field_angle_deg` 的视场角、不超过 `max_beam_radius_mm` 的入射光束半径（已在 20 和 30 µm 验证）、x 偏振以及所列指标下有效；目标若要求经过该元件的其他指标，则超出模型范围。模型不包含相位，因此网络导出和波前结果会拒绝经过它的路径。模型精度受外部参考本身限制：局部周期近似和标量传播忽略了单元耦合和矢量效应。
+一次外部聚焦结果不能定义通用元件。该模型只在其波长范围、不超过 `max_field_angle_deg` 的视场角、不超过 `max_beam_radius_mm` 的入射光束半径（已在 20 和 30 µm 验证，声明为 30.1 µm）、x 偏振以及所列指标下有效；目标若要求经过该元件的其他指标，则超出模型范围。模型不包含相位，因此网络导出和波前结果会拒绝经过它的路径。模型精度受外部参考本身限制：局部周期近似和标量传播忽略了单元耦合和矢量效应。

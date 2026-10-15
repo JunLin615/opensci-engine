@@ -14,7 +14,7 @@ from: hold-out wavelengths, the input-beam-size check and small field angles. Ea
 supported metric gets an error bound = largest model-vs-external deviation + the
 external reference's own numerical spread (RCWA orders, propagation window). The
 largest field angle whose deviations stay inside those bounds becomes
-``max_field_angle_deg``; the validated beam radius becomes ``max_beam_radius_mm``.
+``max_field_angle_deg``; the validated beam radius (rounded up to 0.1 um) becomes ``max_beam_radius_mm``.
 
 A single external focus does not define a general component: the model holds only
 inside the stated wavelength span, field angle, beam size and polarization, for the
@@ -43,6 +43,9 @@ else:
 
 MODEL_ID = "metalens_tio2_f200um"
 CANDIDATE_FIELD_ANGLES_DEG = (2.0, 5.0, 8.0, 20.0)
+# The validated input radius (30 um) is stated rounded up to 0.1 um, so a beam of exactly that radius, which a trace
+# reproduces only to the last floating-point digit, stays inside the domain.
+BEAM_RADIUS_MARGIN_UM = 0.1
 
 
 def rayleigh_um(waist_um, wavelength_nm):
@@ -203,7 +206,7 @@ def run_example(directory, n_g, samples, transmittance_interpolation):
                   "transmittance": decimal_text(r["transmittance"], 4)} for r in rows],
         "focal_interpolation": "LINEAR_IN_OPTICAL_POWER", "transmittance_interpolation": transmittance_interpolation,
         "clear_radius_mm": decimal_text(clear_um / 1000), "edge_radius_mm": decimal_text(clear_um / 1000 + 0.01),
-        "max_field_angle_deg": decimal_text(max_angle), "max_beam_radius_mm": decimal_text(waist / 1000),
+        "max_field_angle_deg": decimal_text(max_angle), "max_beam_radius_mm": decimal_text((waist + BEAM_RADIUS_MARGIN_UM) / 1000),
         "validated_polarizations": ["LINEAR_X"],
         "supported_metrics": [
             *({"metric": f"waist_distance_{axis}_mm", "abs_error": decimal_text(bounds["z_abs_um"] / 1000, 6),
@@ -225,7 +228,7 @@ def run_example(directory, n_g, samples, transmittance_interpolation):
                          "focus; transmittance = focusing efficiency / Gaussian power inside the clear aperture; "
                          f"interpolation linear in optical power and {transmittance_interpolation.lower()} in transmittance",
             "validation_summary": f"rows {lam_lo}-{lam_hi} nm; hold-out wavelengths {', '.join(str(w) for w in HOLDOUT_NM)} nm; "
-                                  f"input radius 20 and 30 um; field angles up to {decimal_text(max_angle)} deg within "
+                                  f"input radius 20 and 30 um (bound stated as 30.1 um); field angles up to {decimal_text(max_angle)} deg within "
                                   "the stated errors; external spread from RCWA orders 101/201 and propagation windows "
                                   "1024/2048 samples",
             "date": date.today().isoformat(),

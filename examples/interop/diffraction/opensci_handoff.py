@@ -6,11 +6,14 @@ circular APERTURE_STOP 100 mm downstream and a declared IDEAL_THIN_LENS
 plane. For each stop radius the Project is run and a small handoff file is
 written with what an external diffraction code needs, all taken from the run:
 
-* the Gaussian state at the stop plane: the run's state on the ``pupil`` plane
-  1 mm before the stop, propagated 1 mm in air with the ABCD law (M^2, radii,
-  wavefront radii, power, wavelength, medium);
-* the stop radius and the lens focal length from the Project's optical models,
-  and the plane distances from the component poses;
+* the Engine's transverse-plane handoff (``RunResults.handoff``) on an observation
+  plane in the stop's plane, with the stop outline in that plane's frame: Gaussian
+  q per axis, radii, wavefront radii, M^2, power, wavelength, medium, Jones vector,
+  the TEM00 field-construction convention and its applicability; it is checked
+  against the run's state on the ``pupil`` plane 1 mm upstream propagated with the
+  ABCD law;
+* the lens focal length from the Project's optical model, and the plane distances
+  from the component poses;
 * the Engine's own focal-plane result (status, issues, transmitted power,
   Gaussian radius, peak of the Engine irradiance map) for the comparison;
 * the run identity (engine build, project / input / result hashes).
@@ -73,7 +76,7 @@ def project_document(stop_radius_mm):
             component("STOP", "aperture", "stop", STOP_X),
             component("L", "lens", "lens", LENS_X),
         ],
-        "observations": [plane("pupil", PUPIL_X), plane("focus", LENS_X + FOCAL_MM)],
+        "observations": [plane("pupil", PUPIL_X), plane("stop_plane", STOP_X), plane("focus", LENS_X + FOCAL_MM)],
         "targets": [{"target_id": "spot", "metric": "beam_radius_mm", "observation_id": "focus", "maximum": 0.1, "unit": "mm"}],
     }
 
@@ -87,23 +90,34 @@ def component_x(document, instance_id):
 
 
 def gaussian_at_stop(results, document):
-    """The Gaussian state at the stop plane from the run's state on the ``pupil`` plane (free space in between)."""
-    arrival = results.monitor("pupil")["arrivals"][0]
-    beam, gaussian = arrival["beam"], arrival["beam"]["gaussian"]
-    if not gaussian["valid"] or gaussian["m2_x"] != 1.0 or gaussian["m2_y"] != 1.0:
-        raise ValueError("a TEM00 field needs a valid Gaussian state with M^2 = 1 on both axes")
-    gap = component_x(document, "STOP") - beam["position_mm"][0]
-    state = {}
+    """The beam at the stop plane from the Engine's handoff, cross-checked against the pupil-plane state + ABCD."""
+    handoff = results.handoff("stop_plane", element="STOP")
+    beam = handoff["beams"][0]
+    gaussian, validity = beam["gaussian"], beam["validity"]
+    if not validity["tem00_field_applicable"]:
+        raise ValueError(f"the run states that no TEM00 field follows from this beam: {validity['statement']}")
+    surface = handoff["element"]["surfaces"][0]
+    if not surface["in_plane"] or surface["shape"] != "circle":
+        raise ValueError("this example needs a round stop lying in the handoff plane")
+    state = {"power_W": beam["power_W"], "wavelength_nm": beam["wavelength_nm"], "medium_index": beam["medium_index"],
+             "axes_uvn": {"x": gaussian["axis_x_uvn"], "y": gaussian["axis_y_uvn"]}, "from": "Engine transverse-plane handoff",
+             "validity": validity["statement"]}
     for axis in ("x", "y"):
-        w, radius, z = propagate_state(gaussian[f"waist_distance_{axis}_mm"], gaussian[f"rayleigh_range_{axis}_mm"], gap,
-                                       beam["wavelength_nm"], gaussian["medium_index"])
-        state.update({f"w_{axis}_mm": w, f"r_{axis}_mm": radius if math.isfinite(radius) else None,
-                      f"waist_distance_{axis}_mm": z, f"rayleigh_range_{axis}_mm": gaussian[f"rayleigh_range_{axis}_mm"],
-                      f"m2_{axis}": gaussian[f"m2_{axis}"]})
-    state.update({"power_W": beam["power_W"], "wavelength_nm": beam["wavelength_nm"],
-                  "medium_index": gaussian["medium_index"], "axes": {"e1": gaussian["e1"], "e2": gaussian["e2"]},
-                  "from_plane": "pupil", "propagated_mm": gap, "method": "ABCD free-space propagation in the stated medium"})
-    return state
+        radius = gaussian[f"curvature_radius_{axis}_mm"]
+        state.update({f"w_{axis}_mm": gaussian[f"beam_radius_{axis}_mm"], f"r_{axis}_mm": radius,
+                      f"waist_distance_{axis}_mm": gaussian[f"waist_distance_{axis}_mm"],
+                      f"rayleigh_range_{axis}_mm": gaussian[f"rayleigh_range_{axis}_mm"], f"m2_{axis}": gaussian[f"m2_{axis}"]})
+    # Independent cross-check: the pupil-plane state 1 mm upstream, propagated in air.
+    arrival = results.monitor("pupil")["arrivals"][0]
+    pupil = arrival["beam"]["gaussian"]
+    gap = component_x(document, "STOP") - arrival["beam"]["position_mm"][0]
+    w, radius, _ = propagate_state(pupil["waist_distance_x_mm"], pupil["rayleigh_range_x_mm"], gap,
+                                   arrival["beam"]["wavelength_nm"], pupil["medium_index"])
+    state["cross_check"] = {"method": "pupil-plane state + ABCD free-space propagation", "w_rel_diff": w / state["w_x_mm"] - 1,
+                            "r_rel_diff": radius / state["r_x_mm"] - 1 if state["r_x_mm"] else None}
+    if abs(state["cross_check"]["w_rel_diff"]) > 1e-9:
+        raise ValueError(f"handoff and pupil-plane states disagree: {state['cross_check']}")
+    return state, surface, handoff
 
 
 def engine_focus(results):
@@ -137,15 +151,15 @@ def run_case(stop_radius_mm, out_dir):
     run_dir = out_dir / "run"
     run_optical_project(load_project(document), output_dir=str(run_dir))
     results = load_run(run_dir)
+    beam, surface, engine_handoff = gaussian_at_stop(results, document)
     handoff = {
         "schema": HANDOFF_SCHEMA, "requires": "opensci-engine>=0.8.0",
         "identity": run_identity(results), "run_directory": str(run_dir),
-        "field_convention": "E ~ exp[i(k.r - w t)]; U = sqrt(2P/(pi w_x w_y)) exp(-x^2/w_x^2 - y^2/w_y^2) "
-                            "exp(+i k (x^2/(2 R_x) + y^2/(2 R_y))) in the beam axes e1, e2; R > 0 diverging; Gouy phase "
-                            "and piston omitted; |U|^2 integrates to the beam power",
-        "beam_at_stop": gaussian_at_stop(results, document),
-        "stop": {"shape": "circle", "radius_mm": float(model(document, "stop")["opening_radius_mm"]),
-                 "edge": "hard, infinitely thin", "model_id": "stop"},
+        "field_convention": engine_handoff["conventions"]["tem00_field"],
+        "beam_at_stop": beam,
+        "stop": {"shape": "circle", "radius_mm": surface["radius_mm"], "edge": "hard, infinitely thin",
+                 "surface_id": surface["surface_id"], "project_opening_radius_mm": float(model(document, "stop")["opening_radius_mm"])},
+        "engine_handoff": {k: engine_handoff[k] for k in ("schema", "schema_version", "observation_id", "plane", "conventions")},
         "lens": {"model_kind": "IDEAL_THIN_LENS", "focal_length_mm": float(model(document, "lens")["focal_length_mm"]),
                  "distance_from_stop_mm": component_x(document, "L") - component_x(document, "STOP"),
                  "phase": "not modelled by the Engine; an external code applies the ideal quadratic phase", "model_id": "lens"},

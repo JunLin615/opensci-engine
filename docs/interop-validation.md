@@ -4,10 +4,9 @@ Evidence for the four examples in [examples/interop](../examples/interop/) and t
 [external tools guide](en/interop.md). These examples require **opensci-engine 0.8.0**
 or newer; the 0.6.1 baseline of the other examples is unchanged.
 
-Recorded on 2026-10-15 with the engine development build `0.7.0+9150fb8b564e6dac`,
-whose network export, declared models and results API match 0.8.0 for these
-examples. The quantum and diffraction exports, per-path group delays and the
-`TABULATED_THIN_LENS` runs are to be recorded again with the published 0.8.0 package.
+Recorded on 2026-10-15 with opensci-engine 0.8.0, engine build
+`0.8.0+4a358fe7b4b1e74b`, installed from its source distribution ahead of the PyPI
+upload. Every engine-side number below comes from that build.
 
 ## Reproduce
 
@@ -22,8 +21,9 @@ Then run the commands of each section below. The offline tests cover the referen
 formulas, the field-construction convention, quantum-input parsing, network loading,
 group delay from declared glass, unitary dilation and the metasurface fitting
 helpers; they need numpy (and scipy for the diffraction reference) and skip cleanly
-without them. Two further tests run the Engine and are skipped on engines older than
-0.8.0. Run outputs are written under `run-interop-*` directories and are not
+without them. Two further tests run the Engine (network export with group delays,
+`TABULATED_THIN_LENS` scope) and are skipped on engines older than 0.8.0; with the
+build above all 23 tests ran and passed. Run outputs are written under `run-interop-*` directories and are not
 committed.
 
 Environment of the recorded runs: Windows 10 (AMD64), CPython 3.12.14, numpy 2.5.4,
@@ -50,7 +50,10 @@ two lens positions show that the divergence depends on their separation.
 
 ## Diffraction at a declared stop
 
-`opensci_handoff.py --out run-interop-diffraction`, then `external_focus.py` in the same
+`opensci_handoff.py --out run-interop-diffraction` (beam at the stop from the Engine's
+transverse-plane handoff, `RunResults.handoff("stop_plane", element="STOP")`, equal to
+the pupil-plane state propagated 1 mm by ABCD to the last digit), then
+`external_focus.py` in the same
 environment (LightPipes 2.1.5, prysm 0.21.1, POPPY 1.2.0 with astropy 8.0.1,
 setuptools 80.10.2) and again in a separate environment with numpy 1.26.4, scipy
 1.17.1 and Diffractio 1.0.0 that reads only the handoff files. Status `PASS` for all
@@ -107,7 +110,7 @@ rms intensity duration 0.25 ps (HOM) or 1000 ps (MZI), zero-delay indistinguisha
 | hom | yes | 0 | 0.95 | 0.0160000000 | 0.0160000000 | 0.016 |
 | hom_delay −0.3 mm | yes | +1.000692 | 0.017304 | 0.3144628079 | 0.3144628079 | 0.3144628081 |
 | hom_delay −0.05 mm | yes | +0.166782 | 0.849967 | 0.0480107085 | 0.0480107085 | 0.0480107086 |
-| hom_window_group (3 mm N-BK7) | no (column 0.918842) | −0.000001 | 0.95 | 0.0147014644 | 0.0147014644 | 0.0147014644 |
+| hom_window_group (3 mm N-BK7) | no (column 0.918842) | −0.0000008 | 0.95 | 0.0147014644 | 0.0147014644 | 0.0147014644 |
 | hom_window_phase | no | +0.163032 | 0.854182 | 0.0428747559 | 0.0428747559 | 0.0428747564 |
 | mzi_t0 | yes | 0 | 0.95 | 0.6400000004 | 0.6400000004 | 0.64 |
 | mzi_t1 (1 mm window) | no (0.958392) | 0 | 0.95 | 0.5378015355 | 0.5378014972 | 0.5378014954 |
@@ -116,11 +119,14 @@ rms intensity duration 0.25 ps (HOM) or 1000 ps (MZI), zero-delay indistinguisha
 | mzi_t1_broadband (0.25 ps photons) | refused `SINGLE_FREQUENCY_MODEL_INVALID`: group-delay spread 1.83 ps between the arms | | | | | |
 
 Over all 20 evaluated cases: Perceval vs reference 4.0e-8, Piquasso vs reference 1.8e-9
-(tolerance 1e-6), relative delay vs reference 1.3e-9 ps (tolerance 1e-4 ps). The
+(tolerance 1e-6), relative delay vs reference 4e-10 ps (tolerance 1e-4 ps). Every path
+carried the exported `group_delay_ps`; it agreed with the group delay computed from the
+Project's declared Sellmeier glass to 1.3e-9 ps (tolerance 1e-4 ps). The
 13-point delay scan (−1.0 … +1.0 ps) gave a dip visibility of 0.94912 with Perceval
 and 0.94912 for the reference (0.95 at unlimited delay range). The export's phase delay
-of the `hom_window_phase` case is 0 while the group delay is 0.163 ps, which lowers p
-from 0.95 to 0.854. Perceval took about 1 ms per case; Piquasso's first case included
+of the `hom_window_phase` case is 0 while its pair group delay is 0.163032 ps, which
+lowers p from 0.95 to 0.854; in `hom_window_group` the phase delay is −0.163 ps and the
+exported pair group delay −8.3e-7 ps, so the photons stay at p = 0.95. Perceval took about 1 ms per case; Piquasso's first case included
 38 s of just-in-time compilation.
 
 Licenses as reported upstream (package metadata, 2026-10-15): perceval-quandela MIT;
@@ -131,8 +137,8 @@ exqalibur CC BY-NC-ND 4.0; piquasso Apache-2.0.
 `step1_unit_cells.py` (grcwa 0.1.2; 675 solves at 101 orders in 152 s, 225 solves at
 201 orders in 381 s, one BLAS thread per process; |R + T − 1| ≤ 9e-13),
 `step2_focusing.py` (1024 and 2048 samples, 0.325 µm cells, 333 µm and 666 µm windows),
-`step3_fit_model.py`, `step4_engine_check.py --model per-wavelength-ideal`. Status
-`PASS`. The unit-cell library SHA-256 recorded as `source_data_sha256` was
+`step3_fit_model.py`, `step4_engine_check.py` (tabulated model) and
+`step4_engine_check.py --model per-wavelength-ideal`. Status `PASS`. The unit-cell library SHA-256 recorded as `source_data_sha256` was
 `7cee114bc0a8228f6c3ada9690b2070b194c81ab328106f599307815d1ecb17b`; it changes with
 the platform's floating-point results, so each run records its own.
 
@@ -154,7 +160,8 @@ External numerical spread over 101/201 orders and 1024/2048 samples (490, 515, 5
 545, 580 nm and the angle and beam-size cases): focus position 0.50 % (largest at
 580 nm), spot radius 0.71 %, efficiency 0.015. Stated model errors: focus position
 ±1.4 µm, spot radius ±8.1 %, delivered power ±19 %; validated domain 490–580 nm, field
-angle ≤ 2°, input beam radius ≤ 30 µm (checked at 20 and 30 µm), x polarization.
+angle ≤ 2°, input beam radius ≤ 30.1 µm (checked at 20 and 30 µm; the bound is stated
+rounded up by 0.1 µm, see below), x polarization.
 
 | Field angle | External axial / lateral focus (µm) | Thin-lens prediction (µm) | Spot radius change | Inside the stated errors |
 | --- | --- | --- | --- | --- |
@@ -163,13 +170,29 @@ angle ≤ 2°, input beam radius ≤ 30 µm (checked at 20 and 30 µm), x polari
 | 8° | 195.887 / 27.95 | 199.263 / 28.00 | +11.8 % | no |
 | 20° | 183.669 / 66.95 | 199.263 / 72.53 | +71.7 % | no |
 
-Engine runs: in all 16 in-domain cases and at 2° the Engine stayed inside the stated
-errors, and reproduced the thin-lens prediction of the model to 3.8e-7. A 450 nm source
-gave `OUT_OF_MODEL_SCOPE` with `MODEL_WAVELENGTH_OUTSIDE_BAND`. With one
-`IDEAL_THIN_LENS` per wavelength the 20° input returned `WARNING`
-(`GAUSSIAN_TRUNCATION` only), with the Engine waist 15.6 µm farther and 5.6 µm farther
-off axis than the external focus, a 41 % smaller spot and 15 % more power: the
-tabulated model's `max_field_angle_deg` is what puts this input out of scope.
+Engine runs with the `TABULATED_THIN_LENS` model: in all 16 in-domain cases and at 2°
+the run was `WARNING` (only `GAUSSIAN_TRUNCATION`: the 100 µm aperture clips 0.4 % of
+the beam), the deviations stayed inside the stated errors, and the Engine reproduced the
+model's thin-lens prediction to 6e-16. One Project with all 15 wavelengths as spectral
+lines of one source gave the same per-line results (6e-16). The power not delivered
+into the focus appears in the power budget as the `UNMODELLED_RESPONSE` sink of the
+element (for example 0.184 mW of 1 mW at 545 nm). Counterexamples, all
+`OUT_OF_MODEL_SCOPE`: 450 nm with `MODEL_WAVELENGTH_OUTSIDE_BAND`; 5°, 8° and 20° with
+`MODEL_FIELD_ANGLE_EXCEEDED`; a `peak_irradiance_W_per_mm2` target through the element
+with `METRIC_NOT_VALIDATED_FOR_ELEMENT` and no value. At 20° the external focus lies
+15.6 µm closer to the lens and 5.6 µm closer to the axis than the thin-lens prediction,
+with a 68 % larger spot and 13 % less power.
+
+With one `IDEAL_THIN_LENS` per wavelength (`--model per-wavelength-ideal`) the in-domain
+numbers are the same within 3.8e-7 (decimal rounding of the per-line focal lengths),
+450 nm is out of scope through the lens's valid band, and the 20° input returns
+`WARNING`: that model kind cannot state a field-angle domain.
+
+The Engine compares the beam radius and field angle with `max_beam_radius_mm` and
+`max_field_angle_deg` without a tolerance. With a bound of exactly 0.03 mm, the 30 µm
+beam at 515 nm reached the element with a computed radius of 0.030000000000000002 mm
+and was refused with `MODEL_BEAM_SIZE_EXCEEDED`, while 510 and 520 nm passed; stating
+the validated radius rounded up by 0.1 µm avoids this.
 
 ## Scope of these checks
 

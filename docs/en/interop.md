@@ -81,9 +81,13 @@ python examples/interop/diffraction/external_focus.py run-interop-diffraction
 ```
 
 `opensci_handoff.py` runs the Project for stop radii 3, 1.2 and 0.5 mm and writes a
-`handoff.json` per case: the Gaussian state at the stop (radii, wavefront radii, M²,
-power, wavelength, medium, beam axes), the stop and lens parameters from the Project,
-the Engine's own focal-plane result, and the run identity. `external_focus.py` reads
+`handoff.json` per case: the Engine's transverse-plane handoff on an observation plane
+in the stop's plane (`RunResults.handoff`, also `opensci-engine results handoff RUN
+--monitor ID --element ID`): Gaussian q per axis, radii, wavefront radii, M², power,
+wavelength, medium, beam axes, Jones vector, the stop outline in the plane's frame and
+the field-construction convention with its applicability; plus the lens parameters
+from the Project, the Engine's own focal-plane result and the run identity. The script
+checks the handoff against the pupil-plane state 1 mm upstream propagated by ABCD. `external_focus.py` reads
 only these files. It constructs the sampled field under a stated convention
 (`tem00_field.py`):
 
@@ -196,7 +200,8 @@ python examples/interop/metasurface/step4_engine_check.py run-interop-metasurfac
    wavelength, error bounds per supported metric from the hold-out comparison plus the
    external numerical spread (RCWA orders 101/201, propagation windows 1024/2048
    samples), the largest field angle whose deviations stay inside those bounds as
-   `max_field_angle_deg`, the validated beam radius as `max_beam_radius_mm`, `LINEAR_X`
+   `max_field_angle_deg`, the validated beam radius rounded up by 0.1 µm as
+   `max_beam_radius_mm` (the Engine compares radii without a tolerance), `LINEAR_X`
    as validated polarization, and the tool versions plus the SHA-256 of the unit-cell
    library as evidence. The result is `metalens_model.json`.
 4. **OpenSci check**: the model is declared in a catalog-free Project and traced for
@@ -221,15 +226,17 @@ a hold-out wavelength only to 16 %; denser rows or `transmittance_interpolation:
 POINTS_ONLY` give a tighter power model. At 2° field angle the external focus stays
 within the stated errors; at 5° its axial position moves by 1.56 µm, more than the
 1.4 µm bound, so `max_field_angle_deg` is 2. The Engine reproduced the thin-lens
-prediction of the model to 4e-7 in every in-domain case.
+prediction of the model to 6e-16 in every in-domain case, also with all 15 wavelengths
+as spectral lines of one source; the power not delivered into the focus appears as the
+element's `UNMODELLED_RESPONSE` sink in the power budget.
 
 Counterexamples: a 450 nm source is outside the 490–580 nm rows and the run is
 `OUT_OF_MODEL_SCOPE` (`MODEL_WAVELENGTH_OUTSIDE_BAND`). At 20° the external focus lies
 15.6 µm closer to the lens and 5.6 µm closer to the axis than the thin-lens prediction,
-with a 68 % larger spot and 13 % less power: the model's `max_field_angle_deg` puts
-this input outside its scope. `step4_engine_check.py` also checks that a target asking
-for an unsupported metric (`peak_irradiance_W_per_mm2`) through the element is
-`OUT_OF_MODEL_SCOPE`, and traces all 15 wavelengths as one multi-line source.
+with a 68 % larger spot and 13 % less power; the run is `OUT_OF_MODEL_SCOPE`
+(`MODEL_FIELD_ANGLE_EXCEEDED`), as are 5° and 8°. A target asking for a metric the
+model was not validated for (`peak_irradiance_W_per_mm2`) through the element is
+`OUT_OF_MODEL_SCOPE` with `METRIC_NOT_VALIDATED_FOR_ELEMENT` and carries no value.
 `--model per-wavelength-ideal` runs the same comparison with one `IDEAL_THIN_LENS` per
 wavelength; that kind cannot state a field-angle domain and returns `WARNING` at 20°.
 All runs report `GAUSSIAN_TRUNCATION` because the 100 µm aperture clips 0.4 % of the
@@ -243,7 +250,7 @@ TensorFlow 2.11, so it belongs in its own environment exchanging files. Only grc
 
 A single external focus does not define a general component. The model is valid only
 for its wavelength rows, field angles up to `max_field_angle_deg`, input beam radii up
-to `max_beam_radius_mm` (validated at 20 and 30 µm), x polarization and the listed
+to `max_beam_radius_mm` (validated at 20 and 30 µm, stated as 30.1 µm), x polarization and the listed
 metrics; a target asking for another metric through the element is outside the model's
 scope. It states no phase, so the network export and wavefront results refuse paths
 through it. Its accuracy is bounded by the external reference itself: the local

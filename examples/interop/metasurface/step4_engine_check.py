@@ -105,6 +105,8 @@ def run(document):
                "issues": sorted({issue.code for issue in results.result.issues}),
                "model_scope_issues": [i.get("code") if isinstance(i, dict) else str(i)
                                       for i in statuses.get("model_scope_issues", [])],
+               "target_issue_codes": sorted({str(getattr(code, "value", code)) for target in results.result.targets
+                                             for code in (target.issue_codes or ())}),
                "identity": run_identity(results), "beams": []}
     for arrival in results.monitor("after")["arrivals"]:
         beam = arrival["beam"]
@@ -185,6 +187,7 @@ def run_example(directory, mode):
         beam = outcome["beams"][0] if outcome["beams"] else {}
         entry = {"tilt_deg": tilt, "inside_model_domain": tilt <= max_angle, "status": outcome["status"],
                  "issues": outcome["issues"], "model_scope_issues": outcome["model_scope_issues"],
+                 "target_issue_codes": outcome["target_issue_codes"],
                  "engine": {k: beam.get(k) for k in ("waist_axial_um", "waist_lateral_um", "waist_radius_um", "power_W")},
                  "external": {"z_focus_um": row["z_focus_um"], "lateral_um": row["focus_xy_um"][0], "w_focus_um": row["w_focus_um"],
                               "power_W": 0.001 * row["focusing_efficiency"]}}
@@ -199,12 +202,16 @@ def run_example(directory, mode):
     counter = {"450nm": run(project(model, mode, wavelengths_nm=[450.0], waist_um=waist_um,
                                     band_override=(rows[0]["wavelength_nm"], rows[-1]["wavelength_nm"])))}
     counter["450nm"]["expected"] = "OUT_OF_MODEL_SCOPE"
-    counter["20deg"] = {k: field["20deg"][k] for k in ("status", "issues", "model_scope_issues", "engine", "external")}
+    counter["450nm"]["expected_code"] = "MODEL_WAVELENGTH_OUTSIDE_BAND"
+    counter["20deg"] = {k: field["20deg"][k] for k in ("status", "issues", "model_scope_issues", "target_issue_codes",
+                                                        "engine", "external")}
     counter["20deg"]["expected"] = "OUT_OF_MODEL_SCOPE" if mode == "tabulated" else "not stated by IDEAL_THIN_LENS"
+    counter["20deg"]["expected_code"] = "MODEL_FIELD_ANGLE_EXCEEDED" if mode == "tabulated" else None
     if mode == "tabulated":
         counter["unsupported_metric"] = run(project(model, mode, wavelengths_nm=[532], waist_um=waist_um,
                                                     target_metric="peak_irradiance_W_per_mm2"))
         counter["unsupported_metric"]["expected"] = "OUT_OF_MODEL_SCOPE"
+        counter["unsupported_metric"]["expected_code"] = "METRIC_NOT_VALIDATED_FOR_ELEMENT"
         multi = run(project(model, mode, wavelengths_nm=list(TABLE_NM + HOLDOUT_NM), waist_um=waist_um))
         lines = {round(b["wavelength_nm"]): b for b in multi["beams"]}
         multi_line = {"status": multi["status"], "issues": multi["issues"], "identity": multi["identity"], "lines": {}}
@@ -215,7 +222,9 @@ def run_example(directory, mode):
     else:
         multi_line = None
     for outcome in counter.values():
-        outcome["as_expected"] = (outcome["status"] == outcome["expected"]) if outcome["expected"].isupper() else None
+        codes = set(outcome["issues"]) | set(outcome.get("target_issue_codes", [])) | set(outcome["model_scope_issues"])
+        outcome["as_expected"] = ((outcome["status"] == outcome["expected"] and outcome["expected_code"] in codes)
+                                  if outcome["expected"].isupper() else None)
 
     in_domain = list(cases.values()) + [f for f in field.values() if f["inside_model_domain"]]
     checks = {
@@ -223,6 +232,9 @@ def run_example(directory, mode):
         "in_domain_cases_within_stated_errors": {"value": sum(1 for c in cases.values() if not c["within_stated_errors"])
                                                  + sum(1 for f in field.values() if f["inside_model_domain"]
                                                        and not within_field(f, bounds)), "tolerance": 0},
+        "in_domain_runs_out_of_scope": {"value": sum(1 for c in in_domain if c["status"] == "OUT_OF_MODEL_SCOPE")
+                                        + (1 if multi_line and multi_line["status"] == "OUT_OF_MODEL_SCOPE" else 0),
+                                        "tolerance": 0},
         "counterexamples_not_as_expected": {"value": sum(1 for c in counter.values() if c["as_expected"] is False),
                                             "tolerance": 0},
     }
@@ -240,8 +252,9 @@ def run_example(directory, mode):
             "stated_errors": bounds,
             "holdout_max_abs": {k: max(abs(c["engine_vs_external"][k]) for c in holdouts)
                                 for k in ("z_rel_err", "w_rel_err", "power_rel_err")},
-            "counterexamples": {k: {"status": v["status"], "expected": v["expected"], "issues": v["issues"],
-                                    "model_scope_issues": v["model_scope_issues"]}
+            "counterexamples": {k: {"status": v["status"], "expected": v["expected"], "as_expected": v["as_expected"],
+                                    "issues": v["issues"] + v["model_scope_issues"],
+                                    "target_issue_codes": v.get("target_issue_codes", [])}
                                 for k, v in counter.items()},
             "report": str(directory / f"step4_report_{mode}.json")}
 
