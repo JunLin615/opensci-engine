@@ -10,6 +10,7 @@ Start with a working optical design, then explore its results and adapt it to yo
 4. [Read and export results](results.md) — validation, beam data, visualization, and CSV exports.
 5. [Continue to hardware](hardware.md) — component selection, assembly preview, and ordering.
 6. [Analyze measurements](measurements.md) — background subtraction, reference normalization, linear fits and residual plots.
+7. [Use external scientific tools](interop.md) — optimization, diffraction, quantum photonics and metasurface components with SciPy, Optuna, SALib, LightPipes, prysm, POPPY, Perceval, Piquasso and grcwa (requires opensci-engine 0.8.0).
 
 ## Examples
 
@@ -18,6 +19,7 @@ Start with a working optical design, then explore its results and adapt it to yo
 | [Beam expander](../../examples/beam_expander.py) | `python examples/beam_expander.py --out run-example` | Yes; downloads on first use |
 | [Ideal-lens focus](../../examples/ideal_lens_focus.py) | `python examples/ideal_lens_focus.py` | No; uses mathematical elements |
 | [Measurement analysis](../../examples/analyze_measurements.py) | Follow the [two CSV examples](measurements.md) | No; engine-independent, install `requirements-examples.txt` |
+| [External tools](../../examples/interop/) | Follow the [external tools guide](interop.md) | No; requires opensci-engine 0.8.0 and each topic's requirements file |
 
 Install the package into your Python environment before running these scripts. `uv tool install` provides an isolated CLI; use the [pip installation](installation.md) for Python imports.
 

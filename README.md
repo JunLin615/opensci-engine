@@ -87,8 +87,10 @@ Try the runnable [beam expander](examples/beam_expander.py) and [ideal-lens focu
 | Results, visualization, and export | [Read](docs/en/results.md) | [阅读](docs/zh-CN/results.md) |
 | Measurement cleaning, fitting, and reference normalization | [Read](docs/en/measurements.md) | [阅读](docs/zh-CN/measurements.md) |
 | From design to hardware | [Read](docs/en/hardware.md) | [阅读](docs/zh-CN/hardware.md) |
+| External scientific tools (requires 0.8.0) | [Read](docs/en/interop.md) | [阅读](docs/zh-CN/interop.md) |
 
 These guides and examples target the published **0.6.1** package. Find available package versions in the [PyPI release history](https://pypi.org/project/opensci-engine/#history).
+The external-tool examples (optimization, diffraction, quantum photonics, metasurface components) require **opensci-engine 0.8.0** or newer.
 
 ## Get involved
 

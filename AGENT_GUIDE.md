@@ -47,6 +47,26 @@ its catalog release. On a download failure, check connectivity and the catalog
 guide; use the ideal-lens route for an independent installation check. Generic
 sweeps are not yet delivered; do not invent commands for them.
 
+## External scientific tools (requires opensci-engine 0.8.0)
+
+These examples need **opensci-engine 0.8.0** or newer, not the 0.6.1 baseline above;
+each script stops with a JSON error (exit 4) on an older engine. Install one topic's
+`requirements-<topic>.txt` into its own fresh virtual environment, then read the
+matching section of the [external tools guide](docs/en/interop.md):
+
+| Task | Entry point | Independent check |
+| --- | --- | --- |
+| Optimize or tolerance a Project with SciPy / Optuna / SALib | `examples/interop/optimization/optimize_expander.py` | ABCD optimum and per-design values |
+| Diffraction at a declared stop (LightPipes, prysm, POPPY, Diffractio) | `examples/interop/diffraction/opensci_handoff.py`, then `external_focus.py` | Hankel integral, grid and window convergence |
+| Photon statistics from the network export (Perceval, Piquasso) | `examples/interop/quantum/build_layouts.py`, then `run_quantum.py` with `quantum_inputs.json` | Closed-form two-photon interference |
+| Metasurface response to a `TABULATED_THIN_LENS` model (grcwa) | `examples/interop/metasurface/step1_unit_cells.py` … `step4_engine_check.py` | Hold-out wavelengths, convergence spread, out-of-scope counterexamples |
+
+Exit codes: 0 every comparison within its stated tolerance, 1 a comparison outside it,
+4 error. Quantum inputs (photons, wavepackets, detectors) come only from the user's
+input file, never from the Project's lasers. External results are separate files that
+keep the OpenSci run identity; they never replace a run's status or Local Validation.
+Copyable prompts for these tasks: [interop prompts](docs/en/interop-prompts.md).
+
 ## Inputs and units
 
 For a customer design, establish wavelength (nm), source power (W), Gaussian waist
