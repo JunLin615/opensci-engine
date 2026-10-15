@@ -15,8 +15,8 @@ plus the external reference's own numerical spread (RCWA orders, propagation win
 The field-angle domain is calibrated by running the model in OpenSci at the
 calibration angles (2, 5, 8, 20 deg) and comparing the Engine's focus with the external
 focus at each angle: the largest angle reached without leaving the bounds becomes
-``max_field_angle_deg``. The validated beam radius (rounded up to 0.1 um, because the
-Engine compares radii without a tolerance) becomes ``max_beam_radius_mm``. Test
+``max_field_angle_deg``. The largest validated input beam radius (30 um) becomes
+``max_beam_radius_mm``. Test
 wavelengths and test settings are never used here; step 4 checks the finished model on
 them.
 
@@ -46,9 +46,6 @@ else:
     from step1_unit_cells import CALIBRATION_NM, TABLE_NM
 
 MODEL_ID = "metalens_tio2_f200um"
-# The validated input radius (30 um) is stated rounded up to 0.1 um, so a beam of exactly that radius, which a trace
-# reproduces only to the last floating-point digit, stays inside the domain.
-BEAM_RADIUS_MARGIN_UM = 0.1
 
 
 def rayleigh_um(waist_um, wavelength_nm):
@@ -148,7 +145,7 @@ def build_model(rows, bounds, max_angle, waist, clear_um, transmittance_interpol
         "focal_interpolation": "LINEAR_IN_OPTICAL_POWER", "transmittance_interpolation": transmittance_interpolation,
         "clear_radius_mm": decimal_text(clear_um / 1000), "edge_radius_mm": decimal_text(clear_um / 1000 + 0.01),
         "max_field_angle_deg": decimal_text(max_angle),
-        "max_beam_radius_mm": decimal_text((waist + BEAM_RADIUS_MARGIN_UM) / 1000),
+        "max_beam_radius_mm": decimal_text(waist / 1000),
         "validated_polarizations": ["LINEAR_X"],
         "supported_metrics": [
             *({"metric": f"waist_distance_{axis}_mm", "abs_error": decimal_text(bounds["z_abs_um"] / 1000, 6),

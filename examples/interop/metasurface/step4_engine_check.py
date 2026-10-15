@@ -93,9 +93,17 @@ def project(model, mode, *, wavelengths_nm, waist_um, tilt_deg=0.0, target_metri
         ],
         "observations": [{"observation_id": "after", "aperture": {"shape": "circle", "radius_mm": 1},
                           "pose": pose((PLANE_X_MM, 0.0, HEIGHT_MM), (1, 0, 0))}],
-        "targets": [{"target_id": "spot", "metric": target_metric, "observation_id": "after", "maximum": 0.01,
-                     "unit": "mm" if target_metric.endswith("_mm") else "W/mm^2"}],
+        "targets": spot_targets(target_metric, wavelengths_nm),
     }
+
+
+def spot_targets(metric, wavelengths_nm):
+    """One target on the plane behind the lens; with several spectral lines one per line (selected by wavelength)."""
+    unit = "mm" if metric.endswith("_mm") else "W/mm^2"
+    if len(wavelengths_nm) == 1:
+        return [{"target_id": "spot", "metric": metric, "observation_id": "after", "maximum": 0.01, "unit": unit}]
+    return [{"target_id": f"spot_{decimal_text(float(w)).replace('.', 'p')}nm", "metric": metric, "observation_id": "after",
+             "wavelength_nm": decimal_text(float(w)), "maximum": 0.01, "unit": unit} for w in wavelengths_nm]
 
 
 def run(document):
@@ -246,9 +254,9 @@ def run_example(directory, mode):
                                 "tolerance": MODEL_AGREEMENT_REL},
         "test_cases_outside_stated_errors": {"value": sum(1 for c in test_cases if not c["within_stated_errors"])
                                              + sum(1 for f in test_field if not within_field(f, bounds)), "tolerance": 0},
-        "in_domain_runs_out_of_scope": {"value": sum(1 for c in in_domain if c["status"] == "OUT_OF_MODEL_SCOPE")
-                                        + (1 if multi_line and multi_line["status"] == "OUT_OF_MODEL_SCOPE" else 0),
-                                        "tolerance": 0},
+        "in_domain_runs_not_pass_or_warning": {"value": sum(1 for c in in_domain if c["status"] not in ("PASS", "WARNING"))
+                                               + (1 if multi_line and multi_line["status"] not in ("PASS", "WARNING") else 0),
+                                               "tolerance": 0},
         "counterexamples_not_as_expected": {"value": sum(1 for c in counter.values() if c["as_expected"] is False),
                                             "tolerance": 0},
     }

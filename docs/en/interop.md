@@ -228,8 +228,8 @@ The external results are split into three sets that play different roles:
    1024/2048 samples). For the field-angle domain, step 3 runs the model in OpenSci at
    each calibration angle and compares the Engine's focus with the external focus; the
    largest angle reached without leaving the bounds becomes `max_field_angle_deg`. The
-   validated beam radius, rounded up by 0.1 µm because the Engine compares radii without
-   a tolerance, becomes `max_beam_radius_mm`; `LINEAR_X` is the validated polarization;
+   largest validated input beam radius (30 µm) becomes `max_beam_radius_mm`; `LINEAR_X`
+   is the validated polarization;
    tool versions and the SHA-256 of the unit-cell library are the evidence. The result
    is `metalens_model.json`.
 4. **OpenSci check**: the model is declared in a catalog-free Project. The Engine must
@@ -255,7 +255,7 @@ between rows predicts the delivered power only to about 16 %; denser rows or
 Engine's focus stays inside the bounds (axial −0.23 µm, spot −5.2 %); at 5° the external
 focus moves 1.56 µm toward the lens while the Engine's does not, more than the 1.4 µm
 bound, so `max_field_angle_deg` is 2. The Engine reproduced the model's thin-lens
-prediction to 6e-16, also with all 19 wavelengths as spectral lines of one source; the
+prediction to 5e-16, also with all 19 wavelengths as spectral lines of one source; the
 power not delivered into the focus appears as the element's `UNMODELLED_RESPONSE` sink in
 the power budget.
 
@@ -278,7 +278,7 @@ TensorFlow 2.11, so it belongs in its own environment exchanging files. Only grc
 
 A single external focus does not define a general component. The model is valid only
 for its wavelength rows, field angles up to `max_field_angle_deg`, input beam radii up to
-`max_beam_radius_mm` (calibrated at 20 and 30 µm, tested at 25 µm, stated as 30.1 µm), x
+`max_beam_radius_mm` (calibrated at 20 and 30 µm, tested at 25 µm), x
 polarization and the listed metrics; a target asking for another metric through the
 element is outside the model's scope. It states no phase, so the network export and
 wavefront results refuse paths through it. Its accuracy is bounded by the external

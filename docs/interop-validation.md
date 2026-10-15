@@ -5,7 +5,7 @@ Evidence for the four examples in [examples/interop](../examples/interop/) and t
 or newer; the 0.6.1 baseline of the other examples is unchanged.
 
 Recorded on 2026-10-15 with opensci-engine 0.8.0, engine build
-`0.8.0+4a358fe7b4b1e74b`. Every engine-side number below comes from that build.
+`0.8.0+444e44652013a822`. Every engine-side number below comes from that build.
 Each script's `outcome` compares OpenSci with an external tool or an independent
 reference (`WITHIN_TOLERANCE` / `OUT_OF_TOLERANCE`, or `COMPLETED` for a step that only
 produces data); OpenSci's own run statuses are quoted separately.
@@ -38,7 +38,7 @@ components), so no catalog release is involved.
 with SciPy 1.18.1, Optuna 5.0.0, SALib 1.6.0. Outcome `WITHIN_TOLERANCE`, 709 Engine
 evaluations (run status 686 `PASS`, 23 `FAIL` where the divergence target bound is not
 met; no infeasible run: a run with any other status would be logged with
-`feasible: false` and given a penalty instead of its value), about 0.11 s each.
+`feasible: false` and given a penalty instead of its value), about 0.2 s each.
 
 | Quantity | Result | Reference / tolerance |
 | --- | --- | --- |
@@ -72,7 +72,7 @@ the lens; encircled power radius 50 µm.
 | 1.2 mm | `WARNING` `GAUSSIAN_TRUNCATION` | 0.94382 | 0.32316 | +62.1 % | 0.94821 / 0.98721 |
 | 0.5 mm | `OUT_OF_MODEL_SCOPE` `GAUSSIAN_SEVERE_TRUNCATION` | 0.39338 | 0.027150 | withheld | 0.41942 / withheld |
 
-The Engine's transmitted power matched `1 − exp(−2a²/w²)` to 4e-16 in every case.
+The Engine's transmitted power matched `1 − exp(−2a²/w²)` to 9e-16 in every case.
 LightPipes `Forvard` peak irradiance (computed in absolute W/mm²), as relative error
 against the reference:
 
@@ -144,8 +144,8 @@ exqalibur CC BY-NC-ND 4.0; piquasso Apache-2.0.
 
 ## Metasurface lens as a virtual focusing component
 
-`step1_unit_cells.py` (grcwa 0.1.2; 855 solves at 101 orders in 184 s for 19
-wavelengths, 225 solves at 201 orders in 381 s for 490/515/532/545/580 nm, one BLAS
+`step1_unit_cells.py` (grcwa 0.1.2; 855 solves at 101 orders in 214 s for 19
+wavelengths, 225 solves at 201 orders in 393 s for 490/515/532/545/580 nm, one BLAS
 thread per process; |R + T − 1| ≤ 9e-13), `step2_focusing.py` (1024 and 2048 samples,
 0.325 µm cells, 333 µm and 666 µm windows), `step3_fit_model.py` (with Engine runs for
 the field-angle calibration), `step4_engine_check.py` (tabulated model) and
@@ -180,7 +180,7 @@ External numerical spread over 101/201 orders and 1024/2048 samples (490, 515, 5
 580 nm), spot radius 0.71 %, efficiency 0.015. Error bounds from the calibration set
 plus that spread: focus position ±1.4 µm, spot radius ±8.1 %, delivered power ±19 %.
 All test cases stay inside them (largest: focus 0.32 µm, spot −5.8 % at 1.5°, power
-+15.7 %). Validated domain: 490–580 nm, field angle ≤ 2°, input beam radius ≤ 30.1 µm
++15.7 %). Validated domain: 490–580 nm, field angle ≤ 2°, input beam radius ≤ 30 µm
 (calibrated at 20 and 30 µm, tested at 25 µm), x polarization.
 
 Field angles at 532 nm, Engine (tabulated model) against external; the angle domain was
@@ -197,8 +197,9 @@ set from these calibration runs, and 1.5° at 555 nm is the test case:
 Engine runs with the `TABULATED_THIN_LENS` model: every in-domain run (table,
 calibration and test cases, 2° and 1.5°) was `WARNING` with only `GAUSSIAN_TRUNCATION`
 (the 100 µm aperture clips 0.4 % of the beam), and the Engine reproduced the model's
-thin-lens prediction to 6e-16. One Project with all 19 wavelengths as spectral lines of
-one source gave the same per-line results (6e-16). The power not delivered into the
+thin-lens prediction to 5e-16. One Project with all 19 wavelengths as spectral lines of
+one source, with one waist-radius target per line, ran with `WARNING` and gave the same
+per-line results (5e-16). The power not delivered into the
 focus appears in the power budget as the `UNMODELLED_RESPONSE` sink of the element (for
 example 0.184 mW of 1 mW at 545 nm). Counterexamples, all `OUT_OF_MODEL_SCOPE`: 450 nm
 with `MODEL_WAVELENGTH_OUTSIDE_BAND`; 5°, 8° and 20° with `MODEL_FIELD_ANGLE_EXCEEDED`;
@@ -210,11 +211,11 @@ numbers are the same within 3.8e-7 (decimal rounding of the per-line focal lengt
 450 nm is out of scope through the lens's valid band, and the 5°, 8° and 20° inputs
 return `WARNING`: that model kind cannot state a field-angle domain.
 
-The Engine compares the beam radius and field angle with `max_beam_radius_mm` and
-`max_field_angle_deg` without a tolerance. With a bound of exactly 0.03 mm, the 30 µm
-beam at 515 nm reached the element with a computed radius of 0.030000000000000002 mm
-and was refused with `MODEL_BEAM_SIZE_EXCEEDED`, while 510 and 520 nm passed; stating
-the validated radius rounded up by 0.1 µm avoids this.
+The model states `max_beam_radius_mm` 0.03, the validated 30 µm radius itself. The
+Engine compares beam radius and field angle with their limits with a rounding tolerance,
+so the 30 µm beam, which reaches the element with a computed radius of
+0.030000000000000002 mm at some wavelengths, stays inside the domain at every
+wavelength.
 
 ## Scope of these checks
 
