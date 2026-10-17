@@ -266,9 +266,10 @@ the Engine's, with a 68 % larger spot and 13 % less power); and a target asking 
 metric the model was not validated for (`peak_irradiance_W_per_mm2`) through the element
 (`METRIC_NOT_VALIDATED_FOR_ELEMENT`, no value). `--model per-wavelength-ideal` runs the
 same comparison with one `IDEAL_THIN_LENS` per wavelength; that kind cannot state a
-field-angle domain and returns `WARNING` at 5°, 8° and 20°. All runs report
-`GAUSSIAN_TRUNCATION` because the 100 µm aperture clips 0.4 % of the 30 µm beam; the
-Engine counts that power loss itself.
+field-angle domain and returns `WARNING` at 5°, 8° and 20°. All runs with the 30 µm beam
+report `GAUSSIAN_TRUNCATION` because the 100 µm aperture clips 0.4 % of it; the Engine
+counts that power loss itself. The 20 µm and 25 µm beam cases are `WARNING` from the waist
+target's Gaussian state.
 
 Other unit-cell solvers fit the same pipeline as long as step 1 writes the same library
 fields: meent (MIT) and torcwa (LGPL) install with pip; DFlat (`dflat-opt`) and metabox

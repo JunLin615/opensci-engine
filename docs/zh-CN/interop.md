@@ -125,7 +125,7 @@ python examples/interop/metasurface/step4_engine_check.py run-interop-metasurfac
 
 所有测试情况都在声明误差内。焦点位置在整个波段内都与外部结果吻合；理想高斯焦斑比外部光斑小 2–7 %（单元相位离散所致），这部分由声明的半径误差承担。聚焦效率在 10 nm 内从 0.64 变到 0.95，因此行间线性插值对输出功率的预测只能达到约 16 %；更密的表格行或 `transmittance_interpolation: POINTS_ONLY` 可以得到更紧的功率模型。2° 时引擎焦点在上限内（轴向 −0.23 µm，光斑 −5.2 %）；5° 时外部焦点向透镜移动 1.56 µm 而引擎焦点不变，超过 1.4 µm 的上限，因此 `max_field_angle_deg` 为 2。引擎复现模型薄透镜预测的偏差为 5e-16；把全部 19 个波长作为同一光源的多条谱线一次运行，结果相同；未进入焦斑的功率在功率预算中显示为该元件的 `UNMODELLED_RESPONSE` 汇。
 
-反例均为 `OUT_OF_MODEL_SCOPE`：450 nm 光源在 490–580 nm 表格范围之外（`MODEL_WAVELENGTH_OUTSIDE_BAND`）；5°、8° 和 20°（`MODEL_FIELD_ANGLE_EXCEEDED`；20° 时外部焦点比引擎焦点更靠近透镜 15.6 µm、更靠近光轴 5.6 µm，光斑大 68 %，功率少 13 %）；以及经过该元件、要求模型未验证指标（`peak_irradiance_W_per_mm2`）的目标（`METRIC_NOT_VALIDATED_FOR_ELEMENT`，不给出数值）。`--model per-wavelength-ideal` 用每个波长一个 `IDEAL_THIN_LENS` 做同样比较；该类型无法声明视场角有效域，5°、8° 和 20° 时返回 `WARNING`。所有运行都报告 `GAUSSIAN_TRUNCATION`，因为 100 µm 口径截去了 30 µm 光束 0.4 % 的功率；引擎自身已计入这部分损耗。
+反例均为 `OUT_OF_MODEL_SCOPE`：450 nm 光源在 490–580 nm 表格范围之外（`MODEL_WAVELENGTH_OUTSIDE_BAND`）；5°、8° 和 20°（`MODEL_FIELD_ANGLE_EXCEEDED`；20° 时外部焦点比引擎焦点更靠近透镜 15.6 µm、更靠近光轴 5.6 µm，光斑大 68 %，功率少 13 %）；以及经过该元件、要求模型未验证指标（`peak_irradiance_W_per_mm2`）的目标（`METRIC_NOT_VALIDATED_FOR_ELEMENT`，不给出数值）。`--model per-wavelength-ideal` 用每个波长一个 `IDEAL_THIN_LENS` 做同样比较；该类型无法声明视场角有效域，5°、8° 和 20° 时返回 `WARNING`。30 µm 光束的所有运行都报告 `GAUSSIAN_TRUNCATION`，因为 100 µm 口径截去了其 0.4 % 的功率；引擎自身已计入这部分损耗。20 µm 和 25 µm 光束的情形为 `WARNING`，来自束腰目标的高斯状态。
 
 只要第 1 步写出相同的库字段，其他单元求解器也可接入同一流程：meent（MIT）和 torcwa（LGPL）可用 pip 安装；DFlat（`dflat-opt`）和 metabox 依赖 gdspy，在 Windows 上需要 C 编译器，metabox 还要求 Python 3.8 和 TensorFlow 2.11，应放在独立环境中通过文件交换。本示例只实际运行了 grcwa（其软件包元数据声明 GPLv3）。
 

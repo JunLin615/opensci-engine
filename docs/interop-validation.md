@@ -115,9 +115,9 @@ rms intensity duration 0.25 ps (HOM) or 1000 ps (MZI), zero-delay indistinguisha
 | --- | --- | --- | --- | --- | --- | --- |
 | hom | yes | 0 | 0.95 | 0.0160000000 | 0.0160000000 | 0.016 |
 | hom_delay −0.3 mm | yes | +1.000692 | 0.017304 | 0.3144628079 | 0.3144628079 | 0.3144628081 |
-| hom_delay −0.05 mm | yes | +0.166782 | 0.849967 | 0.0480107085 | 0.0480107085 | 0.0480107086 |
+| hom_delay −0.05 mm | yes | +0.166782 | 0.849967 | 0.0480107087 | 0.0480107087 | 0.0480107086 |
 | hom_window_group (3 mm N-BK7) | no (column 0.918842) | −0.0000008 | 0.95 | 0.0147014644 | 0.0147014644 | 0.0147014644 |
-| hom_window_phase | no | +0.163032 | 0.854182 | 0.0428747559 | 0.0428747559 | 0.0428747564 |
+| hom_window_phase | no | +0.163032 | 0.854182 | 0.0428747563 | 0.0428747563 | 0.0428747564 |
 | mzi_t0 | yes | 0 | 0.95 | 0.6400000004 | 0.6400000004 | 0.64 |
 | mzi_t1 (1 mm window) | no (0.958392) | 0 | 0.95 | 0.5378015355 | 0.5378014972 | 0.5378014954 |
 | mzi_t1p0003 | no | 0 | 0.95 | 0.0162778350 | 0.0162778338 | 0.0162778342 |
@@ -195,8 +195,8 @@ set from these calibration runs, and 1.5° at 555 nm is the test case:
 | 20° | 183.669 / 66.95 | 199.225 / 72.51 | −40.6 % | no |
 
 Engine runs with the `TABULATED_THIN_LENS` model: every in-domain run (table,
-calibration and test cases, 2° and 1.5°) was `WARNING` with only `GAUSSIAN_TRUNCATION`
-(the 100 µm aperture clips 0.4 % of the beam), and the Engine reproduced the model's
+calibration and test cases, 2° and 1.5°) was `WARNING`: `GAUSSIAN_TRUNCATION` for the 30 µm beam
+(the 100 µm aperture clips 0.4 % of it), and the waist target's Gaussian state for the 20 µm and 25 µm beam cases, and the Engine reproduced the model's
 thin-lens prediction to 5e-16. One Project with all 19 wavelengths as spectral lines of
 one source, with one waist-radius target per line, ran with `WARNING` and gave the same
 per-line results (5e-16). The power not delivered into the
