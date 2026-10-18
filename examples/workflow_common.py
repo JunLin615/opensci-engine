@@ -16,8 +16,8 @@ What it provides:
 * ``check`` (``json_api.check_project``) and ``run_sample``: one in-process run into a sample directory, returned as
   a sample record whatever happens (an Engine refusal at load or at run is recorded, never raised);
 * sample outcome classes, in this precedence: ``ERROR`` (refused or not run), ``OUT_OF_MODEL`` (completed with any
-  model-scope issue, whatever the status), ``UNKNOWN`` (a selected target has no value or is UNKNOWN), ``FAIL`` (a
-  selected target failed), ``PASS`` (every selected target PASS, or WARNING with a value);
+  model-scope issue, whatever the status), ``UNKNOWN`` (no target to evaluate, or a selected target has no value or
+  is UNKNOWN), ``FAIL`` (a selected target failed), ``PASS`` (every selected target PASS, or WARNING with a value);
 * ``freshness``: whether a saved run is CURRENT for a Project (both hashes and the Engine build agree) or HISTORICAL,
   with reasons ``PROJECT_CHANGED``, ``ENGINE_CHANGED``, ``RUN_UNVERIFIED``;
 * sha256 / JSON / CSV writers (LF line endings) and bounded-output helpers.
@@ -346,7 +346,7 @@ def classify(status, model_scope_issues, targets, selected=None):
     rows = {t["id"]: t for t in targets}
     chosen = list(rows) if selected is None else list(selected)
     if not chosen:
-        return {"FAIL": "FAIL", "UNKNOWN": "UNKNOWN"}.get(status, "PASS")
+        return "UNKNOWN"  # no target was evaluated, so nothing passed
     statuses = []
     for target_id in chosen:
         row = rows.get(target_id)
