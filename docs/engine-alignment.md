@@ -1,14 +1,19 @@
 # Maintaining alignment with released engines
 
-[engine-baseline.json](../engine-baseline.json) is the machine-readable record of
-the verified PyPI engine release, test environment, catalog identity, CI Python
-version and current documentation entry points. Current entry/install guides
-reference it; historical validation reports retain their original versions.
+Two files in the repository root drive the alignment checks:
+
+| File | Contents |
+| --- | --- |
+| [engine-baseline.json](../engine-baseline.json) | Verified PyPI release, CI Python versions, website and retired hosts, verified environment (date, Python, platform, engine build, catalog release and its SHA-256, evidence), current documents and the documentation scan |
+| [alignment-checks.json](../alignment-checks.json) | The checks run against an installed release: command, expected exit code and result status, catalog and environment requirements |
+
+Current entry and installation documents state the baseline version and reference
+`engine-baseline.json`; historical validation records keep their original versions.
 
 These checks belong to this customer examples repository. They do not run in the
-engine's private development repository, gate engine releases, or require the
-engine to preserve obsolete example interfaces. Update examples and helpers when
-released engine contracts change.
+engine's development repository, gate engine releases, or require the engine to
+preserve obsolete example interfaces. Examples and helpers follow released engine
+contracts.
 
 ## Run a check
 
@@ -18,42 +23,119 @@ distribution from PyPI, even if another engine is already installed:
 
 ```bash
 python scripts/check_alignment.py --out run-alignment
-python scripts/check_alignment.py --candidate 0.6.1 --out run-candidate-061
+python scripts/check_alignment.py --candidate 0.8.0 --out run-candidate-080
 python scripts/check_alignment.py --candidate latest --out run-candidate-latest
 ```
 
-The first command uses the verified baseline. `latest` resolves the current
+The first command checks the verified baseline. `latest` resolves the current
 release from PyPI metadata and records the exact selected version. Every output
 directory must be new, so repeated checks cannot overwrite earlier evidence.
-Candidate checks never write `engine-baseline.json` or advance documentation pins.
+Candidate checks never write `engine-baseline.json`, `alignment-checks.json` or
+documentation.
 
-The runner installs `opensci-engine[protected]` into `OUTPUT/.venv`, strips
-`PYTHONPATH`/`PYTHONHOME`, disables user-site imports, and verifies the imported
-engine is inside that environment. If `requirements-examples.txt` exists, it also
-installs those workflow dependencies. Installed package versions, Python/platform
-identity, installation logs and the engine module path remain in the evidence.
+The runner installs `opensci-engine[protected]` and the `default_requirements` of
+`alignment-checks.json` into `OUTPUT/.venv`, strips `PYTHONPATH`/`PYTHONHOME`,
+disables user-site imports, and verifies the imported engine version and that its
+module lies inside that environment. Every check runs with that interpreter.
 
-Checks cover documentation consistency, dependency consistency, offline unittest
-discovery, ideal-lens passing/unmet/invalid cases, a fresh public catalog download,
-the beam-summary integration check, and saved-result inspection. The integration
-check accepts `--out` to keep generated files inside the check's output directory.
-New helpers should add offline tests and, when needed, an explicit integration
-command to the runner.
+### Catalog source
+
+By default the runner downloads the catalog's current release into an isolated
+store (`catalog sync`), which exercises the catalog service. On a network that
+cannot reach the service, import a published release file instead:
+
+```bash
+python scripts/check_alignment.py --candidate 0.8.0 \
+  --catalog-file 2026-10-15.1.json --out run-candidate-080-file
+```
+
+The runner verifies the file's SHA-256 before importing it: against
+`verified_environment.catalog_sha256` when the file holds the baseline's catalog
+release, otherwise against `--catalog-sha256 DIGEST` taken from the catalog
+manifest (`sha256` of the release). A missing or different digest fails as
+`catalog_data` and blocks the catalog checks. With an imported file every command
+runs with `OPENSCI_CATALOG_CHECK_INTERVAL=0`, so no run contacts the catalog
+service. The report's `catalog_source` records `mode` (`sync` or `file`), the file
+and its digests, the active release and the service URL; the Markdown summary
+names the source. A passing file-mode check establishes the examples on that
+release; it does not establish that the service delivers it.
+
+### Optional checks
+
+Checks marked `optional` need heavier third-party packages and run only on request,
+each group in its own environment (`OUTPUT/.venv-<topic>`) holding the candidate
+engine and the check's requirements file:
+
+```bash
+python scripts/check_alignment.py --optional interop-optimization --out run-optimization
+python scripts/check_alignment.py --optional all --out run-alignment-full
+```
+
+`--optional` is repeatable and accepts comma-separated names. Selecting a check
+also selects the checks it `needs`. The report lists optional checks that were not
+selected. The seeded optional checks cover the external-tool examples
+(optimization, diffraction, quantum, metasurface). Their requirements pin
+`numpy==2.5.4`, which needs Python 3.12 or newer, so run them with such an
+interpreter; on Python 3.11 they are skipped with that reason. The Diffractio
+cross-check uses an environment without the engine and is not part of the list.
+
+## Add a check
+
+Add an object to `checks` in `alignment-checks.json`; no runner change is needed.
+Checks run in list order.
+
+```json
+{
+  "name": "sweep-expander",
+  "description": "Parameter sweep over the catalog-free expander",
+  "argv": ["{python}", "examples/sweep_parameters.py", "--spec", "examples/specs/sweep_expander.json",
+           "--out", "{runs}/sweep-expander"],
+  "expected_exit": 0,
+  "expected_status": "COMPLETED",
+  "timeout": 600
+}
+```
+
+| Field | Default | Meaning |
+| --- | --- | --- |
+| `name` | required | Unique lower-case name (`[a-z0-9-]`); also the log file name |
+| `argv` | required | Command; the first item must be `{python}`. Paths are relative to the repository root |
+| `description` | none | One line for maintainers |
+| `expected_exit` | `0` | Exit code that counts as success; a scientific `FAIL` example expects `1` |
+| `expected_status` | none | String or list; stdout must be one JSON document whose `status_field` has one of these values |
+| `status_field` | `"status"` | Key read for `expected_status` (`"outcome"` for the external-tool examples) |
+| `json_error` | `false` | Success requires empty stdout and a JSON `error` object on stderr |
+| `needs_catalog` | `false` | Prepare the catalog (sync or file import) first; skipped when that fails |
+| `needs` | `[]` | Earlier checks that must pass; otherwise this check is skipped |
+| `requirements` | none | Requirements file installed with the engine into a separate environment |
+| `requires_python` | none | Minimum Python (`"3.12"`); on an older runner the check is `SKIPPED` as `setup` with that reason |
+| `optional` | `false` | Run only when selected with `--optional` |
+| `timeout` | `180` | Seconds |
+| `env` | `{}` | Extra environment variables (upper-case names) |
+
+Placeholders: `{python}` (the check's interpreter), `{runs}` (`OUTPUT/runs`) and
+`{out}` (`OUTPUT`). Output paths built from `{runs}` or `{out}` use native separators.
+Built-in step names (`install-engine`, `catalog-sync`, `catalog-identity`, ...) are
+reserved. Add offline unit tests for new helpers under `tests/`; offline-tests runs
+them before any catalog step. Run `python -m unittest tests.test_alignment_check`
+after editing the list: it validates the repository's own check list and
+documentation against the baseline.
 
 ## Read the result
 
-The command emits a compact JSON status and report path; exit `0` means all checks
-passed and exit `1` means at least one check failed. An expected non-passing design
-is a successful **check**: the strict ideal-lens case must report `FAIL` and exit
-`1`, while invalid input must exit `4` with an error on stderr.
+The command prints a compact JSON status, the catalog source and the report path;
+exit `0` means every executed check passed and exit `1` means at least one failed.
+An expected non-passing design is a successful **check**: the strict ideal-lens case
+must report `FAIL` and exit `1`, while invalid input must exit `4` with an error on
+stderr.
 
 | Evidence | Contents |
 | --- | --- |
-| `report.json` | Requested/resolved/installed versions; each check's category, status, command, actual/expected exit code, diagnostic and log paths |
+| `report.json` | Requested/resolved/installed versions, Python version, catalog source, optional selection; each check's category, status, command, actual/expected exit code, diagnostic, log paths and, when skipped, `blocked_by` |
 | `environment.json` | Installed engine version/location, Python executable/version and platform |
-| `logs/` | Complete stdout/stderr for installation and every executed command, including dependency versions |
+| `logs/` | Complete stdout/stderr for installation and every executed command, including installed package lists |
 | `runs/` | Complete successful or non-passing example outputs and the beam comparison report |
-| `.venv/`, `.catalog/` | Local execution environment and isolated catalog store; omitted from uploaded artifacts |
+| `.venv*/`, `.catalog/` | Local execution environments and the isolated catalog store; omitted from uploaded artifacts |
 
 Produce a Markdown report without contacting GitHub:
 
@@ -66,63 +148,103 @@ Failures are separated by cause:
 - `package_api`: installation/import/dependency failures, changed APIs or output
   contracts, unit-test failures, or unexpected example outcomes. Inspect the
   command and stderr before changing the helper or expected result.
-- `catalog_network`: explicit catalog availability/service-connectivity errors
-  or a catalog-sync timeout. Catalog-dependent checks are marked `SKIPPED`;
-  offline checks still run. This does not establish an engine regression.
-- `catalog_data`: catalog schema/integrity/store errors or an engine upgrade
-  requirement. Check the recorded catalog response and its release identity.
-- `documentation`: current entry/install version pins or baseline references
-  disagree with the machine record.
-- `setup`: version discovery, environment creation or runner setup could not
-  complete. Full report availability depends on the output directory being writable.
+- `catalog_network`: the catalog service or its transport could not deliver a
+  release: `CATALOG_SERVICE_UNREACHABLE`, `CATALOG_SERVICE_ERROR` (the service
+  answered with something that is not a manifest or release), `CATALOG_NOT_AVAILABLE`,
+  `CATALOG_RELEASE_NOT_FOUND`, `CATALOG_SYNC_UNAVAILABLE`, `CATALOG_ORIGIN_INVALID`,
+  `CATALOG_STORE_BUSY`, an uncaught connection/URL/TLS exception in a catalog
+  command, or a catalog-sync timeout. This does not establish an engine regression.
+- `catalog_data`: a delivered or stored release cannot be used (`CATALOG_INVALID`,
+  `CATALOG_INTEGRITY_FAILED`, `CATALOG_RELEASE_CONFLICT`, `CATALOG_STORE_ERROR`,
+  `CATALOG_ACTIVE_UNKNOWN`, `ENGINE_UPGRADE_REQUIRED`, other `CATALOG_*` codes),
+  a product/model code such as `EXAMPLE_UNAVAILABLE`, a catalog file whose SHA-256
+  differs, or an active release other than the imported file.
+- `documentation`: a current document disagrees with the baseline. `problems` in
+  the row lists each file and line: a version pin other than the baseline, a
+  listed document without a pin or without its `engine-baseline.json` reference,
+  a catalog release other than the verified one, or a retired host.
+- `setup`: version discovery, the check list, environment creation or runner setup
+  could not complete.
 
-Unknown catalog command errors remain `package_api` until diagnosed; the report
-does not infer connectivity failures from arbitrary error text. Catalog downloads
-use an isolated store to expose availability failures. The previously cached
-catalog may still support a separate local optical check, but that does not make
-the fresh-download check pass. Retry after connectivity changes, using a new output
-directory, and retain the failed report.
+Codes are read from the JSON error documents the engine prints (whole output or
+single JSON lines) and from `CatalogError: CODE` traceback lines; other text is not
+interpreted, so an unrecognized failure stays `package_api` until diagnosed. A
+check that cannot run is `SKIPPED` with the category of the check that blocked it
+and `blocked_by` naming that check: after a `catalog_network` sync failure, the
+catalog checks are `SKIPPED` as `catalog_network` while catalog-free checks still
+run. Retry after connectivity changes with a new output directory, and keep the
+failed report.
+
+### Documentation scan
+
+`documentation` lists the current documents: each must state the baseline version
+(exact install pins such as `opensci-engine[protected]==X.Y.Z`, prose such as
+**X.Y.Z** or `opensci-engine X.Y.Z`, issue-template placeholders), and entries
+written as plain paths must also link `engine-baseline.json`. Minimum statements
+(`0.8.0 or newer`, `>=0.8.0`) are not pins. `documentation_scan.include` lists
+further files that are checked for exact install pins and retired hosts;
+`documentation_scan.historical` lists dated validation records, which are exempt.
+A new document that states the version belongs in `documentation`; a new
+validation record belongs in `historical`.
 
 ## CI and periodic reporting
 
 The [Engine alignment workflow](../.github/workflows/engine-alignment.yml) checks
-the verified baseline on repository pushes and pull requests. In Actions, choose
-**Run workflow** to supply a candidate version or `latest`; a blank input checks
-the baseline. A weekly Monday check at 05:23 UTC checks `latest`.
+the verified baseline on pull requests and on pushes to `main`, once per Python
+version in `ci_python` (the oldest supported and the newest). In Actions, choose
+**Run workflow** to supply a candidate version or `latest` and optional check names
+or `all`; blank inputs check the baseline with the default checks. A weekly Monday
+check at 05:23 UTC checks `latest` with fresh catalog sync.
 
-Each run writes a job summary and uploads `engine-alignment` artifacts for 30
-days, including logs and generated example files even on failure. It excludes
-virtual environments and catalog caches. Actions logs retain setup failures that
+Each run writes a job summary and uploads `engine-alignment-py<version>` artifacts
+for 30 days, including logs and generated example files even on failure. It excludes
+virtual environments and catalog stores. Actions logs retain setup failures that
 occur before the runner can create a report. Download evidence needed beyond the
-artifact retention window before it expires.
+retention window before it expires.
 
-Only the scheduled reporting job receives issue-write permission. It reads the
-report with code from the scheduled default-branch commit, and creates an issue
-for a new unverified release or a new failure pattern. The fingerprint combines
-the resolved version, overall status and failed check names/categories. It ignores
-temporary paths, timestamps and error wording, and searches open **and closed**
-reports; unchanged observations create no comments or duplicate issues. A new
-failed workflow/category on the same version creates a new report. Recovery to a
-passing but still unverified version can also produce a distinct observation.
-Manual/PR checks produce summaries and artifacts without posting issues.
+Only the scheduled reporting job receives issue-write permission. It reads each
+interpreter's report with code from the scheduled default-branch commit, and creates
+an issue for a new unverified release or a new failure pattern. The fingerprint
+combines the resolved version, overall status and failed check names/categories.
+It ignores Python version, catalog source, temporary paths, timestamps, error wording
+and skipped rows, and searches open **and closed** issues; unchanged observations
+create no comments or duplicate issues, and two interpreters with the same result
+share one issue. A new failed check or category on the same version creates a new
+report. Recovery to a passing but still unverified version is a distinct
+observation. Manual and pull-request checks produce summaries and artifacts without
+posting issues.
 
 ## Complete an alignment update
 
-1. Select an exact candidate and retain its report. Resolve package/API or data
-   failures; investigate connectivity separately. Keep unsuccessful outcomes in
-   the evidence rather than treating skipped checks as passed.
+1. Select an exact candidate and keep its report. Resolve `package_api`,
+   `catalog_data` and `documentation` failures; investigate `catalog_network`
+   separately. A `SKIPPED` check has not passed. When the catalog service is
+   unreachable, rerun with `--catalog-file` and the published release to exercise
+   the catalog workflows, and record both reports.
 2. Update examples, helpers, documentation and expected results for the published
-   API. Rerun the candidate check until the complete relevant workflow passes.
-3. In one reviewed PR, update `engine-baseline.json` version and verified
-   environment/evidence, all listed entry/install pins, and affected walkthroughs
-   or expected outputs. The consistency check enforces the current pins together.
-4. Run the baseline check from that revision, inspect the artifacts, then accept
-   the new baseline. Close the corresponding version-specific observation issues
-   when their work is accepted. Keep standing issues #1 and #2 open.
+   API. Rerun the candidate check, including the affected optional checks, until
+   the relevant workflows pass.
+3. In one reviewed pull request, update `engine-baseline.json` (`version`,
+   `verified_environment` with date, Python, platform, engine build, catalog release
+   and SHA-256, evidence), every document the documentation check reports, and the
+   affected walkthroughs or expected outputs. Add a dated section to the validation
+   record and leave earlier sections unchanged.
+4. Run the baseline check from that revision, inspect the artifacts, then merge.
+   Close the corresponding version-specific observation issues when their work is
+   accepted. Keep the standing issues open.
 
-When retaining a prior reproducible snapshot is useful, tag its verified commit
-and record its catalog identity/evidence before moving the default baseline. Keep
-one supported baseline on the default branch; do not add historical compatibility
-branches solely to avoid updating examples.
+### Snapshots
 
-Initial validation evidence is recorded in [alignment validation](engine-alignment-validation.md).
+Before moving the default branch to a new baseline, tag the last commit verified on
+the previous one, for example `engine-0.6.1`, with an annotated message naming the
+engine build, catalog release and the validation record that holds its evidence:
+
+```bash
+git tag -a engine-0.6.1 COMMIT -m "Examples verified on opensci-engine 0.6.1 (build 0.6.1+e5785dea69453e1e), catalog 2026-10-06.3"
+```
+
+A tag reproduces the examples together with the documentation of that release. Keep
+one supported baseline on the default branch; do not add compatibility branches
+solely to avoid updating examples.
+
+Validation evidence is recorded in [alignment validation](engine-alignment-validation.md).

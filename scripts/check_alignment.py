@@ -552,6 +552,14 @@ class AlignmentCheck:
             self.catalog_row = self.command("catalog-sync", "catalog_network",
                                             [python, "-m", "opensci_engine", "catalog", "sync"],
                                             catalog=True, timeout=180)
+            if self.catalog_row["status"] == "FAIL":
+                # Name the service the failed sync tried, from its error document.
+                for document in _documents(Path(self.catalog_row["stdout"]).read_text(encoding="utf-8")):
+                    error = document.get("error") if isinstance(document, dict) else None
+                    details = error.get("details") if isinstance(error, dict) else None
+                    if isinstance(details, dict) and isinstance(details.get("url"), str):
+                        source["service_url"] = details["url"]
+                        break
         if self.catalog_row["status"] == "PASS":
             self.catalog_row = self._catalog_identity(python, baseline, source)
         return self.catalog_row

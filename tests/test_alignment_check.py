@@ -281,7 +281,8 @@ class AlignmentRunnerTests(unittest.TestCase):
                     code, stderr = 1, sync_error
                 else:
                     code, stdout = 1, json.dumps({"status": "ERROR", "error": {
-                        "code": sync_error, "message": "Catalog unavailable"}}, indent=2)
+                        "code": sync_error, "message": "Catalog unavailable", "details": {"url": CATALOG_URL}}},
+                        indent=2)
             elif command[-2:] == ["catalog", "status"]:
                 stdout = json.dumps(status or {"active": {"catalog_version": "2026-10-15.1",
                                                           "sha256": self.catalog_sha256},
@@ -378,6 +379,7 @@ class AlignmentRunnerTests(unittest.TestCase):
                 self.assertFalse(self.calls(commands, "tests.check_beam_summary"))
                 self.assertFalse(self.calls(commands, "examples/result_summary.py"))
                 self.assertEqual(checks["offline-tests"]["status"], "PASS")
+                self.assertEqual(report["catalog_source"], {"mode": "sync", "file": None, "service_url": CATALOG_URL})
                 self.assertEqual(json.loads((runner.out / "report.json").read_text())["status"], "FAIL")
 
     def test_non_json_sync_failures_are_classified_by_explicit_signals(self):
