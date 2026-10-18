@@ -200,7 +200,7 @@ def compare_value(quantity, unit, engine, reference, *, method, rel=None, abs_to
     if period:
         diff = (diff + period / 2.0) % period - period / 2.0
     row["abs_diff"] = abs(diff)
-    row["rel_diff"] = abs(diff) / abs(reference) if reference else None
+    row["rel_diff"] = abs(diff) / abs(reference) if rel is not None and reference else None
     if rel is not None:
         row["agree"] = abs(diff) <= rel * max(abs(reference), abs(engine))
     else:
@@ -306,22 +306,29 @@ def _notable(row, record, analysis_keys, analysis):
     return entry
 
 
-def _varying_targets(rows, order, nominal):
-    """Target ids whose values differ across the samples or from the nominal run (or are missing somewhere)."""
-    out = []
-    for target_id in order:
+def _changing_targets(rows, order, nominal):
+    """Target ids whose values change across the samples or against the nominal run (or are missing somewhere),
+    largest change relative to the target's bound width first. ``nominal``: the nominal sample record."""
+    reference = {t["id"]: t for t in nominal.get("targets") or []}
+    ranked = []
+    for index, target_id in enumerate(order):
         column = f"target:{target_id}"
         values = [r.get(column) for r in rows if column in r]
         if not values:
             continue
-        if target_id in nominal:
-            values.append(nominal[target_id])
+        if target_id in reference:
+            values.append(reference[target_id].get("value"))
         numbers = [v for v in values if isinstance(v, (int, float))]
         spread = (max(numbers) - min(numbers)) if numbers else 0.0
         scale = max([abs(v) for v in numbers] + [1e-300])
-        if spread > 1e-9 * scale or len(numbers) != len(values):
-            out.append(target_id)
-    return out
+        bounds = wc.target_bounds(reference[target_id]) if target_id in reference else {}
+        low, high = bounds.get("minimum"), bounds.get("maximum")
+        width = (high - low) if low is not None and high is not None else abs(high if high is not None else
+                                                                              low if low is not None else scale)
+        missing = len(numbers) != len(values)
+        if missing or (spread > 1e-9 * scale and spread > 1e-12):
+            ranked.append((-(math.inf if missing else spread / (width or scale)), index, target_id))
+    return [target_id for _rank, _index, target_id in sorted(ranked)]
 
 
 def _plot_power(run_dir, out_dir):
@@ -420,7 +427,7 @@ def run_workflow(config, inputs, studies, out_dir, *, max_evaluations, max_plots
         paths = [nominal_run, study_dir] if nominal_run else [study_dir]
         comparison = cr.compare(paths, reference="nominal" if nominal_run else None)
         compare_files = cr.write_outputs(comparison, study_dir / "compare")
-        plotted = _varying_targets(summary["rows"], target_order, target_values(record))[:max(0, max_plots)]
+        plotted = _changing_targets(summary["rows"], target_order, record)[:max(0, max_plots)]
         plots, note = _plot_sweep(study_dir, plotted, study_dir / "plots")
         totals = closed_form_totals(cf_rows)
         report = br.build_report(
