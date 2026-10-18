@@ -40,9 +40,11 @@ DATA_CODES = {
     "CATALOG_ACTIVE_UNKNOWN", "ENGINE_UPGRADE_REQUIRED",
 }
 MODEL_CODES = {
-    "OPTICAL_SKU_NOT_PUBLISHED", "SIMULATION_MODEL_AMBIGUOUS", "SIMULATION_MODEL_UNSUPPORTED",
-    "PRODUCT_ROLE_MISMATCH", "SURFACE_COATING_REQUIRED", "EXAMPLE_UNAVAILABLE", "ENGINE_UPGRADE_REQUIRED",
+    "OPTICAL_SKU_NOT_PUBLISHED", "SIMULATION_MODEL_AMBIGUOUS", "PRODUCT_ROLE_MISMATCH",
+    "SURFACE_COATING_REQUIRED", "EXAMPLE_UNAVAILABLE", "ENGINE_UPGRADE_REQUIRED",
 }
+# The engine refused a query or a model kind: its API or its supported models changed, not the catalog data.
+PACKAGE_CODES = {"CATALOG_QUERY_INVALID", "SIMULATION_MODEL_UNSUPPORTED"}
 # Final traceback lines of uncaught engine errors: "CatalogError: CATALOG_...: message".
 EXCEPTION_CODE = re.compile(r"^(?:[\w.]+\.)?(?:CatalogError|LocalRunError): ([A-Z][A-Z0-9_]+)\b", re.M)
 # Uncaught transport exceptions in a catalog-dependent command.
@@ -217,6 +219,8 @@ def catalog_failure_category(text, transport=True):
     codes = error_codes(text or "")
     if any(code in NETWORK_CODES for code in codes):
         return "catalog_network"
+    if any(code in PACKAGE_CODES for code in codes):
+        return "package_api"
     if any(code in DATA_CODES or code in MODEL_CODES or code.startswith("CATALOG_") for code in codes):
         return "catalog_data"
     if transport and not codes and TRANSPORT_ERROR.search(text or ""):

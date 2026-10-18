@@ -38,6 +38,14 @@
       "expected_status": "PASS"
     },
     {
+      "name": "catalog-tests",
+      "description": "Catalog-dependent unit tests, run after the catalog is prepared; a missing catalog fails them",
+      "argv": ["{python}", "-m", "unittest", "-v", "tests.test_optical_designs.CatalogVariantTests", "tests.test_workflow_examples.CatalogBeamExpanderDemoTests", "tests.test_workflow_postprocess.CandidateTests"],
+      "needs_catalog": true,
+      "env": {"OPENSCI_EXAMPLES_REQUIRE_CATALOG": "1"},
+      "timeout": 600
+    },
+    {
       "name": "saved-run-summary",
       "description": "Summarize the saved beam-expander run without simulating",
       "argv": ["{python}", "examples/result_summary.py", "{runs}/beam"],
@@ -176,7 +184,6 @@
       "description": "Bounded candidate table of plano-convex lenses at 780 nm",
       "argv": ["{python}", "examples/catalog_candidates.py", "--category", "LENS", "--form", "PLANO_CONVEX_LENS", "--wavelength-nm", "780", "--range", "focal_length_mm=95..105", "--near", "focal_length_mm=100", "--limit", "5"],
       "needs_catalog": true,
-      "optional": true,
       "expected_status": "COMPLETED"
     },
     {
@@ -184,7 +191,6 @@
       "description": "Catalog beam expander base run for the L2 demonstration",
       "argv": ["{python}", "examples/beam_expander.py", "--out", "{runs}/spec-be-base"],
       "needs_catalog": true,
-      "optional": true,
       "expected_status": "PASS"
     },
     {
@@ -193,7 +199,6 @@
       "argv": ["{python}", "examples/edit_project.py", "{runs}/spec-be-base/project.json", "--edits", "examples/specs/beam_expander_swap_l2.json", "--out", "{runs}/spec-be-swapped.json", "--run", "{runs}/spec-be-swapped-run"],
       "needs": ["spec-be-base"],
       "needs_catalog": true,
-      "optional": true,
       "expected_exit": 1,
       "expected_status": "FAIL"
     },
@@ -203,7 +208,6 @@
       "argv": ["{python}", "examples/sweep_parameters.py", "examples/specs/beam_expander_l2_sweep.json", "--base", "{runs}/spec-be-swapped.json", "--out", "{runs}/spec-be-sweep"],
       "needs": ["spec-be-swap"],
       "needs_catalog": true,
-      "optional": true,
       "expected_status": "COMPLETED",
       "timeout": 300
     },
@@ -213,7 +217,6 @@
       "argv": ["{python}", "examples/edit_project.py", "{runs}/spec-be-swapped.json", "--edits", "examples/specs/beam_expander_move_l2.json", "--out", "{runs}/spec-be-final.json", "--run", "{runs}/spec-be-final-run"],
       "needs": ["spec-be-swap"],
       "needs_catalog": true,
-      "optional": true,
       "expected_status": "PASS"
     },
     {
@@ -222,7 +225,6 @@
       "argv": ["{python}", "examples/compare_runs.py", "{runs}/spec-be-base", "{runs}/spec-be-swapped-run", "{runs}/spec-be-final-run", "--project", "{runs}/spec-be-final.json", "--out", "{runs}/spec-be-compare"],
       "needs": ["spec-be-move"],
       "needs_catalog": true,
-      "optional": true,
       "expected_status": "COMPLETED"
     },
     {
@@ -231,7 +233,6 @@
       "argv": ["{python}", "examples/plot_results.py", "sweep", "{runs}/spec-be-sweep", "--y", "target:expanded_waist"],
       "needs": ["spec-be-sweep"],
       "needs_catalog": true,
-      "optional": true,
       "expected_status": "COMPLETED"
     },
     {
@@ -240,7 +241,6 @@
       "argv": ["{python}", "examples/build_report.py", "{runs}/spec-be-sweep", "--project", "{runs}/spec-be-final.json", "--plots", "{runs}/spec-be-sweep/plots", "--changes", "{runs}/spec-be-swapped.changes.json"],
       "needs": ["spec-be-plot", "spec-be-move"],
       "needs_catalog": true,
-      "optional": true,
       "expected_status": "COMPLETED"
     },
     {
