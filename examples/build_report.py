@@ -102,11 +102,15 @@ def study_section(study_dir, out_dir, project=None):
             if entry["freshness"]["freshness"] != "CURRENT":
                 entry["outcome_label"] = f"HISTORICAL {entry['outcome']}"
         samples.append(entry)
+    best = summary["best"]
+    if best is not None:
+        chosen = next((s for s in samples if s["sample_id"] == best["sample_id"]), {})
+        best = {**best, **({"outcome_label": chosen["outcome_label"]} if "outcome_label" in chosen else {})}
     return {"kind": "study", "study_dir": wc.relative(study_dir, out_dir),
             "base_project": study.get("base_project"), "parameters": study["normalized"]["parameters"],
             "selected_targets": study["normalized"].get("targets"), "constraints": summary["constraints"],
             "objective": summary["objective"], "budget": study.get("budget"), "stop_on": study.get("stop_on"),
-            "counts": summary["counts"], "feasible": summary["feasible"], "best": summary["best"],
+            "counts": summary["counts"], "feasible": summary["feasible"], "best": best,
             "no_feasible": summary["no_feasible"], "stopped_by": summary.get("stopped_by"),
             "target_units": summary["targets"], "engine": study["engine"], "catalog": study["catalog"],
             "environment": study.get("environment"), "samples": samples}, artifacts
@@ -140,6 +144,9 @@ def _diagnostics(section):
                 errors[problem.get("code")] = errors.get(problem.get("code"), 0) + 1
         for target in entry.get("targets") or []:
             for code in target.get("issue_codes") or []:
+                issues[code] = issues.get(code, 0) + 1
+        for codes in (entry.get("target_issue_codes") or {}).values():  # compared runs: {target id: codes}
+            for code in codes:
                 issues[code] = issues.get(code, 0) + 1
     return {"target_issue_codes": issues, "model_scope_issues": scope, "warnings": warnings, "refusals": errors}
 
@@ -218,13 +225,23 @@ def render_markdown(report):
         lines.append(f"Compared runs: {', '.join(r['label'] for r in section['runs'])} (reference "
                      f"{section['reference']}).")
         lines.append("")
+        compared = section.get("inputs_compared") or {}
         if section["input_differences"]:
             labels = [r["label"] for r in section["runs"]]
+            lines.append(f"Inputs that differ ({len(section['input_differences'])} of {compared.get('fields')} "
+                         "compared fields of the runs' project.json files):")
+            lines.append("")
             lines += _table(["input", "unit", *labels], [
                 [d["input"], d["unit"] or "-", *[wc.canonical_json(d["values"].get(lab)) for lab in labels]]
                 for d in section["input_differences"]])
+        elif compared.get("project_hashes_equal"):
+            lines.append(f"Inputs: the runs' Projects are identical ({compared.get('fields')} fields compared, equal "
+                         "project hashes).")
         else:
-            lines.append("No input differences between the runs.")
+            hashes = ", ".join(f"{label} `{digest}`"
+                               for label, digest in (compared.get("project_hashes") or {}).items())
+            lines.append(f"Inputs: the project hashes differ ({hashes}) although no field of the runs' project.json "
+                         f"files differs ({compared.get('fields')} fields compared).")
         lines.append("")
     if "changes" in report:
         changes = report["changes"]
@@ -252,7 +269,7 @@ def render_markdown(report):
         if section["best"]:
             best = section["best"]
             objective = best.get("objective") or {}
-            lines.append(f"Best sample: {best['sample_id']} ({best['outcome']}), parameters "
+            lines.append(f"Best sample: {best['sample_id']} ({best.get('outcome_label', best['outcome'])}), parameters "
                          f"{wc.canonical_json(best['parameters'])}, {objective.get('column')} = "
                          f"{_fmt(objective.get('value'))} {objective.get('unit') or ''} ({objective.get('sense')}).")
         elif section["no_feasible"]:

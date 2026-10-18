@@ -13,10 +13,15 @@ What is compared, by ID:
 * targets: value, unit and status per run, the difference to the reference run (first run, or --reference) when
   both have a value in the same unit; a target absent from a run is listed with "missing": true;
 * observation planes: received power (W) and number of arriving beams per run, missing planes listed;
-* inputs read from each run's project.json: source wavelength(s), power, waist and polarization; component and
-  observation poses; catalog products / declared models; target definitions and bounds; plus each run's catalog
-  release and Engine build. Only inputs that differ between runs are listed;
-* outcome class per run (ERROR, OUT_OF_MODEL, UNKNOWN, FAIL, PASS) and its model-scope issues;
+* inputs: every field of each run's project.json, keyed by object ID (pose:<id>.position_mm, source:<id>.<field>,
+  binding:<id>.optical_sku / .catalog_version / .optical_model_id, component:<id>.<field>,
+  observation:<id>.<field>, target:<id>.<field>, model:<id>.<path>, material:<id>.<path>, coating:<id>.<path>,
+  project.<field>), plus each run's catalog release and Engine build. Only inputs that differ are listed, with the
+  unit of the field name. inputs_compared states the result: the number of differing inputs, or that the Projects
+  are identical (equal project hashes), or that the project hashes differ although no field does;
+* outcome class per run (ERROR, OUT_OF_MODEL, UNKNOWN, FAIL, PASS), decided by the study's selected targets for
+  study samples and by all targets for run directories (--targets overrides both; an id in no run is refused),
+  with its model-scope issues, warnings and target issue codes;
 * freshness, when --project is given: CURRENT or HISTORICAL (reasons PROJECT_CHANGED, ENGINE_CHANGED,
   RUN_UNVERIFIED) for every run; the outcome of a historical run is labelled e.g. "HISTORICAL PASS".
 
@@ -66,36 +71,63 @@ def expand_inputs(paths, labels=None):
     return entries
 
 
+#: Project collections compared object by object: (key, id field, key prefix).
+COLLECTIONS = (("components", "instance_id", "component"), ("observations", "observation_id", "observation"),
+               ("targets", "target_id", "target"), ("optical_models", "model_id", "model"),
+               ("model_materials", "material_id", "material"), ("model_coatings", "coating_id", "coating"))
+#: Component fields with a short key prefix: nominal pose, source model, catalog product / declared model.
+COMPONENT_PREFIXES = {"nominal_pose": "pose", "source_model": "source", "product": "binding"}
+#: A list value longer than this (JSON characters) is compared and shown as its sha256 prefix and length.
+MAX_VALUE_CHARS = 200
+
+
+def _leaf(value):
+    value = wc.canonical_numbers(value)
+    if isinstance(value, list) and len(wc.canonical_json(value)) > MAX_VALUE_CHARS:
+        return {"sha256": wc.canonical_digest(value)[:16], "length": len(value)}
+    return value
+
+
+def _flatten(value, prefix, out):
+    if isinstance(value, dict) and value:
+        for key in sorted(value):
+            _flatten(value[key], f"{prefix}.{key}", out)
+    else:
+        out[prefix] = _leaf(value)
+    return out
+
+
 def project_inputs(project):
-    """Flat ``{key: value}`` of the inputs worth comparing (module docstring)."""
+    """Flat ``{key: value}`` of the whole Project document (module docstring).
+
+    Objects are keyed by their ID: ``pose:<id>.position_mm``, ``source:<id>.<field>``, ``binding:<id>.optical_sku``
+    / ``.catalog_version`` / ``.optical_model_id``, ``component:<id>.<field>``, ``observation:<id>.<field>`` (pose
+    fields directly, e.g. ``observation:<id>.position_mm``), ``target:<id>.<field>``, ``model:<id>.<path>``,
+    ``material:<id>.<path>``, ``coating:<id>.<path>``; every other top-level field as ``project.<path>``. Nested
+    objects are flattened to their leaves; lists are compared whole (long lists by sha256 prefix and length);
+    integers compare equal to the same float."""
     out = {}
-    for c in project.get("components") or []:
-        ident = c.get("instance_id")
-        pose = c.get("nominal_pose") or {}
-        out[f"pose:{ident}.position_mm"] = pose.get("position_mm")
-        out[f"pose:{ident}.quaternion_wxyz"] = pose.get("quaternion_wxyz")
-        if c.get("product"):
-            out[f"binding:{ident}.optical_sku"] = c["product"].get("optical_sku")
-        if c.get("optical_model_id"):
-            out[f"binding:{ident}.optical_model_id"] = c["optical_model_id"]
-        source = c.get("source_model")
-        if source:
-            for key in ("wavelength_nm", "spectral_lines", "power_w", "waist_radius_mm", "waist_position_mm", "m2",
-                        "polarization", "linewidth_nm", "coherence_length_mm"):
-                if key in source:
-                    out[f"source:{ident}.{key}"] = source[key]
-    for o in project.get("observations") or []:
-        pose = o.get("pose") or {}
-        out[f"observation:{o.get('observation_id')}.position_mm"] = pose.get("position_mm")
-        out[f"observation:{o.get('observation_id')}.quaternion_wxyz"] = pose.get("quaternion_wxyz")
-    for t in project.get("targets") or []:
-        for key in ("metric", "observation_id", "unit", "minimum", "maximum", "target_value", "tolerance_abs",
-                    "tolerance_rel"):
-            if t.get(key) is not None:
-                out[f"target:{t.get('target_id')}.{key}"] = t[key]
-    models = {m.get("model_id"): m for m in project.get("optical_models") or []}
-    for model_id, model in models.items():
-        out[f"model:{model_id}"] = wc.canonical_digest(model)[:16]
+    collections = {key for key, _id, _prefix in COLLECTIONS}
+    for key, id_field, prefix in COLLECTIONS:
+        for item in project.get(key) or []:
+            if not isinstance(item, dict):
+                continue
+            ident = item.get(id_field)
+            for field in sorted(item):
+                if field == id_field:
+                    continue
+                value = item[field]
+                if key == "components" and field in COMPONENT_PREFIXES:
+                    _flatten(value, f"{COMPONENT_PREFIXES[field]}:{ident}", out)
+                elif key == "components" and field == "optical_model_id":
+                    out[f"binding:{ident}.optical_model_id"] = value
+                elif key == "observations" and field == "pose":
+                    _flatten(value, f"observation:{ident}", out)
+                else:
+                    _flatten(value, f"{prefix}:{ident}.{field}", out)
+    for field in sorted(project):
+        if field not in collections:
+            _flatten(project[field], f"project.{field}", out)
     return out
 
 
@@ -104,10 +136,11 @@ def _key_unit(key):
 
 
 def load_entry(label, run_dir, record, selected=None):
+    """One compared run: outcome (decided by ``selected`` target ids, default all), targets, warnings, inputs."""
     entry = {"label": label, "run_dir": None if run_dir is None else Path(run_dir).as_posix()}
     if run_dir is None:
         entry.update({"outcome": "ERROR", "status": None, "targets": [], "observations": {}, "inputs": {},
-                      "model_scope_issues": [], "identity": (record or {}).get("identity") or {},
+                      "model_scope_issues": [], "warnings": [], "identity": (record or {}).get("identity") or {},
                       "error": (record or {}).get("error") or {"code": "RUN_MISSING"}, "power_budget": None})
         return entry
     from opensci_engine.results import load_run
@@ -136,10 +169,24 @@ def _ordered_union(lists):
 
 
 def compare(paths, *, labels=None, reference=None, project=None, targets=None):
-    """Comparison document (module docstring). ``project``: current Project document or path for freshness."""
-    entries = [load_entry(label, run_dir, record, targets) for label, run_dir, record in expand_inputs(paths, labels)]
+    """Comparison document (module docstring). ``project``: current Project document or path for freshness.
+
+    ``targets``: target ids deciding every run's outcome (default: a study sample uses the study's selected targets,
+    a run directory all of its targets); an id that no run has is refused (TARGET_UNKNOWN)."""
+    entries = []
+    for label, run_dir, record in expand_inputs(paths, labels):
+        selected = targets if targets is not None else (record or {}).get("selected_targets")
+        entry = load_entry(label, run_dir, record, selected)
+        entry["selected_targets"] = selected
+        entries.append(entry)
     if not entries:
         raise wc.WorkflowError("BAD_ARGUMENT", "nothing to compare")
+    if targets is not None:
+        known = sorted({t["id"] for e in entries for t in e["targets"]})
+        unknown = [t for t in targets if t not in known]
+        if unknown and known:
+            raise wc.WorkflowError("TARGET_UNKNOWN", f"targets {unknown} are in none of the runs; known: {known}",
+                                   unknown=unknown, known=known)
     names = [e["label"] for e in entries]
     ref = reference or names[0]
     if ref not in names:
@@ -175,23 +222,40 @@ def compare(paths, *, labels=None, reference=None, project=None, targets=None):
         observation_rows.append({"id": obs_id, "unit": "W", "runs": {
             e["label"]: e["observations"].get(obs_id) or {"missing": True} for e in entries}})
     differences = []
-    for key in _ordered_union([list(e["inputs"]) for e in entries]):
+    compared = [e for e in entries if e["run_dir"] is not None]
+    for key in _ordered_union([list(e["inputs"]) for e in compared]):
         values = {e["label"]: e["inputs"].get(key, "<missing>" if e["run_dir"] else None) for e in entries}
-        present = [wc.canonical_json(v) for label, v in values.items()
-                   if next(x for x in entries if x["label"] == label)["run_dir"] is not None]
-        if len(set(present)) > 1:
+        present = {wc.canonical_json(e["inputs"].get(key, "<missing>")) for e in compared}
+        if len(present) > 1:
             differences.append({"input": key, "unit": _key_unit(key), "values": values})
+    hashes = {e["label"]: e["identity"].get("project_hash") for e in compared}
+    equal = len(set(hashes.values())) <= 1
+    if differences:
+        statement = f"{len(differences)} inputs differ"
+    elif equal:
+        statement = "no input differs: the runs have identical Projects (equal project hashes)"
+    else:
+        statement = ("the project hashes differ although no field of the runs' project.json files differs (a run "
+                     "directory may hold another run's project.json)")
+    selected = {wc.canonical_json(e["selected_targets"]) for e in entries}
     runs = []
     for entry in entries:
         item = {"label": entry["label"], "outcome": entry["outcome"], "status": entry["status"],
                 "model_scope_issues": sorted({i.get("code") for i in entry["model_scope_issues"]}),
+                "warnings": list(entry.get("warnings") or []),
+                "target_issue_codes": {t["id"]: list(t["issue_codes"]) for t in entry["targets"]
+                                       if t.get("issue_codes")},
                 "run_dir": entry["run_dir"], "identity": entry["identity"]}
         for key in ("freshness", "outcome_label", "error", "power_budget"):
             if entry.get(key) is not None:
                 item[key] = entry[key]
         runs.append(item)
-    return {"status": "COMPLETED", "kind": "opensci-example.run-comparison", "reference": ref, "runs": runs,
-            "targets": target_rows, "observations": observation_rows, "input_differences": differences}
+    return {"status": "COMPLETED", "kind": "opensci-example.run-comparison", "reference": ref,
+            "selected_targets": entries[0]["selected_targets"] if len(selected) == 1 else "per run", "runs": runs,
+            "targets": target_rows, "observations": observation_rows, "input_differences": differences,
+            "inputs_compared": {"runs": len(compared), "fields": len(_ordered_union([list(e["inputs"])
+                                                                                       for e in compared])),
+                                "project_hashes": hashes, "project_hashes_equal": equal, "statement": statement}}
 
 
 def csv_rows(document):
@@ -234,8 +298,9 @@ def compact(document, paths=None):
     return {
         "status": document["status"], "reference": document["reference"], "run_count": len(runs),
         "runs": [{key: r.get(key) for key in ("label", "outcome", "outcome_label", "status", "model_scope_issues")
-                  if r.get(key) is not None} | ({"freshness": r["freshness"]["freshness"],
-                                                "reasons": r["freshness"]["reasons"]} if r.get("freshness") else {})
+                  if r.get(key) is not None} | ({"warnings": r["warnings"]} if r.get("warnings") else {})
+                 | ({"freshness": r["freshness"]["freshness"], "reasons": r["freshness"]["reasons"]}
+                    if r.get("freshness") else {})
                  for r in shown],
         "runs_omitted": max(0, len(runs) - MAX_RUNS_SHOWN),
         "targets": [{"id": t["id"], "unit": t.get("unit"),
@@ -243,6 +308,7 @@ def compact(document, paths=None):
         "observations_W": [{"id": o["id"], "runs": {label: o["runs"][label].get("total_power_W", "missing")
                                                     if not o["runs"][label].get("missing") else "missing"
                                                     for label in labels}} for o in document["observations"]],
+        "inputs_compared": document["inputs_compared"]["statement"],
         "input_differences": document["input_differences"][:MAX_DIFFERENCES_SHOWN],
         "input_differences_omitted": max(0, len(document["input_differences"]) - MAX_DIFFERENCES_SHOWN),
         "paths": paths,
@@ -256,7 +322,8 @@ def main(argv=None):
         parser.add_argument("--project", type=Path, help="Current Project JSON: report each run's freshness")
         parser.add_argument("--labels", help="Comma-separated run labels (default: directory / sample names)")
         parser.add_argument("--reference", help="Label of the reference run for deltas (default: the first)")
-        parser.add_argument("--targets", help="Comma-separated target ids deciding the outcome (default: all)")
+        parser.add_argument("--targets", help="Comma-separated target ids deciding the outcome (default: the study's "
+                            "selected targets for study samples, all targets for run directories)")
         parser.add_argument("--out", type=Path, help="Directory for compare.json and compare.csv")
         args = parser.parse_args(argv)
         document = compare(args.paths, labels=args.labels.split(",") if args.labels else None,

@@ -183,6 +183,19 @@ def canonical_digest(value):
     return sha256_bytes(canonical_json(value).encode("ascii"))
 
 
+def canonical_numbers(value):
+    """Copy of ``value`` with every integer (not bool) as a float, so ``1`` and ``1.0`` compare and hash alike."""
+    if isinstance(value, bool):
+        return value
+    if isinstance(value, int):
+        return float(value)
+    if isinstance(value, dict):
+        return {key: canonical_numbers(item) for key, item in value.items()}
+    if isinstance(value, (list, tuple)):
+        return [canonical_numbers(item) for item in value]
+    return value
+
+
 def json_safe(value):
     """Replace non-finite floats by None and tuples by lists, recursively."""
     if isinstance(value, float):
@@ -264,6 +277,17 @@ def bounded(rows, limit):
     """The first ``limit`` rows and how many were left out."""
     rows = list(rows)
     return {"shown": rows[:limit], "omitted": max(0, len(rows) - limit), "total": len(rows)}
+
+
+def warning_summary(rows, limit=5):
+    """Samples whose run carries WARNING issues: ``{samples, pass_samples, by_code, sample_ids (first limit)}``."""
+    flagged = [row for row in rows if row.get("warnings")]
+    by_code = {}
+    for row in flagged:
+        for code in row["warnings"]:
+            by_code[code] = by_code.get(code, 0) + 1
+    return {"samples": len(flagged), "pass_samples": sum(1 for row in flagged if row.get("outcome") == "PASS"),
+            "by_code": dict(sorted(by_code.items())), "sample_ids": [row["sample_id"] for row in flagged[:limit]]}
 
 
 def utc_now():
