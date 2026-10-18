@@ -219,6 +219,7 @@ def plot_bars(labels, values, unit, out_dir, name, *, title, ylabel=None, source
     ax.invert_yaxis()
     ax.set_xlabel(ylabel or (f"value [{unit}]" if unit else "value"))
     ax.set_title(title)
+    fig.tight_layout(rect=(0, 0.08, 1, 1))  # room for long bar labels on the left
     text = caption(source, out_dir, engine_build=engine_build, catalog_version=catalog_version)
     return {"out": save(fig, out_dir, name, text)}
 
