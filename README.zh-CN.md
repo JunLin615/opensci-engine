@@ -85,6 +85,7 @@ print(results.power_budget())
 | 第一个光学设计 | [阅读](docs/zh-CN/getting-started.md) | [Read](docs/en/getting-started.md) |
 | 目录与项目复现 | [阅读](docs/zh-CN/catalog.md) | [Read](docs/en/catalog.md) |
 | 结果、可视化与导出 | [阅读](docs/zh-CN/results.md) | [Read](docs/en/results.md) |
+| 设计研究：修改、扫描、比较、灵敏度、公差与三个光学工作流程 | [阅读](docs/zh-CN/workflows.md) | [Read](docs/en/workflows.md) |
 | 测量数据预处理、拟合与参考归一化 | [阅读](docs/zh-CN/measurements.md) | [Read](docs/en/measurements.md) |
 | 从设计到硬件 | [阅读](docs/zh-CN/hardware.md) | [Read](docs/en/hardware.md) |
 | 外部科学工具联用 | [阅读](docs/zh-CN/interop.md) | [Read](docs/en/interop.md) |
