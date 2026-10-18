@@ -1,5 +1,5 @@
 <p align="center">
-  <a href="https://opensci-optic.com/"><img src="assets/logo.svg" alt="OpenSci" width="88"></a>
+  <a href="https://opensci-optics.com/"><img src="assets/logo.svg" alt="OpenSci" width="88"></a>
 </p>
 
 # OpenSci Engine
@@ -10,13 +10,13 @@ English · [简体中文](README.zh-CN.md)
 
 [![PyPI](https://img.shields.io/pypi/v/opensci-engine.svg)](https://pypi.org/project/opensci-engine/)
 [![Python](https://img.shields.io/pypi/pyversions/opensci-engine.svg)](https://pypi.org/project/opensci-engine/)
-[![Website](https://img.shields.io/badge/website-opensci--optic.com-167D8D)](https://opensci-optic.com/)
+[![Website](https://img.shields.io/badge/website-opensci--optics.com-167D8D)](https://opensci-optics.com/)
 
 Build optical systems, simulate light propagation, and explore the results on your own computer. OpenSci Engine combines a catalog of optical components, deterministic physics, structured scientific results, and an interactive 3D view in one Python package. Use it directly or through your own coding agent.
 
-When a design is ready, continue to [OpenSci](https://opensci-optic.com/) for optical components, assembly configurations, and hardware orders.
+When a design is ready, continue to [OpenSci](https://opensci-optics.com/) for optical components, assembly configurations, and hardware orders.
 
-**[Agent guide](AGENT_GUIDE.md) · [Get started](docs/en/getting-started.md) · [User guide](docs/en/README.md) · [PyPI](https://pypi.org/project/opensci-engine/) · [Website](https://opensci-optic.com/) · [Feedback](https://github.com/JunLin615/opensci-engine/issues)**
+**[Agent guide](AGENT_GUIDE.md) · [Get started](docs/en/getting-started.md) · [User guide](docs/en/README.md) · [PyPI](https://pypi.org/project/opensci-engine/) · [Website](https://opensci-optics.com/) · [Feedback](https://github.com/JunLin615/opensci-engine/issues)**
 
 ## What you can do
 
@@ -87,11 +87,12 @@ Try the runnable [beam expander](examples/beam_expander.py) and [ideal-lens focu
 | Results, visualization, and export | [Read](docs/en/results.md) | [阅读](docs/zh-CN/results.md) |
 | Measurement cleaning, fitting, and reference normalization | [Read](docs/en/measurements.md) | [阅读](docs/zh-CN/measurements.md) |
 | From design to hardware | [Read](docs/en/hardware.md) | [阅读](docs/zh-CN/hardware.md) |
+| External scientific tools | [Read](docs/en/interop.md) | [阅读](docs/zh-CN/interop.md) |
 
-These guides and examples target the published **0.6.1** package. Find available package versions in the [PyPI release history](https://pypi.org/project/opensci-engine/#history).
+These guides and examples target the published **0.8.0** package, including the external-tool examples (optimization, diffraction, quantum photonics, metasurface components). Find available package versions in the [PyPI release history](https://pypi.org/project/opensci-engine/#history).
 
 ## Get involved
 
 Questions, example designs, bug reports, and documentation improvements are welcome in English or Chinese. [Open an issue](https://github.com/JunLin615/opensci-engine/issues/new/choose) or send a documentation or example pull request.
 
-This repository brings together the user documentation, examples, and community feedback for OpenSci Engine. Install the engine from [PyPI](https://pypi.org/project/opensci-engine/) and explore the full platform at [opensci-optic.com](https://opensci-optic.com/).
+This repository brings together the user documentation, examples, and community feedback for OpenSci Engine. Install the engine from [PyPI](https://pypi.org/project/opensci-engine/) and explore the full platform at [opensci-optics.com](https://opensci-optics.com/).

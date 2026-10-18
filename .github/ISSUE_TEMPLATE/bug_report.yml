@@ -29,7 +29,7 @@ body:
       description: >-
         Run `opensci-engine doctor` or `python -c "from importlib.metadata import version; print(version('opensci-engine'))"`
         in the environment that reproduces the problem.
-      placeholder: "0.6.1"
+      placeholder: "0.8.0"
     validations:
       required: true
   - type: input
