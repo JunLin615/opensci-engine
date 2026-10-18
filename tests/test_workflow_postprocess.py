@@ -177,6 +177,27 @@ class PlotAndReportTests(unittest.TestCase):
         self.assertIn("PASS fraction: 2/3 of all requested samples", text)
         self.assertEqual(wc.read_json(out_dir / "report.json")["section"]["counts"]["requested"], 3)
 
+    def test_report_with_caller_sections_and_artifacts(self):
+        extra = wc.write_json(self.dir / "extra" / "reference.json", {"spot_radius_mm": 0.0165})
+        out_dir = self.dir / "extra" / "report"
+        report = br.build_report([self.dir / "study"], out_dir=out_dir, artifacts=[(extra, "reference check")],
+                                 sections=[{"title": "Independent check", "lines": [
+                                     "| quantity | value |", "| --- | --- |", "| spot | 0.0165 |", "",
+                                     "Data: [reference.json](../reference.json)"]}])
+        text = (out_dir / "report.md").read_text(encoding="utf-8")
+        self.assertIn("## Independent check\n\n| quantity | value |", text)
+        self.assertLess(text.index("## Diagnostics"), text.index("## Independent check"))
+        self.assertLess(text.index("## Independent check"), text.index("## Artifacts"))
+        roles = {a["role"]: a for a in report["artifacts"]}
+        self.assertEqual(roles["reference check"]["path"], "../reference.json")
+        self.assertEqual(roles["reference check"]["sha256"], wc.sha256_file(extra))
+        self.assertEqual(wc.read_json(out_dir / "report.json")["sections"][0]["title"], "Independent check")
+        for link in re.findall(r"\]\(([^)]+)\)", text):
+            self.assertTrue((out_dir / link).exists(), link)
+        with self.assertRaises(wc.WorkflowError) as caught:
+            br.build_report([self.dir / "study"], out_dir=out_dir, artifacts=[(self.dir / "missing.csv", "x")])
+        self.assertEqual(caught.exception.code, "ARTIFACT_NOT_FOUND")
+
     def test_runs_report_with_change_record(self):
         base = wc.write_json(self.dir / "rb.json", expander())
         edits = wc.write_json(self.dir / "re.json", [{"op": "set_target", "target_id": "spot_radius",
