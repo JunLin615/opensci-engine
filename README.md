@@ -91,6 +91,8 @@ Try the runnable [beam expander](examples/beam_expander.py) and [ideal-lens focu
 
 These guides and examples target the published **0.8.0** package, including the external-tool examples (optimization, diffraction, quantum photonics, metasurface components). Find available package versions in the [PyPI release history](https://pypi.org/project/opensci-engine/#history).
 
+The verified version and test environment are recorded in [engine-baseline.json](engine-baseline.json). [Release-alignment checks](docs/engine-alignment.md) validate this baseline and candidate PyPI releases; only a reviewed update advances the baseline.
+
 ## Get involved
 
 Questions, example designs, bug reports, and documentation improvements are welcome in English or Chinese. [Open an issue](https://github.com/JunLin615/opensci-engine/issues/new/choose) or send a documentation or example pull request.

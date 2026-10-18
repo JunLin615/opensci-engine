@@ -91,6 +91,8 @@ print(results.power_budget())
 
 本文档和示例（包括优化、衍射、量子光子学、超表面元件等外部工具联用示例）对应已发布的 **0.8.0** 版本。其他软件包版本见 [PyPI 发布记录](https://pypi.org/project/opensci-engine/#history)。
 
+已验证的版本与测试环境记录在 [engine-baseline.json](engine-baseline.json) 中。[版本对齐检查](docs/engine-alignment.md)用于验证当前基线与候选 PyPI 版本；只有经过评审的更新才会推进基线。
+
 ## 参与项目
 
 欢迎用中文或英文交流使用问题、分享示例设计、报告 Bug，以及改进文档。[提交 Issue](https://github.com/JunLin615/opensci-engine/issues/new/choose)，或通过 Pull Request 贡献文档和示例。

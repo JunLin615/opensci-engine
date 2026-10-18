@@ -75,6 +75,8 @@ uv tool upgrade opensci-engine
 
 运行 `opensci-engine doctor` 查看已安装版本。需要复现本指南对应的版本时，安装 `"opensci-engine[protected]==0.8.0"`。
 
+[engine-baseline.json](../../engine-baseline.json)记录已验证的版本和测试环境。维护者可以通过[版本对齐流程](../engine-alignment.md)检查其他已发布版本；候选版本检查通过后也不会自动修改基线。
+
 ## 常见安装问题
 
 | 现象 | 处理方式 |
