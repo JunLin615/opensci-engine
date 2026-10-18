@@ -1,4 +1,5 @@
 {
+ "description": "Sensitivity of the expander/focus radii to wavelength near the lenses' 1100 nm band edge (nominal 1099.8 nm): the +0.5 nm step leaves the model band, so that side is out of model and a one-sided difference is reported.",
  "design": {
   "builder": "expander_focus",
   "arguments": {

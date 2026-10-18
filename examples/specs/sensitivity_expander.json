@@ -1,4 +1,5 @@
 {
+ "description": "Sensitivity of the expanded and focused beam radii (mm) of the expander/focus design to L2 axial position, L3 decenter, L3 tilt and focus-plane position, each with two step sizes to check the numerical step.",
  "design": {"builder": "expander_focus", "arguments": {}},
  "targets": ["expanded_radius", "spot_radius"],
  "parameters": [

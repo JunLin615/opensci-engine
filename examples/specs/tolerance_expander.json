@@ -1,4 +1,5 @@
 {
+ "description": "Tolerance sampling of the expander/focus design with a fixed seed: L2 axial position (uniform +-0.5 mm), focus-plane position (uniform +-0.3 mm) and source waist radius (normal, sigma 5 um, truncated at 3 sigma), all independent; reports outcome counts and target-value distributions.",
  "design": {
   "builder": "expander_focus",
   "arguments": {}

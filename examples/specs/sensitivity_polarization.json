@@ -1,4 +1,5 @@
 {
+ "description": "Sensitivity of the power transmitted through the polarizer (W) to the half-wave-plate angle (deg), with steps 0.1 and 1 deg.",
  "design": {
   "builder": "polarization_control",
   "arguments": {}

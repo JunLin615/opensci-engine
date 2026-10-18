@@ -1,4 +1,5 @@
 {
+ "description": "Sensitivity of the near- and far-plane beam positions (mm) of the fold-mirror alignment design to mirror tilt about its local Y and X axes (mrad, steps 0.01 and 0.1 mrad; a 20 mrad step makes the far plane miss) and to a vertical source offset (mm). Position resolution 1 nm.",
  "design": {
   "builder": "alignment",
   "arguments": {}

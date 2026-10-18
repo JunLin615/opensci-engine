@@ -1,4 +1,5 @@
 {
+ "description": "Tolerance sampling of the fold-mirror alignment design with a fixed seed: mirror tilts about local Y and X (normal, sigma 0.1 mrad, truncated at 3 sigma) and source offsets in y (uniform +-0.05 mm) and z (uniform +-50 um), all independent; reports how many samples keep the beam positions within their targets.",
  "design": {
   "builder": "alignment",
   "arguments": {}
