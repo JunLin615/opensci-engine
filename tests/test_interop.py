@@ -288,6 +288,54 @@ class MetasurfaceFitTests(unittest.TestCase):
         with self.assertRaises(ValueError):
             self.fit.interpolate(rows, 450)
 
+    @staticmethod
+    def focus_table(library, samples, rows):
+        return {"library": library, "grid": {"samples": samples}, "method": "lpa",
+                "design": {"focal_length_um": 200.0, "atoms_used": 30 if library.endswith("101.json") else 31},
+                "rows": [{"wavelength_nm": lam, "tilt_deg": tilt, "input_waist_radius_um": waist, "z_focus_um": z,
+                          "w_focus_um": 1.2, "focusing_efficiency": 0.9, **({"set": kind} if kind else {})}
+                         for lam, tilt, waist, z, kind in rows]}
+
+    def test_spread_needs_other_orders_and_other_samples(self):
+        main = [(490, 0.0, 30.0, 200.0, None), (532, 2.0, 30.0, 199.0, "calibration")]
+        with tempfile.TemporaryDirectory() as directory:
+            folder = Path(directory)
+            common.write_json(folder / "focus_nG101_N1024.json", self.focus_table("library_nG101.json", 1024, main))
+            keys = self.fit.calibration_keys(self.focus_table("library_nG101.json", 1024, main), 30.0)
+            with self.assertRaises(self.fit.ConvergenceDataMissing) as raised:
+                self.fit.spreads(folder, folder / "focus_nG101_N1024.json", keys)
+            self.assertEqual(raised.exception.code, "CONVERGENCE_DATA_MISSING")
+            self.assertIn("--nG 201", str(raised.exception))
+            self.assertIn("--samples 2048", str(raised.exception))
+            common.write_json(folder / "focus_nG201_N1024.json",
+                              self.focus_table("library_nG201.json", 1024, [(490, 0.0, 30.0, 201.0, None)]))
+            with self.assertRaises(self.fit.ConvergenceDataMissing) as raised:
+                self.fit.spreads(folder, folder / "focus_nG101_N1024.json", keys)
+            self.assertIn("other propagation samples", str(raised.exception))
+            self.assertNotIn("other RCWA orders", str(raised.exception))
+            common.write_json(folder / "focus_nG101_N2048.json",
+                              self.focus_table("library_nG101.json", 2048, [(532, 2.0, 30.0, 199.5, "calibration")]))
+            used, spread = self.fit.spreads(folder, folder / "focus_nG101_N1024.json", keys)
+        self.assertEqual([t["table"] for t in used], ["focus_nG101_N2048.json", "focus_nG201_N1024.json"])
+        largest = self.fit.largest_spread(spread)
+        self.assertAlmostEqual(largest["z_rel"], 0.005, places=12)
+        self.assertEqual(largest["z_rel_case"]["wavelength_nm"], 490)
+        self.assertEqual(self.fit.settings_text(self.focus_table("library_nG101.json", 1024, main), used),
+                         "RCWA orders 101/201 and propagation grids of 1024/2048 samples")
+
+    def test_test_cases_never_enter_the_spread(self):
+        main = [(490, 0.0, 30.0, 200.0, None), (555, 1.5, 30.0, 190.0, "test"), (545, 0.0, 25.0, 194.0, "test")]
+        other = [(490, 0.0, 30.0, 200.2, None), (555, 1.5, 30.0, 199.0, "test"), (545, 0.0, 25.0, 204.0, "test")]
+        with tempfile.TemporaryDirectory() as directory:
+            folder = Path(directory)
+            common.write_json(folder / "focus_nG101_N1024.json", self.focus_table("library_nG101.json", 1024, main))
+            common.write_json(folder / "focus_nG201_N1024.json", self.focus_table("library_nG201.json", 1024, other))
+            common.write_json(folder / "focus_nG101_N2048.json", self.focus_table("library_nG101.json", 2048, other))
+            keys = self.fit.calibration_keys(self.focus_table("library_nG101.json", 1024, main), 30.0)
+            _, spread = self.fit.spreads(folder, folder / "focus_nG101_N1024.json", keys)
+        self.assertEqual(set(spread), {(490, 0.0, 30.0)})
+        self.assertAlmostEqual(self.fit.largest_spread(spread)["z_rel"], 0.001, places=12)
+
     def test_error_bounds_round_up(self):
         self.assertEqual(self.fit.ceil_sig(0.0123), 0.013)
         self.assertEqual(self.fit.ceil_sig(0.012), 0.012)

@@ -4,35 +4,87 @@ Evidence for the four examples in [examples/interop](../examples/interop/) and t
 [external tools guide](en/interop.md). These examples require **opensci-engine 0.8.0**
 or newer.
 
-Recorded on 2026-10-15 with opensci-engine 0.8.0, engine build
-`0.8.0+444e44652013a822`. Every engine-side number below comes from that build.
-Each script's `outcome` compares OpenSci with an external tool or an independent
-reference (`WITHIN_TOLERANCE` / `OUT_OF_TOLERANCE`, or `COMPLETED` for a step that only
-produces data); OpenSci's own run statuses are quoted separately.
+This file holds two records: the [PyPI wheel record of 2026-10-18](#record-2026-10-18-pypi-wheel-opensci-engine-080)
+and the [integration-build record of 2026-10-15](#record-2026-10-15-integration-build-historical),
+which keeps the full per-case tables. Each script's `outcome` compares OpenSci with an
+external tool or an independent reference (`WITHIN_TOLERANCE` / `OUT_OF_TOLERANCE`, or
+`COMPLETED` for a step that only produces data); OpenSci's own run statuses are quoted
+separately.
 
 ## Reproduce
 
-From the repository root, one fresh virtual environment per topic:
+The external-tool environments need Python 3.12 or newer (numpy 2.5.4 and scipy 1.18.1);
+the quantum topic needs 3.12 to 3.14 and the separate Diffractio environment 3.12. From
+the repository root, one fresh virtual environment per topic:
 
 ```bash
 python -m pip install -r examples/interop/<topic>/requirements-<topic>.txt
 python -m unittest tests.test_interop -v
 ```
 
-Then run the commands of each section below. The offline tests cover the reference
-formulas, the field-construction convention, quantum-input parsing, network loading,
-group delay from declared glass, unitary dilation and the metasurface fitting
-helpers; they need numpy (and scipy for the diffraction reference) and skip cleanly
-without them. Two further tests run the Engine (network export with group delays,
-`TABULATED_THIN_LENS` scope) and are skipped on engines older than 0.8.0; with the
-build above all 24 tests ran and passed. Run outputs are written under `run-interop-*` directories and are not
+Then run the commands of the [external tools guide](en/interop.md) for the topic; for
+the metasurface these include the convergence commands (201 RCWA orders, 2048-sample
+propagation grid) that step 3 needs. The offline tests cover the reference formulas,
+the field-construction convention, quantum-input parsing, network loading, group delay
+from declared glass, unitary dilation and the metasurface fitting helpers, including
+the refusal without convergence data; they need numpy (and scipy for the diffraction
+reference) and skip cleanly without them. Two further tests run the Engine (network
+export with group delays, `TABULATED_THIN_LENS` scope) and are skipped on engines older
+than 0.8.0. Run outputs are written under `run-interop-*` directories and are not
 committed.
+
+## Record 2026-10-18: PyPI wheel opensci-engine 0.8.0
+
+Fresh environments per topic built from the requirements files, with opensci-engine
+0.8.0 installed from PyPI (engine build `0.8.0+94f6dc70bb40a2ed`); Windows 10 (AMD64),
+CPython 3.12.14, the pinned versions of all other packages. `tests.test_interop`: 26
+tests ran and passed. All Projects are catalog-free.
+
+| Topic | Commands | Outcome | Agreement with the 2026-10-15 record |
+| --- | --- | --- | --- |
+| Optimization | `optimize_expander.py` | `WITHIN_TOLERANCE`; 709 evaluations (686 `PASS`, 23 `FAIL`) | identical: SciPy optimum 200.05728727493042 mm (error 5.7e-14 mm), Optuna 199.9687 mm (excess 0.14 %), Engine vs ABCD 2.3e-14, Sobol indices 7.5e-15 |
+| Diffraction | `opensci_handoff.py`, `external_focus.py` (also in the Diffractio environment) | `COMPLETED`, `WITHIN_TOLERANCE` in both environments | identical: Engine peak +0.024 % / +62.1 % / withheld; LightPipes finest grid 3.2e-8, −1.0e-4, 8.6e-4; prysm and POPPY 1.2e-8, 1.9e-7, 3.9e-7; Diffractio −2.6e-5, −2.7e-5, −6.0e-6 |
+| Quantum | `build_layouts.py`, `run_quantum.py` | `COMPLETED` (19 exports, thin lens refused), `WITHIN_TOLERANCE` | identical: Perceval 4.0e-8, Piquasso 1.8e-9, delays 4e-10 ps, exported vs computed group delay 1.3e-9 ps, HOM visibility 0.94912 |
+| Metasurface | the seven commands of the guide, then `step4_engine_check.py --model per-wavelength-ideal` | `WITHIN_TOLERANCE` in both step-4 modes | identical, see below |
+
+Metasurface. Run on the wheel, the four commands listed in the guide before this
+record (step 1 to step 4 without the convergence commands) gave `OUT_OF_TOLERANCE`:
+without focus tables at other RCWA orders or propagation samples, step 3 added no
+external numerical spread, so the focus-position bound became ±0.3 µm (the largest
+calibration deviation, 0.296 µm at 565 nm), and the 575 nm test case deviates by
++0.3155 µm. The engine-side numbers were the same as in the 2026-10-15 record; the
+difference was the missing convergence data. Step 3 now requires both kinds of
+convergence table and stops with `CONVERGENCE_DATA_MISSING` (exit 4, the commands that
+produce them in the message) when either is missing, and it takes the spread from
+calibration cases only. The guide lists the convergence commands.
+
+With them (grcwa 0.1.2: 855 solves at 101 orders in 243 s, 225 solves at 201 orders
+for 490, 515, 532, 545 and 580 nm in 411 s, |R + T − 1| ≤ 9e-13; step 2 in 184 s,
+83 s and 322 s; the two step-1 and the three step-2 commands were run concurrently on
+12 cores): external spread 0.50 % in focus position (580 nm), 0.71 % in spot radius
+and 0.015 in efficiency (490 nm); error bounds focus position ±1.4 µm, spot radius
+±8.1 %, delivered power ±19 %; `max_field_angle_deg` 2 (5° leaves the bounds: axial
+1.56 µm). Test set inside the stated errors (largest: focus +0.315 µm at 575 nm, spot
+−5.8 % at 1.5°, power +15.7 % with the 25 µm beam); Engine vs the model's thin-lens
+prediction 4.4e-16 (tabulated, also as one 19-line source) and 3.8e-7
+(`per-wavelength-ideal`); counterexamples `OUT_OF_MODEL_SCOPE` as expected (450 nm,
+5°, 8°, 20°, `peak_irradiance_W_per_mm2`), and `WARNING` at 5°, 8° and 20° with
+`per-wavelength-ideal`. Unit-cell library SHA-256
+`374ca765da99f17ee30babd1f1b4dba476cdca86e9e13649313c98940b861a5f`, the same as in the
+2026-10-15 record. Every per-case value equals the table of that record.
+
+## Record 2026-10-15: integration build (historical)
+
+Recorded on 2026-10-15 with opensci-engine 0.8.0, engine build
+`0.8.0+444e44652013a822`, an integration build that is not the published wheel.
+Every engine-side number in this record comes from that build; with that build all 24
+tests of `tests.test_interop` at the time ran and passed.
 
 Environment of the recorded runs: Windows 10 (AMD64), CPython 3.12.14, numpy 2.5.4,
 scipy 1.18.1, matplotlib 3.11.2. All Projects are catalog-free (declared and native
 components), so no catalog release is involved.
 
-## Optimization and tolerance
+### Optimization and tolerance
 
 `python examples/interop/optimization/optimize_expander.py --out run-interop-optimization`
 with SciPy 1.18.1, Optuna 5.0.0, SALib 1.6.0. Outcome `WITHIN_TOLERANCE`, 709 Engine
@@ -52,7 +104,7 @@ Every evaluation line in `evaluations.jsonl` carries `project_hash`, `input_hash
 sampling uncertainty of N = 128; the large total and small first-order indices of the
 two lens positions show that the divergence depends on their separation.
 
-## Diffraction at a declared stop
+### Diffraction at a declared stop
 
 `opensci_handoff.py --out run-interop-diffraction` (beam at the stop from the Engine's
 transverse-plane handoff, `RunResults.handoff("stop_plane", element="STOP")`, equal to
@@ -100,7 +152,7 @@ the focal maximum one output sample from the requested centre and spaced its sam
 (x_end − x_start)/N, so only its located peak is compared. A pixelated hard stop gave
 non-monotonic LightPipes convergence; edge pixels are weighted by their covered area.
 
-## Quantum photonics
+### Quantum photonics
 
 `build_layouts.py --out run-interop-quantum` exported 19 networks through
 `opensci-engine project network` (exit 0) and refused the thin-lens layout (exit 65,
@@ -142,7 +194,7 @@ explicit unitary completion of each lossy matrix (agreement 1e-12, probabilities
 Licenses as reported upstream (package metadata, 2026-10-15): perceval-quandela MIT;
 exqalibur CC BY-NC-ND 4.0; piquasso Apache-2.0.
 
-## Metasurface lens as a virtual focusing component
+### Metasurface lens as a virtual focusing component
 
 `step1_unit_cells.py` (grcwa 0.1.2; 855 solves at 101 orders in 214 s for 19
 wavelengths, 225 solves at 201 orders in 393 s for 490/515/532/545/580 nm, one BLAS
