@@ -386,6 +386,9 @@ class AlignmentCheck:
         if self.catalog_file:
             # An imported release is used as is; runs never contact the catalog service.
             self.env["OPENSCI_CATALOG_CHECK_INTERVAL"] = "0"
+        else:
+            # A fresh sync uses the engine's default service checks, whatever the caller's shell sets.
+            self.env.pop("OPENSCI_CATALOG_CHECK_INTERVAL", None)
         self.report = {
             "schema_version": 1, "baseline_version": None,
             "requested_version": candidate or "baseline", "candidate_version": None,

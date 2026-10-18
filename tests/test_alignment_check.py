@@ -324,7 +324,8 @@ class AlignmentRunnerTests(unittest.TestCase):
 
     def test_candidate_uses_isolated_public_install_without_mutating_baseline(self):
         originals = {path.name: path.read_bytes() for path in self.root.iterdir()}
-        with patch.dict(alignment.os.environ, {"PYTHONPATH": "private-engine", "PYTHONHOME": "private-runtime"}):
+        with patch.dict(alignment.os.environ, {"PYTHONPATH": "private-engine", "PYTHONHOME": "private-runtime",
+                                               "OPENSCI_CATALOG_CHECK_INTERVAL": "0"}):
             runner = alignment.AlignmentCheck(self.root, self.out, "latest")
         with patch.object(alignment, "latest_version", return_value="0.7.0") as latest, \
              patch.object(alignment.subprocess, "run", side_effect=self.fake_processes(version="0.7.0")) as commands:
@@ -340,10 +341,10 @@ class AlignmentRunnerTests(unittest.TestCase):
                                              "--index-url", "https://pypi.org/simple", "opensci-engine[protected]==0.7.0"])
         self.assertTrue(Path(install.args[0][0]).is_relative_to(self.out / ".venv"))
         for call in commands.call_args_list:
-            self.assertNotIn("PYTHONPATH", call.kwargs["env"])
-            self.assertNotIn("PYTHONHOME", call.kwargs["env"])
+            # Compare key sets only, so a failure never writes the environment into logs.
+            keys = set(call.kwargs["env"])
+            self.assertEqual(keys & {"PYTHONPATH", "PYTHONHOME", "OPENSCI_CATALOG_CHECK_INTERVAL"}, set())
             self.assertEqual(call.kwargs["env"]["PYTHONNOUSERSITE"], "1")
-            self.assertNotIn("OPENSCI_CATALOG_CHECK_INTERVAL", call.kwargs["env"])
             self.assertNotIn("import opensci_engine._", " ".join(call.args[0]))
             self.assertNotIn("from opensci_engine._", " ".join(call.args[0]))
         scientific_failure = next(row for row in report["checks"] if row["name"] == "ideal-unmet-target")
