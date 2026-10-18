@@ -264,9 +264,12 @@ class AlignmentReportingTests(unittest.TestCase):
         failed.update(python_version="3.11.16", catalog_source={
             "mode": "sync", "file": None, "service_url": "https://opensci-optics.com/api/v1/catalog"})
         failed["optional_checks"] = {"requested": [], "selected": [], "not_selected": ["interop-optimization"]}
+        failed["checks"].append({"name": "interop-quantum", "category": "setup", "status": "SKIPPED",
+                                 "requires_python": "3.12"})
         summary = render_summary(read_back(failed))
         for expected in ("| Python | 3.11.16 |", "fresh sync from https://opensci-optics.com/api/v1/catalog, no active release",
-                         "SKIPPED (blocked by catalog-sync)", "interop-optimization"):
+                         "SKIPPED (blocked by catalog-sync)", "interop-optimization",
+                         "SKIPPED (requires Python &gt;= 3.12)"):
             self.assertIn(expected, summary)
         imported = report("0.8.0")
         imported["requested_version"] = "0.8.0"

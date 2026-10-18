@@ -206,8 +206,8 @@ class CheckDefinitionTests(unittest.TestCase):
         self.assertEqual(definitions["checks"][0], {
             "name": "workflow", "description": None, "argv": ["{python}", "examples/w.py", "--out", "{runs}/w"],
             "expected_exit": 0, "expected_status": ["PASS"], "status_field": "status", "needs": [],
-            "requirements": None, "env": {}, "timeout": 180, "json_error": False, "needs_catalog": False,
-            "optional": False})
+            "requirements": None, "requires_python": None, "env": {}, "timeout": 180, "json_error": False,
+            "needs_catalog": False, "optional": False})
 
     def test_invalid_definitions_are_rejected(self):
         valid = {"name": "workflow", "argv": ["{python}", "w.py"]}
@@ -216,7 +216,7 @@ class CheckDefinitionTests(unittest.TestCase):
             {"name": "catalog-sync"}, {"name": "install-env-topic"}, {"name": "Upper"}, {"unknown": 1},
             {"needs": ["later"]}, {"requirements": "../outside.txt"}, {"requirements": "missing.txt"},
             {"timeout": "60"}, {"expected_exit": True}, {"optional": "yes"}, {"expected_status": []},
-            {"env": {"lower": "x"}},
+            {"env": {"lower": "x"}}, {"requires_python": "3"}, {"requires_python": 3.12},
         ):
             with self.subTest(change=change), self.assertRaises(ValueError):
                 self.load([dict(valid, **change)])
@@ -523,6 +523,20 @@ class AlignmentRunnerTests(unittest.TestCase):
         self.assertEqual((rows["topic"]["status"], rows["topic"]["blocked_by"]), ("SKIPPED", "install-env-topic"))
         self.assertEqual((rows["topic-next"]["status"], rows["topic-next"]["blocked_by"]), ("SKIPPED", "topic"))
         self.assertEqual(rows["beam-summary"]["status"], "PASS")
+
+    def test_check_needing_a_newer_python_is_skipped_without_building_its_environment(self):
+        topic = {"name": "topic", "argv": ["{python}", "examples/topic.py"], "requirements": "requirements-topic.txt",
+                 "optional": True, "requires_python": "3.99"}
+        self.write_checks(default_checks() + [topic, dict(topic, name="topic-next", needs=["topic"],
+                                                          requires_python="3.11")])
+        with patch.object(alignment.subprocess, "run", side_effect=self.fake_processes()) as commands:
+            report = alignment.AlignmentCheck(self.root, self.out, optional=["all"]).run()
+        rows = self.rows(report)
+        self.assertEqual(report["status"], "PASS")
+        self.assertEqual((rows["topic"]["status"], rows["topic"]["category"]), ("SKIPPED", "setup"))
+        self.assertIn("Requires Python >= 3.99", rows["topic"]["error"])
+        self.assertEqual((rows["topic-next"]["status"], rows["topic-next"]["blocked_by"]), ("SKIPPED", "topic"))
+        self.assertFalse(self.calls(commands, "requirements-topic.txt"))
 
     def test_pinned_catalog_file_is_verified_imported_and_reported_distinctly(self):
         runner = alignment.AlignmentCheck(self.root, self.out, catalog_file=self.catalog)

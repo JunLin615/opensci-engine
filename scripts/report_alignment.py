@@ -140,6 +140,8 @@ def render_summary(report, run_url="", artifact_url=""):
         status = check["status"]
         if status == "SKIPPED" and check.get("blocked_by"):
             status += " (blocked by " + check["blocked_by"] + ")"
+        elif status == "SKIPPED" and check.get("requires_python"):
+            status += " (requires Python >= " + check["requires_python"] + ")"
         lines.append("| " + " | ".join(cell(value) for value in (
             check["name"], check["category"], status, check.get("exit_code"))) + " |")
     optional = (report.get("optional_checks") or {}).get("not_selected") or []

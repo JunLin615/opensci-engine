@@ -230,7 +230,7 @@ def catalog_failure_category(text, transport=True):
 
 CHECK_FIELDS = {
     "name", "description", "argv", "expected_exit", "expected_status", "status_field", "json_error",
-    "needs_catalog", "needs", "requirements", "optional", "timeout", "env",
+    "needs_catalog", "needs", "requirements", "requires_python", "optional", "timeout", "env",
 }
 RESERVED = re.compile(
     r"(?:baseline-documentation|check-definitions|release-selection|create-environment|install-engine|"
@@ -321,11 +321,16 @@ def load_checks(root):
         requirements_file = raw.get("requirements")
         if requirements_file is not None:
             requirements_file = _repository_file(root, requirements_file, label + " requirements")
+        requires_python = raw.get("requires_python")
+        if requires_python is not None and (not isinstance(requires_python, str)
+                                            or not re.fullmatch(r"3\.\d+", requires_python)):
+            raise ValueError(f"{label}: requires_python must be a minimum version such as \"3.12\"")
         names.add(name)
         checks.append({
             "name": name, "description": raw.get("description"), "argv": argv,
             "expected_exit": expected_exit, "expected_status": expected_status, "status_field": status_field,
-            "needs": needs, "requirements": requirements_file, "env": env, "timeout": timeout, **flags,
+            "needs": needs, "requirements": requirements_file, "requires_python": requires_python,
+            "env": env, "timeout": timeout, **flags,
         })
     return {"default_requirements": requirements, "checks": checks}
 
@@ -645,6 +650,12 @@ class AlignmentCheck:
             environment = default
             if blocker:
                 self.skip(check["name"], blocker)
+                continue
+            minimum = check["requires_python"]
+            if minimum and sys.version_info[:2] < tuple(int(part) for part in minimum.split(".")):
+                # Not a failure of this release: the runner's interpreter is older than the check needs.
+                self.record(check["name"], "setup", "SKIPPED", [], requires_python=minimum,
+                            error=f"Requires Python >= {minimum}; the runner uses {sys.version.split()[0]}")
                 continue
             if check["requirements"]:
                 environment = self.environment(check["requirements"])
