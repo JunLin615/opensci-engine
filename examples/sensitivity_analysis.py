@@ -40,8 +40,8 @@ Method, per parameter p, target t and step h (f0: nominal value; f+/f-: value at
 A side is usable when its sample completed in model scope (outcome not ERROR / OUT_OF_MODEL) and the target has a
 value; the nominal must be usable for the one-sided forms and the second difference. The primary estimate is the
 smallest step with a central difference (else the smallest usable step); the reported second difference is the one
-of the largest step that has one (round-off grows as 1/h^2). Step consistency compares the primary estimate with
-the next usable step: ratio = D(primary) / D(other), relative difference |D1 - D2| / max(|D1|, |D2|), flagged
+of the larger of the two compared steps (round-off grows as 1/h^2). Step consistency compares the primary estimate
+with the next usable step: ratio = D(primary) / D(other), relative difference |D1 - D2| / max(|D1|, |D2|), flagged
 STEP_DEPENDENT above consistency_threshold. Change floor per target: the larger of the target's "resolution" and
 64 machine epsilons (1.42e-14) times its largest magnitude in the pair; two estimates whose changes |D| h are both
 within the floor count as consistent. NEAR_EXTREMUM: |f''| h^2 / 2 exceeds the floor and |D| h <= |f''| h^2 / 2 at
@@ -57,7 +57,8 @@ otherwise only parameters with a scale are ranked and the others are listed as n
 Writes STUDY_DIR/study.json (spec as given and normalized, base project hash, engine / catalog identity,
 environment, budget, timestamps), samples/<id>/{project.json, run/, sample.json} (s0000 = nominal), table.csv
 (one row per sample, param:<name> = perturbation from nominal), sensitivity.csv (one row per parameter, target and
-step), summary.json, plots/ (sensitivity bars and tornado per target, PNG + SVG) and report/ (report.md,
+step), summary.json, plots/ (sensitivity bars and tornado per target, PNG + SVG; needs matplotlib, see
+requirements-examples.txt, otherwise summary.json records why no plot was written) and report/ (report.md,
 report.json via build_report.py).
 
 Stdout: one compact JSON document (nominal values, per-target ranking with derivatives, units, methods, flags,
@@ -325,6 +326,15 @@ def append_report(study_dir, *, plots, title, lines, extra, artifacts=()):
             "artifacts": len(report["artifacts"])}
 
 
+def matplotlib_missing():
+    """None when matplotlib can be imported, else why no plots are written."""
+    try:
+        import matplotlib  # noqa: F401
+    except ImportError:
+        return "matplotlib is not installed (python -m pip install -r requirements-examples.txt)"
+    return None
+
+
 def fmt(value, digits=9):
     if isinstance(value, float):
         return f"{value:.{digits}g}"
@@ -476,8 +486,11 @@ def assess(estimates, threshold, scale, resolution=None):
         return result
     primary = next((e for e in valued if e["method"] == "central"), valued[0])
     result.update({"primary_step": primary["step"], "method": primary["method"], "derivative": primary["derivative"]})
-    curved = [e for e in valued if e["second_difference"] is not None]
-    second = curved[-1]["second_difference"] if curved else None  # largest step: least round-off amplification
+    others = [e for e in valued if e is not primary]
+    compared = sorted([primary] + others[:1], key=lambda e: e["step"])
+    curved = ([e for e in compared if e["second_difference"] is not None]
+              or [e for e in valued if e["second_difference"] is not None])
+    second = curved[-1]["second_difference"] if curved else None  # larger step: less round-off amplification
     result["second_difference"] = second
     result["second_difference_step"] = curved[-1]["step"] if curved else None
     flags = []
@@ -487,7 +500,6 @@ def assess(estimates, threshold, scale, resolution=None):
                   if isinstance(e.get(k), (int, float))]
     floor = max(ROUNDOFF_RELATIVE * max(magnitudes, default=0.0), resolution or 0.0)
     result["change_floor"] = floor
-    others = [e for e in valued if e is not primary]
     if others:
         other = others[0]
         d1, d2 = primary["derivative"], other["derivative"]
@@ -660,7 +672,7 @@ def run_sensitivity(spec, study_dir, *, base=None, build=None, base_path=None, s
     summary = {
         "status": status, "kind": f"{KIND}-summary",
         "method": {"default": "central finite differences", "formulas": METHOD_TEXT,
-                   "second_difference": "(f(+h) - 2 f(0) + f(-h)) / h^2 at the largest step that has one",
+                   "second_difference": "(f(+h) - 2 f(0) + f(-h)) / h^2 at the larger of the two compared steps",
                    "consistency": f"ratio D(primary) / D(next usable step); relative difference "
                                   f"|D1 - D2| / max(|D1|, |D2|) flagged above {normalized['consistency_threshold']}",
                    "change_floor": "max(resolution of the target, 64 machine epsilons x largest |target value|)",
@@ -694,11 +706,14 @@ def run_sensitivity(spec, study_dir, *, base=None, build=None, base_path=None, s
         "seconds": None,
     }
     wc.write_json(study_dir / "summary.json", summary)
-    if plots:
+    skipped = matplotlib_missing() if plots else "plots disabled"
+    if skipped is None:
         summary["plots"] = plot_sensitivity(study_dir, summary)
         summary["paths"]["plots"] = "plots"
+    else:
+        summary["plots"] = {"written": [], "skipped": skipped}
     if report:
-        summary["report"] = append_report(study_dir, plots=[study_dir / "plots"] if plots else None,
+        summary["report"] = append_report(study_dir, plots=[study_dir / "plots"] if skipped is None else None,
                                           title="Sensitivity", lines=report_lines(summary),
                                           extra={"sensitivity": _report_extra(summary)},
                                           artifacts=[(study_dir / "sensitivity.csv", "sensitivity table")])

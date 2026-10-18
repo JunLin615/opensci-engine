@@ -89,6 +89,9 @@ class FiniteDifferenceNumericsTests(unittest.TestCase):
         self.assertEqual(result["flags"], [])
         strict = sa.assess(self._estimates(cubic, [0.01, 0.1]), 1e-4, None)
         self.assertIn("STEP_DEPENDENT", strict["flags"])
+        three = sa.assess(self._estimates(cubic, [0.01, 0.1, 5.0]), 0.01, None)
+        self.assertEqual(three["consistency"]["steps"], [0.01, 0.1])
+        self.assertEqual(three["second_difference_step"], 0.1)  # the larger compared step, not the exploratory 5
 
     def test_extremum_no_change_and_unavailable(self):
         quad = lambda x: 1.0 + 4.0 * x * x  # noqa: E731 - minimum at 0

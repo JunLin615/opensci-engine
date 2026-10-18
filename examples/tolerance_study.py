@@ -51,7 +51,8 @@ the samples that completed in model scope and have a value.
 
 Writes STUDY_DIR/study.json, sampling.json, samples.csv, samples/<id>/{project.json, run/, sample.json} (s0000 =
 nominal), table.csv, summary.json, plots/ (histogram per selected target with its bounds, histogram per parameter
-with its distribution bounds; PNG + SVG) and report/ (report.md, report.json via build_report.py).
+with its distribution bounds; PNG + SVG; needs matplotlib, see requirements-examples.txt) and report/ (report.md,
+report.json via build_report.py).
 
 Stdout: one compact JSON document. Exit 0 completed with at least one PASS sample, 1 no PASS sample (or a
 --verify-seed mismatch), 4 refused spec or invalid input.
@@ -423,12 +424,15 @@ def run_tolerance(spec, study_dir, *, base=None, build=None, base_path=None, spe
         "seconds": None,
     }
     wc.write_json(study_dir / "summary.json", summary)
-    if plots:
+    skipped = sa.matplotlib_missing() if plots else "plots disabled"
+    if skipped is None:
         summary["plots"] = plot_tolerance(study_dir, summary)
         summary["paths"]["plots"] = "plots"
+    else:
+        summary["plots"] = {"written": [], "skipped": skipped}
     if report:
         summary["report"] = sa.append_report(
-            study_dir, plots=[study_dir / "plots"] if plots else None, title="Tolerance sampling",
+            study_dir, plots=[study_dir / "plots"] if skipped is None else None, title="Tolerance sampling",
             lines=report_lines(summary), extra={"tolerance": {k: summary[k] for k in (
                 "sampling", "parameters", "nominal", "counts", "target_distributions", "zero_offset_check")}},
             artifacts=[(study_dir / "samples.csv", "sampled offsets"),
