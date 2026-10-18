@@ -280,7 +280,8 @@ python examples/alignment_analysis.py --out run-tutorial/alignment-synthetic --n
 ## Read the results
 
 Every sample and run is placed in one outcome class, checked in this order: `ERROR`
-(refused or not run), `OUT_OF_MODEL` (any model-scope issue, whatever the target statuses),
+(refused or not run), `OUT_OF_MODEL` (any model-scope issue or any issue whose status is
+`OUT_OF_MODEL_SCOPE`, whatever the target statuses),
 `UNKNOWN` (a selected target without a value), `FAIL`, `PASS`. Counts always state their
 denominator: the pass fraction divides by all requested samples, and the fraction among
 evaluable samples (PASS + FAIL) is shown separately. A comparison or report against the

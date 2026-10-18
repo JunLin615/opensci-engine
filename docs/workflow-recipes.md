@@ -14,7 +14,8 @@ complete specification. Verified with opensci-engine **0.8.0** and catalog relea
   --run` writes a valid edit and the Engine refuses the run, stdout reports
   `run.status` `RUN_REFUSED` with its `problems` (exit 4).
 - Inputs are never modified. Edit, study and workflow scripts refuse an existing output
-  (`OUTPUT_EXISTS`) unless `--overwrite`.
+  (`OUTPUT_EXISTS`) unless `--overwrite`; on a study directory `--overwrite` also removes
+  its `plots/` and `report/`, which describe the previous samples.
 - Numbers keep their schema unit (`_mm`, `_nm`, `_w`/`_W`, `_deg`, `_rad`; target bounds
   in the target's `unit`) or are written `{"value": 250, "unit": "um"}` with `nm`, `um`,
   `mm`, `m`, `deg`, `rad`, `mrad`, `urad`, `W`, `mW`, `uW`. Quaternions `[w, x, y, z]`
@@ -33,16 +34,19 @@ complete specification. Verified with opensci-engine **0.8.0** and catalog relea
 | three design workflows | nominal `PASS` | nominal `FAIL` | `UNKNOWN` | `OUT_OF_MODEL` | `ERROR`, refused |
 
 `edit_project.py --run` exits with the run's outcome class (below): a run with any
-model-scope issue exits 3 even when its Engine status is `FAIL`. `run.status` keeps the
-Engine status and `run.model_scope_issues` the reasons.
+model-scope issue or any issue whose status is `OUT_OF_MODEL_SCOPE` exits 3 even when its
+Engine status is `FAIL`. `run.status` keeps the Engine status; `run.model_scope_issues` and
+`run.out_of_model_issues` hold the reasons.
 
 ## Outcome classes
 
 Studies, comparisons and workflows classify every sample or run, in this precedence:
 
 1. `ERROR`: the edit, load or run was refused, or the sample was not run.
-2. `OUT_OF_MODEL`: completed with any `model_scope_issues` or status `OUT_OF_MODEL_SCOPE`,
-   whatever the target statuses.
+2. `OUT_OF_MODEL`: completed with any model-scope issue or any issue whose status is
+   `OUT_OF_MODEL_SCOPE` (an Engine issue such as a tabulated thin lens used outside its
+   rows, or a target row), whatever the run and target statuses; the codes are in
+   `model_scope_issues` and `out_of_model_issues`.
 3. `UNKNOWN`: a selected target has no value or status `UNKNOWN` (also a selected target
    id that the run does not contain, or a run with no target to evaluate).
 4. `FAIL`: a selected target failed.
@@ -76,7 +80,9 @@ python examples/edit_project.py BASE.json --edits EDITS.json --out NEW.json [--r
 
 `EDITS.json` is a list of operations (or `{"ops": [...]}`) in the Designer
 `updateProject` vocabulary, applied in order to a copy of BASE. `changes` objects merge;
-`null` removes a field.
+`null` removes a field. An argument left out is refused (`BAD_ARGUMENT`), as in the
+Designer: `set_retained_dof` needs `control` (`null` releases the DOF) and
+`set_design_intent` needs `design_intent` (`null` removes it).
 
 | Op | Arguments |
 | --- | --- |
@@ -94,6 +100,8 @@ python examples/edit_project.py BASE.json --edits EDITS.json --out NEW.json [--r
 `transform` is a rigid move computed by the Engine; translation and rotation axis are in
 the frame's axes, so `"frame": {"component": "L2"}` with `"translation_mm": [0, 0, 0.25]`
 moves L2 0.25 mm along its own optical axis. Observation ids in the selector move too.
+The workspace frames `{"group": ID}` and `{"instance": ID}` exist only in a Designer
+workspace; on a Project file the Engine refuses them (`FRAME_INVALID`).
 
 Example on the catalog beam expander (`python examples/beam_expander.py --out run-example`):
 change the wavelength, move L2 and the output plane 1 mm along design +X, and replace the
@@ -121,7 +129,9 @@ affected field, project hashes before and after, output sha256) and the run dire
 Retry and concurrency:
 
 - Running the same command again prints `"already_applied": true`, writes nothing and
-  reuses the run when it is still current (`run.reused: true`).
+  reuses the run when it is still current (`run.reused: true`). The operations digest is
+  taken over the normalized operations with numbers as floats, so the same edit written
+  in other units (`1` mm or `{"value": 1000, "unit": "um"}`) counts as the same edit.
 - The same `--out` with different ops or a changed base is refused: `OUTPUT_EXISTS` with
   `mismatch` `OPS_CHANGED`, `BASE_CHANGED`, `RECORD_MISSING` or `OUTPUT_MODIFIED`. Choose a
   new `--out`, or `--overwrite` deliberately.
@@ -139,25 +149,31 @@ python examples/sweep_parameters.py SPEC.json [--base BASE.json] --out STUDY_DIR
 | `base_project` | Project file relative to the spec; `--base` overrides |
 | `parameters` | 1 or 2 entries `{name, unit?, values \| range {start, stop, count}, ops}`; two give the full grid, first outermost |
 | `max_evaluations` | required; refused with `BUDGET_EXCEEDED` before any run when the sample count exceeds it |
-| `targets` | ids deciding each sample's outcome (default all); an id not in the Project is refused with `TARGET_UNKNOWN` |
+| `targets` | ids deciding each sample's outcome (default all) |
 | `constraints` | all must hold: `{"outcome": [...]}`, `{"target": ID, "status": [...]}`, `{"column": C, "min"?, "max"?}` (quantities convert to the column unit) |
 | `objective` | `{"column": C, "sense": "minimize" \| "maximize"}` over feasible samples (in model, not `ERROR` or `UNKNOWN`, every constraint met) |
-| `derived` | `{"name", "op": add \| sub \| mul \| div \| abs \| abs_diff, "a", "b"}` |
+| `derived` | `{"name", "op": add \| sub \| mul \| div \| abs \| abs_diff, "a", "b", "unit"?}`; `unit` applies to its constraints, objective, table and plots |
 | `stop_on` | outcome classes that stop the sweep; remaining samples become `ERROR` (default none) |
 
 Placeholders in `ops`: `"$value"` becomes `{"value": v, "unit": <parameter unit>}`;
 `{"$value": {"scale": s, "offset": o}}` becomes `o + s·v`. Each sample applies its ops to
 the unchanged base. Columns: `param:<name>`, `target:<id>` (target unit),
-`derived:<name>`. Examples: `examples/specs/beam_expander_l2_sweep.json` (one parameter,
-constraint and objective) and `examples/specs/polarization_hwp_wavelength_sweep.json`
+`derived:<name>` (a derived operand may use the derived columns listed before it). Before
+any run, a target id that is in neither the base nor the first sample is refused with
+`TARGET_UNKNOWN`, and an objective, constraint or derived column that the spec cannot
+produce with `COLUMN_UNKNOWN`; both list the known ids or columns. Examples:
+`examples/specs/beam_expander_l2_sweep.json` (one parameter, constraint, objective and a
+derived column in mm) and `examples/specs/polarization_hwp_wavelength_sweep.json`
 (2-parameter grid with out-of-model samples).
 
 Writes `study.json` (spec as given and normalized, base hash, identities, budget),
 `samples/<id>/{project.json, run/, sample.json}`, `table.csv` (every sample: parameters
-with units, outcome, status, `model_scope_issues`, per-target value/unit/status, error
-codes, hashes, run path, seconds) and `summary.json`. Stdout lists counts with
-denominators, the best sample or `no_feasible` with the failed constraints, and at most
-five rows.
+with units, outcome, status, `model_scope_issues`, `out_of_model_issues`, per-target
+value/unit/status, error codes, hashes, run path, seconds) and `summary.json`. Stdout
+lists counts with denominators, the best sample or `no_feasible` with the failed
+constraints,
+`samples_with_warnings` (samples whose runs carry WARNING issues, how many of them PASS,
+codes) and at most five rows, each with its `warnings`.
 
 ## Compare and freshness
 
@@ -167,9 +183,19 @@ python examples/compare_runs.py STUDY_DIR --project CURRENT.json
 ```
 
 Reads saved runs only. Targets and observation planes are aligned by ID (absent ones are
-`"missing": true`); `delta` is against the first run or `--reference`. Only differing
-inputs are listed (source fields, poses, products and declared models, target
-definitions, catalog release, Engine build). With `--project`, each run is `CURRENT`
+`"missing": true`); `delta` is against the first run or `--reference`. Inputs: every
+field of each run's `project.json` is compared by object ID (`pose:L2.position_mm`,
+`source:SRC.waist_radius_y_mm`, `binding:L2.optical_sku`,
+`observation:far.aperture.radius_mm`, `target:<id>.maximum`, `model:<id>.<path>`,
+`project.design_intent`, ...), plus the catalog release and Engine build; only
+differing inputs are listed, with the unit of the field name (target bounds: the
+target's unit). `inputs_compared` states
+the result: how many inputs differ, that the Projects are identical (equal project
+hashes), or that the project hashes differ although no field does. Outcomes of study
+samples use the study's selected targets, run directories all targets; `--targets`
+overrides both and an id in no run is refused (`TARGET_UNKNOWN`). Each run lists its
+`out_of_model_issues`, `warnings` and `target_issue_codes`. With `--project`, each run is
+`CURRENT`
 when its project hash, Engine input hash and Engine build match the current project and
 installation, otherwise `HISTORICAL` with reasons `PROJECT_CHANGED`, `ENGINE_CHANGED` or
 `RUN_UNVERIFIED`; outcomes then read e.g. `HISTORICAL PASS`. A historical result never
@@ -185,15 +211,20 @@ python examples/build_report.py STUDY_DIR --project CURRENT.json --plots STUDY_D
 python examples/build_report.py RUN_A RUN_B --project CURRENT.json --out REPORT_DIR
 ```
 
-`sweep` draws a curve (one parameter) or heatmap (two) with axis units, the target band
-and every sample's outcome marker; samples without a value stay visible at the axis edge
-or in their cell. `power` plots received power per plane and the power-ledger sinks.
+`sweep` draws a curve (one parameter) or heatmap (two) with axis units, the target
+bounds (a band on the curve, dashed lines on the heatmap colour bar) and every sample's
+outcome marker; samples without a value are hollow markers on a dotted line labelled
+"samples without a value" below the lowest value (the position carries no value), with
+their own legend entry, or a marked empty cell on the heatmap. `power` plots received
+power per plane and the power-ledger sinks.
 `bars` and `histogram` take a small JSON file (`--help`). PNG + SVG go to
 `STUDY_DIR/plots/` or, for a run, `plots/` next to the run directory; the caption names
 the data file (sha256 prefix), Engine build and catalog release. Reports write
 `report.md` + `report.json` (default `STUDY_DIR/report/` or `./report/`) with inputs,
-the edit record, outcomes with units, diagnostics, freshness, plot links and every
-artifact's relative path and sha256.
+the edit record, outcomes with units, diagnostics (model-scope issues, target issue
+codes, warnings and refusals of every run or sample), freshness (the best sample of a
+study is labelled `HISTORICAL` like its row), plot links and every artifact's relative
+path and sha256.
 
 ## Catalog candidates
 
@@ -207,8 +238,9 @@ python examples/catalog_candidates.py --category LENS --form PLANO_CONVEX_LENS -
 model is valid there) are Engine filters; `--range FIELD=MIN..MAX[UNIT]` compares the
 catalog's decimal strings exactly (either side may be empty); `--near FIELD=VALUE` or
 `--sort FIELD [--descending]` order the rows; `--limit` ≤ 100. The output states
-`catalog_version`, `engine_matches`, `matched`, products excluded for a missing field,
-`shown` and `omitted`; `--out` writes every matched row. The command above returns 8 of
+`catalog_version`, `engine_matches`, `matched`, `excluded_missing_field` (products
+without a `--range`, `--near` or `--sort` field, per field), `shown` and `omitted`;
+`--out` writes every matched row. The command above returns 8 of
 471 plano-convex lenses valid at 780 nm. Use a returned `optical_sku` in
 `set_component_product`.
 
@@ -252,7 +284,7 @@ python examples/tolerance_study.py --verify-seed STUDY_DIR
 | `targets` | all must PASS for a sample to PASS |
 | `samples`, `seed`, `max_evaluations` | sample count (nominal run extra), integer seed, budget ≥ samples + 1 |
 | `parameters` | `{name, unit, ops, nominal = 0, distribution}`, sampled independently in this order |
-| `distribution` | `{"kind": "uniform", "low", "high"}` or `{"kind": "normal", "sigma", "mean_offset" = 0, "truncate_sigma" \| "bounds": [low, high]}` (offsets in the parameter unit) |
+| `distribution` | `{"kind": "uniform", "low", "high"}` or `{"kind": "normal", "sigma", "mean_offset" = 0, "truncate_sigma" \| "bounds": [low, high]}` (offsets in the parameter unit; normal bounds holding less than 1e-9 of the distribution are refused with `SPEC_INVALID`) |
 
 Offsets come from `numpy.random.Generator(PCG64(seed))`, one uniform number per sample
 and parameter, row by row; `samples.csv` and `sampling.json` are written before any run.
@@ -260,7 +292,8 @@ The same seed and spec give byte-identical `samples.csv`, and the first n sample
 larger run are the same; `--verify-seed` redraws and compares. `--zero-tolerance`
 reproduces the nominal project and result hashes exactly. Stdout: counts per outcome
 class with denominators, target-value statistics over samples completed in model scope
-(count stated), sampling assumptions. Specs: `examples/specs/tolerance_*.json`.
+(count stated), `samples_with_warnings`, sampling assumptions. Specs:
+`examples/specs/tolerance_*.json`.
 
 ## Design workflows
 
@@ -294,7 +327,7 @@ samples before anything runs. Output: `DIR/workflow.json`, `DIR/nominal/`,
 | `PROJECT_REJECTED` | the Engine check refuses the edited Project; `problems` list codes and locations | change the offending values |
 | `RUN_REFUSED` (`run.status`) | the edit was written but the Engine refused the run | read `run.problems`; adjust geometry or models |
 | `BUDGET_EXCEEDED` | more evaluations than `max_evaluations` | fewer values or a deliberate larger budget |
-| `SPEC_INVALID`, `TARGET_UNKNOWN`, `NOMINAL_MISMATCH`, `STEP_REQUIRED` | spec structure, unknown target, `set_*` parameter without its base `nominal`, relative step at nominal 0 | fix the spec as the message states |
+| `SPEC_INVALID`, `TARGET_UNKNOWN`, `COLUMN_UNKNOWN`, `NOMINAL_MISMATCH`, `STEP_REQUIRED` | spec structure, unknown target, objective / constraint / derived column the spec cannot produce, `set_*` parameter without its base `nominal`, relative step at nominal 0 | fix the spec as the message states; `known` lists the valid ids or columns |
 | `INPUT_INVALID` | a workflow input cannot build a design | change the named input |
 | `CATALOG_NOT_AVAILABLE` | no catalog release installed | `opensci-engine catalog sync` (or `catalog import FILE`) |
 

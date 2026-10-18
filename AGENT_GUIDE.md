@@ -67,10 +67,12 @@ Inspect `status`, every target's `id`, `value`, `unit`, `bounds`, `status`, plus
 | `OUT_OF_MODEL_SCOPE`, `OUT_OF_MODEL` / 3 | Change the model or operating range |
 | Error / 4 | Read the JSON error on stderr; [recipe](docs/workflow-recipes.md#recovery) |
 
-- Any non-empty `model_scope_issues` means **out of model**, whatever the status, a
-  target's status or a run script's exit code (a run can read `FAIL`, or targets `PASS`,
-  outside its model). Studies, workflows and `edit_project.py --run` (`run.outcome`)
-  report such cases as `OUT_OF_MODEL`.
+- Any model-scope issue or any issue whose status is `OUT_OF_MODEL_SCOPE` means **out of
+  model**, whatever the status, a target's status or a run script's exit code (a run can
+  read `FAIL`, or targets `PASS`, outside its model; a tabulated thin lens outside its rows
+  appears only in `issues`). Studies, comparisons, workflows and `edit_project.py --run`
+  (`run.outcome`) report such cases as `OUT_OF_MODEL` and list the codes in
+  `model_scope_issues` and `out_of_model_issues`.
 - A run is current only for the project it was computed from. `compare_runs.py` /
   `build_report.py --project` mark others `HISTORICAL` (`HISTORICAL PASS` is not a pass of
   the current design).

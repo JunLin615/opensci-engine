@@ -241,9 +241,9 @@ python examples/alignment_analysis.py --out run-tutorial/alignment-synthetic --n
 ## 解读结果
 
 每个样本和运行归入一个结果类别，按以下顺序判定：`ERROR`（被拒绝或未运行）、`OUT_OF_MODEL`
-（存在任何模型适用范围问题，无论目标判定如何）、`UNKNOWN`（所选目标没有数值）、`FAIL`、
-`PASS`。所有计数都注明分母：通过比例以全部请求的样本为分母，可评估样本（PASS + FAIL）中的比例
-单独给出。以当前项目为基准的比较或报告会把较早的结果标记为 `HISTORICAL`。规格文件的详细格式见
+（存在任何模型适用范围问题，或任何状态为 `OUT_OF_MODEL_SCOPE` 的问题，无论目标判定如何）、
+`UNKNOWN`（所选目标没有数值）、`FAIL`、`PASS`。所有计数都注明分母：通过比例以全部请求的样本为分母，
+可评估样本（PASS + FAIL）中的比例单独给出。以当前项目为基准的比较或报告会把较早的结果标记为 `HISTORICAL`。规格文件的详细格式见
 [工作流程说明（英文）](../workflow-recipes.md)和各脚本的 `--help`。
 
 ## 基准来源

@@ -45,7 +45,8 @@ sensitivity study and a 20-sample tolerance study; together they add about 40 s.
 Once the catalog is prepared, the default checks also run the catalog helper flow
 (candidate query, then the beam-expander L2 swap, sweep, move, comparison, plot and
 report) and `catalog-tests`, a second unittest pass over the catalog-dependent test
-classes. `offline-tests` runs before the catalog step, so those classes skip there;
+classes; together they add about 70 s. `offline-tests` runs before the catalog step, so
+those classes skip there;
 `catalog-tests` sets `OPENSCI_EXAMPLES_REQUIRE_CATALOG=1`, which makes them fail
 instead of skip when no catalog release is installed. To run them locally, install a
 release (`opensci-engine catalog sync` or `catalog import FILE`) and run
