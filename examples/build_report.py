@@ -12,7 +12,9 @@ before / after values) when --changes is given; target outcomes with units and s
 denominators; best sample or the no-feasible outcome; diagnostics (issue codes, model-scope issues, warnings,
 refusal codes); freshness of every run against --project (a historical PASS is labelled HISTORICAL PASS); plots as
 relative links; and the artifact list with relative paths and sha256. Numbers are copied from the saved files;
-nothing is interpreted beyond the computed comparisons.
+nothing is interpreted beyond the computed comparisons. From Python, ``build_report(..., sections=[{"title",
+"lines"}], artifacts=[(path, role)])`` adds the caller's own sections (Markdown lines, e.g. an independent reference
+comparison) after Diagnostics and lists the caller's files with the other artifacts.
 
 Output (default DIR: STUDY_DIR/report, or ./report for run directories): report.md, report.json. The report links
 use paths relative to DIR. Stdout: one JSON document with the paths and counts. Exit 0, 4 on invalid input.
@@ -142,8 +144,12 @@ def _diagnostics(section):
     return {"target_issue_codes": issues, "model_scope_issues": scope, "warnings": warnings, "refusals": errors}
 
 
-def build_report(paths, *, out_dir=None, project=None, plots=None, changes=None):
-    """Write report.md and report.json; returns the report document."""
+def build_report(paths, *, out_dir=None, project=None, plots=None, changes=None, sections=None, artifacts=None):
+    """Write report.md and report.json; returns the report document.
+
+    ``sections``: extra report sections ``{"title": str, "lines": [Markdown lines]}`` placed after Diagnostics
+    (links in the lines are relative to the report directory). ``artifacts``: extra files ``(path, role)`` listed,
+    with sha256, among the report's artifacts."""
     paths = [Path(p) for p in paths]
     if not paths:
         raise wc.WorkflowError("BAD_ARGUMENT", "give a study directory or run directories")
@@ -152,25 +158,30 @@ def build_report(paths, *, out_dir=None, project=None, plots=None, changes=None)
         raise wc.WorkflowError("BAD_ARGUMENT", "give one study directory, or run directories only")
     out_dir = Path(out_dir) if out_dir else (paths[0] / "report" if study else Path("report"))
     out_dir.mkdir(parents=True, exist_ok=True)
-    section, artifacts = study_section(paths[0], out_dir, project) if study else runs_section(paths, out_dir,
-                                                                                               project)
+    section, found = study_section(paths[0], out_dir, project) if study else runs_section(paths, out_dir, project)
     report = {"kind": "opensci-example.report", "generated": wc.utc_now(), "engine": wc.engine_identity(),
               "catalog": wc.catalog_identity(), "section": section, "diagnostics": _diagnostics(section)}
     if project is not None:
-        artifacts.append(_artifact(project, out_dir, "current project"))
+        found.append(_artifact(project, out_dir, "current project"))
         report["current_project"] = wc.relative(project, out_dir)
     if changes is not None:
         record = wc.read_json(changes)
         report["changes"] = {"file": wc.relative(changes, out_dir), "base": record.get("base"),
                              "result": record.get("result"), "ops_digest": record.get("ops_digest"),
                              "warnings": record.get("warnings"), "changes": record.get("changes")}
-        artifacts.append(_artifact(changes, out_dir, "change record"))
+        found.append(_artifact(changes, out_dir, "change record"))
         output = (record.get("output") or {}).get("file")
         if output and Path(output).is_file():
-            artifacts.append(_artifact(output, out_dir, "edited project"))
+            found.append(_artifact(output, out_dir, "edited project"))
+    report["sections"] = [{"title": str(item["title"]), "lines": [str(line) for line in item.get("lines") or []]}
+                          for item in sections or []]
+    for path, role in artifacts or []:
+        if not Path(path).is_file():
+            raise wc.WorkflowError("ARTIFACT_NOT_FOUND", f"{path} does not exist", path=Path(path).as_posix())
+        found.append(_artifact(path, out_dir, role))
     report["plots"] = [_artifact(p, out_dir, "plot") for p in _plot_files(plots)]
-    artifacts.extend(report["plots"])
-    report["artifacts"] = artifacts
+    found.extend(report["plots"])
+    report["artifacts"] = found
     wc.write_json(out_dir / "report.json", report)
     text = "\n".join(render_markdown(report)) + "\n"
     with open(out_dir / "report.md", "w", encoding="utf-8", newline="\n") as handle:
@@ -279,6 +290,8 @@ def render_markdown(report):
         values = diag[name]
         lines.append(f"- {title}: " + (", ".join(f"{k} x{v}" for k, v in values.items()) if values else "none"))
     lines.append("")
+    for extra in report.get("sections") or []:
+        lines += [f"## {extra['title']}", "", *extra["lines"], ""]
     if report.get("current_project"):
         lines += ["## Freshness", "", f"Against [{report['current_project']}]({report['current_project']}):", ""]
         entries = section["samples"] if section["kind"] == "study" else section["runs"]
