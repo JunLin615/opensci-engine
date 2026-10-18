@@ -45,6 +45,205 @@
       "expected_status": "PASS"
     },
     {
+      "name": "workflow-expansion",
+      "description": "Beam expansion/focus workflow with a three-value gap study",
+      "argv": ["{python}", "examples/beam_expansion_focus.py", "--out", "{runs}/wf-expansion", "--study", "gap_error_mm=-2,0,2"],
+      "expected_status": "PASS",
+      "timeout": 300
+    },
+    {
+      "name": "workflow-polarization-out-of-model",
+      "description": "1064 nm lies outside the retarder band: targets read PASS, outcome OUT_OF_MODEL, exit 3",
+      "argv": ["{python}", "examples/polarization_control.py", "--out", "{runs}/wf-pol-oom", "--no-studies", "--wavelength-nm", "1064"],
+      "expected_exit": 3,
+      "expected_status": "OUT_OF_MODEL"
+    },
+    {
+      "name": "workflow-alignment-synthetic",
+      "description": "Alignment with the labelled synthetic-measurement fit; a 1 mrad tilt misses the tolerance",
+      "argv": ["{python}", "examples/alignment_analysis.py", "--out", "{runs}/wf-alignment-synthetic", "--no-studies", "--mirror-tilt-local-y-mrad", "1", "--synthetic-measurements"],
+      "expected_exit": 1,
+      "expected_status": "FAIL"
+    },
+    {
+      "name": "spec-pol-design",
+      "description": "Nominal polarization Project used as the sweep base",
+      "argv": ["{python}", "examples/polarization_control.py", "--out", "{runs}/spec-pol", "--no-studies"],
+      "expected_status": "PASS"
+    },
+    {
+      "name": "spec-pol-sweep",
+      "description": "HWP by wavelength sweep keeping OUT_OF_MODEL samples",
+      "argv": ["{python}", "examples/sweep_parameters.py", "examples/specs/polarization_hwp_wavelength_sweep.json", "--base", "{runs}/spec-pol/nominal/project.json", "--out", "{runs}/spec-pol-sweep"],
+      "needs": ["spec-pol-design"],
+      "expected_status": "COMPLETED",
+      "timeout": 300
+    },
+    {
+      "name": "sensitivity-polarization",
+      "description": "Finite-difference sensitivity of transmitted power, two steps per parameter",
+      "argv": ["{python}", "examples/sensitivity_analysis.py", "examples/specs/sensitivity_polarization.json", "--out", "{runs}/sensitivity-polarization", "--no-plots", "--no-report"],
+      "expected_status": "COMPLETED",
+      "timeout": 300
+    },
+    {
+      "name": "tolerance-polarization",
+      "description": "Seeded tolerance sampling, 20 samples, out-of-model samples counted",
+      "argv": ["{python}", "examples/tolerance_study.py", "examples/specs/tolerance_polarization.json", "--out", "{runs}/tolerance-polarization", "--samples", "20", "--no-plots", "--no-report"],
+      "expected_status": "COMPLETED",
+      "timeout": 300
+    },
+    {
+      "name": "tolerance-verify-seed",
+      "description": "Redraw the tolerance samples from the recorded seed",
+      "argv": ["{python}", "examples/tolerance_study.py", "--verify-seed", "{runs}/tolerance-polarization"],
+      "needs": ["tolerance-polarization"],
+      "optional": true,
+      "expected_status": "REPRODUCED"
+    },
+    {
+      "name": "tolerance-zero",
+      "description": "Zero tolerance reproduces the nominal Project and result",
+      "argv": ["{python}", "examples/tolerance_study.py", "examples/specs/tolerance_expander.json", "--out", "{runs}/tolerance-zero", "--zero-tolerance", "--samples", "3", "--no-plots", "--no-report"],
+      "optional": true,
+      "expected_status": "COMPLETED"
+    },
+    {
+      "name": "sensitivity-band-edge",
+      "description": "Band-edge sensitivity: nominal FAIL kept, the out-of-model side gives a one-sided estimate",
+      "argv": ["{python}", "examples/sensitivity_analysis.py", "examples/specs/sensitivity_expander_band_edge.json", "--out", "{runs}/sensitivity-band-edge", "--no-plots", "--no-report"],
+      "optional": true,
+      "expected_status": "COMPLETED"
+    },
+    {
+      "name": "workflow-expansion-full",
+      "description": "Beam expansion/focus workflow, default studies",
+      "argv": ["{python}", "examples/beam_expansion_focus.py", "--out", "{runs}/wf-expansion-full"],
+      "optional": true,
+      "expected_status": "PASS",
+      "timeout": 300
+    },
+    {
+      "name": "workflow-expansion-unmet",
+      "description": "Strict spot bound (10 um) must report FAIL with exit 1",
+      "argv": ["{python}", "examples/beam_expansion_focus.py", "--out", "{runs}/wf-expansion-unmet", "--no-studies", "--max-spot-radius-mm", "10um"],
+      "optional": true,
+      "expected_exit": 1,
+      "expected_status": "FAIL"
+    },
+    {
+      "name": "workflow-budget-refused",
+      "description": "Study budget exceeded: JSON error, exit 4, nothing run",
+      "argv": ["{python}", "examples/beam_expansion_focus.py", "--out", "{runs}/wf-budget", "--max-evaluations", "5"],
+      "optional": true,
+      "expected_exit": 4,
+      "json_error": true
+    },
+    {
+      "name": "workflow-polarization-full",
+      "description": "Polarization workflow, default studies",
+      "argv": ["{python}", "examples/polarization_control.py", "--out", "{runs}/wf-polarization-full"],
+      "optional": true,
+      "expected_status": "PASS",
+      "timeout": 300
+    },
+    {
+      "name": "workflow-alignment-full",
+      "description": "Alignment workflow, default studies",
+      "argv": ["{python}", "examples/alignment_analysis.py", "--out", "{runs}/wf-alignment-full"],
+      "optional": true,
+      "expected_status": "PASS",
+      "timeout": 300
+    },
+    {
+      "name": "spec-pol-edit",
+      "description": "Threshold edit in mW, validated and run",
+      "argv": ["{python}", "examples/edit_project.py", "{runs}/spec-pol/nominal/project.json", "--edits", "examples/specs/polarization_threshold.json", "--out", "{runs}/spec-pol-strict.json", "--run", "{runs}/spec-pol-strict-run"],
+      "needs": ["spec-pol-design"],
+      "optional": true,
+      "expected_status": "PASS"
+    },
+    {
+      "name": "spec-pol-edit-retry",
+      "description": "Repeating the same edit reports already_applied and reuses the current run",
+      "argv": ["{python}", "examples/edit_project.py", "{runs}/spec-pol/nominal/project.json", "--edits", "examples/specs/polarization_threshold.json", "--out", "{runs}/spec-pol-strict.json", "--run", "{runs}/spec-pol-strict-run"],
+      "needs": ["spec-pol-edit"],
+      "optional": true,
+      "expected_status": "PASS"
+    },
+    {
+      "name": "catalog-candidates",
+      "description": "Bounded candidate table of plano-convex lenses at 780 nm",
+      "argv": ["{python}", "examples/catalog_candidates.py", "--category", "LENS", "--form", "PLANO_CONVEX_LENS", "--wavelength-nm", "780", "--range", "focal_length_mm=95..105", "--near", "focal_length_mm=100", "--limit", "5"],
+      "needs_catalog": true,
+      "optional": true,
+      "expected_status": "COMPLETED"
+    },
+    {
+      "name": "spec-be-base",
+      "description": "Catalog beam expander base run for the L2 demonstration",
+      "argv": ["{python}", "examples/beam_expander.py", "--out", "{runs}/spec-be-base"],
+      "needs_catalog": true,
+      "optional": true,
+      "expected_status": "PASS"
+    },
+    {
+      "name": "spec-be-swap",
+      "description": "Swap L2 for the 100.3 mm candidate: expanded_waist FAIL",
+      "argv": ["{python}", "examples/edit_project.py", "{runs}/spec-be-base/project.json", "--edits", "examples/specs/beam_expander_swap_l2.json", "--out", "{runs}/spec-be-swapped.json", "--run", "{runs}/spec-be-swapped-run"],
+      "needs": ["spec-be-base"],
+      "needs_catalog": true,
+      "optional": true,
+      "expected_exit": 1,
+      "expected_status": "FAIL"
+    },
+    {
+      "name": "spec-be-sweep",
+      "description": "L2 spacing sweep; best shift 0.54 mm",
+      "argv": ["{python}", "examples/sweep_parameters.py", "examples/specs/beam_expander_l2_sweep.json", "--base", "{runs}/spec-be-swapped.json", "--out", "{runs}/spec-be-sweep"],
+      "needs": ["spec-be-swap"],
+      "needs_catalog": true,
+      "optional": true,
+      "expected_status": "COMPLETED",
+      "timeout": 300
+    },
+    {
+      "name": "spec-be-move",
+      "description": "Move L2 by 540 um: PASS",
+      "argv": ["{python}", "examples/edit_project.py", "{runs}/spec-be-swapped.json", "--edits", "examples/specs/beam_expander_move_l2.json", "--out", "{runs}/spec-be-final.json", "--run", "{runs}/spec-be-final-run"],
+      "needs": ["spec-be-swap"],
+      "needs_catalog": true,
+      "optional": true,
+      "expected_status": "PASS"
+    },
+    {
+      "name": "spec-be-compare",
+      "description": "Compare base, swapped and final runs with freshness against the final Project",
+      "argv": ["{python}", "examples/compare_runs.py", "{runs}/spec-be-base", "{runs}/spec-be-swapped-run", "{runs}/spec-be-final-run", "--project", "{runs}/spec-be-final.json", "--out", "{runs}/spec-be-compare"],
+      "needs": ["spec-be-move"],
+      "needs_catalog": true,
+      "optional": true,
+      "expected_status": "COMPLETED"
+    },
+    {
+      "name": "spec-be-plot",
+      "description": "Sweep curve of expanded_waist with outcome markers",
+      "argv": ["{python}", "examples/plot_results.py", "sweep", "{runs}/spec-be-sweep", "--y", "target:expanded_waist"],
+      "needs": ["spec-be-sweep"],
+      "needs_catalog": true,
+      "optional": true,
+      "expected_status": "COMPLETED"
+    },
+    {
+      "name": "spec-be-report",
+      "description": "Study report with plots, edit record and freshness",
+      "argv": ["{python}", "examples/build_report.py", "{runs}/spec-be-sweep", "--project", "{runs}/spec-be-final.json", "--plots", "{runs}/spec-be-sweep/plots", "--changes", "{runs}/spec-be-swapped.changes.json"],
+      "needs": ["spec-be-plot", "spec-be-move"],
+      "needs_catalog": true,
+      "optional": true,
+      "expected_status": "COMPLETED"
+    },
+    {
       "name": "interop-optimization",
       "description": "SciPy, Optuna and SALib loop over a catalog-free Project",
       "argv": ["{python}", "examples/interop/optimization/optimize_expander.py", "--out", "{runs}/interop-optimization"],
