@@ -47,6 +47,32 @@ the sequences in [workflow recipes](workflow-recipes.md) and the
 reproduces 1.1148985411200965 mm (`FAIL`, exit 1) on catalog `2026-10-15.1`, and the ideal
 focus with `--maximum-radius-mm 0.01` gives 0.016934085944977664 mm (`FAIL`, exit 1).
 
+## Paired agent trials (2026-10-18)
+
+Nine customer tasks were each given to fresh agents twice with this revision's material and
+twice with the previous revision (the 0.8.0-aligned guide and result summary, without the
+workflow scripts): an edit with an evaluation of every target, a 19-point waveplate scan, a
+read of one saved result, a wavelength outside a waveplate's band, the currency of a saved
+PASS after an edit, a mirror tilt that an earlier attempt may already have applied (two
+variants), a two-lens move, and a tolerance study started from the website's agent
+instructions. Starting projects used parameters that appear in no example. The agents used
+the same model, prompt, PyPI 0.8.0 environment and catalog `2026-10-15.1`; their answers
+were graded against values computed directly with the engine.
+
+| Measure (18 trials per revision) | Previous revision | This revision |
+| --- | ---: | ---: |
+| Answers agreeing with the reference in every field (strict grading) | 15 | 16 |
+| Out-of-band waveplate run identified as out of model scope | 0 of 2 | 2 of 2 |
+| Tolerance study found the public workflow from the website instructions | 0 of 2 | 2 of 2 |
+| Agent tokens, total | 1,573,437 | 1,555,980 |
+| Tool calls, total | 216 | 208 |
+
+Scientific values agreed in every graded field of the other tasks in both revisions, and
+every retry task applied the tilt exactly once. The token totals include each agent's fixed
+context and differ by about 1 %; these tasks show no token saving. The gains are in the
+out-of-scope classification, the saved and reproducible studies, and discovery. Durations
+are not compared because up to eight trials shared one host.
+
 The sections that follow are the 2026-10-13 record for engine 0.6.1 and its entry revision.
 
 ## Entry size
