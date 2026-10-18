@@ -73,7 +73,7 @@ python -m pip install --upgrade "opensci-engine[protected]"
 uv tool upgrade opensci-engine
 ```
 
-运行 `opensci-engine doctor` 查看已安装版本。需要复现本指南对应的版本时，安装 `"opensci-engine[protected]==0.6.1"`。
+运行 `opensci-engine doctor` 查看已安装版本。需要复现本指南对应的版本时，安装 `"opensci-engine[protected]==0.8.0"`。
 
 ## 常见安装问题
 

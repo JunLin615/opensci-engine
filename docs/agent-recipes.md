@@ -2,7 +2,7 @@
 
 [Agent guide](../AGENT_GUIDE.md). These instructions are English-only; customer
 walkthroughs remain available in [English](en/getting-started.md) and
-[Simplified Chinese](zh-CN/getting-started.md). Use the published **0.6.1** baseline.
+[Simplified Chinese](zh-CN/getting-started.md). Use the published **0.8.0** baseline.
 
 ## Adapt a native beam-expander project
 

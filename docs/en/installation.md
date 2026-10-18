@@ -73,7 +73,7 @@ For a uv tool installation:
 uv tool upgrade opensci-engine
 ```
 
-Run `opensci-engine doctor` to see the installed version. To reproduce the version used by this guide, install `"opensci-engine[protected]==0.6.1"`.
+Run `opensci-engine doctor` to see the installed version. To reproduce the version used by this guide, install `"opensci-engine[protected]==0.8.0"`.
 
 ## Common setup questions
 
