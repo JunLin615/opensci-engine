@@ -180,6 +180,9 @@ def field_entry(outcome, row, max_angle):
 def run_example(directory, mode):
     installed = require_engine()
     directory = Path(directory)
+    missing = [name for name in ("metalens_model.json", "step3_report.json") if not (directory / name).is_file()]
+    if missing:
+        raise FileNotFoundError(f"{directory} has no {' or '.join(missing)}: run step3_fit_model.py on it first")
     model = json.loads((directory / "metalens_model.json").read_text(encoding="utf-8"))
     step3 = json.loads((directory / "step3_report.json").read_text(encoding="utf-8"))
     table = json.loads(Path(step3["focus_table"]).read_text(encoding="utf-8"))

@@ -125,11 +125,47 @@
       "timeout": 1800
     },
     {
+      "name": "interop-metasurface-unit-cells-ng201",
+      "description": "grcwa unit cells at 201 orders for the convergence spread",
+      "argv": ["{python}", "examples/interop/metasurface/step1_unit_cells.py", "--out", "{runs}/interop-metasurface", "--nG", "201", "--wavelengths-nm", "490", "515", "532", "545", "580"],
+      "requirements": "examples/interop/metasurface/requirements-metasurface.txt",
+      "needs": ["interop-metasurface-unit-cells"],
+      "optional": true,
+      "requires_python": "3.12",
+      "status_field": "outcome",
+      "expected_status": "COMPLETED",
+      "timeout": 1800
+    },
+    {
+      "name": "interop-metasurface-focusing-ng201",
+      "description": "Focusing from the 201-order library (convergence spread)",
+      "argv": ["{python}", "examples/interop/metasurface/step2_focusing.py", "{runs}/interop-metasurface", "--nG", "201"],
+      "requirements": "examples/interop/metasurface/requirements-metasurface.txt",
+      "needs": ["interop-metasurface-unit-cells-ng201"],
+      "optional": true,
+      "requires_python": "3.12",
+      "status_field": "outcome",
+      "expected_status": "COMPLETED",
+      "timeout": 1800
+    },
+    {
+      "name": "interop-metasurface-focusing-n2048",
+      "description": "Focusing on a 2048-sample grid (convergence spread)",
+      "argv": ["{python}", "examples/interop/metasurface/step2_focusing.py", "{runs}/interop-metasurface", "--samples", "2048", "--wavelengths-nm", "490", "515", "532", "545", "580"],
+      "requirements": "examples/interop/metasurface/requirements-metasurface.txt",
+      "needs": ["interop-metasurface-unit-cells"],
+      "optional": true,
+      "requires_python": "3.12",
+      "status_field": "outcome",
+      "expected_status": "COMPLETED",
+      "timeout": 3600
+    },
+    {
       "name": "interop-metasurface-model",
       "description": "Fit the tabulated metalens model",
       "argv": ["{python}", "examples/interop/metasurface/step3_fit_model.py", "{runs}/interop-metasurface"],
       "requirements": "examples/interop/metasurface/requirements-metasurface.txt",
-      "needs": ["interop-metasurface-focusing"],
+      "needs": ["interop-metasurface-focusing", "interop-metasurface-focusing-ng201", "interop-metasurface-focusing-n2048"],
       "optional": true,
       "requires_python": "3.12",
       "status_field": "outcome",

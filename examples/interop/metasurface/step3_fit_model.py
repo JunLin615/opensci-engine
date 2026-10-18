@@ -11,7 +11,10 @@ wavelength becomes one model row:
 Between rows the model interpolates optical power (1/f) and transmittance linearly in
 wavelength. The error bound of each supported metric is set on a calibration set only:
 the table rows, five calibration wavelengths between them and a 20 um input beam,
-plus the external reference's own numerical spread (RCWA orders, propagation window).
+plus the external reference's own numerical spread. The spread is read from further
+step-2 focus tables in the same directory, one computed with other RCWA orders and one
+with other propagation samples (calibration cases only); without both, step 3 stops
+with ``CONVERGENCE_DATA_MISSING`` and prints the commands that produce them.
 The field-angle domain is calibrated by running the model in OpenSci at the
 calibration angles (2, 5, 8, 20 deg) and comparing the Engine's focus with the external
 focus at each angle: the largest angle reached without leaving the bounds becomes
@@ -34,6 +37,7 @@ import hashlib
 import json
 import math
 from pathlib import Path
+import re
 import sys
 
 if __package__:
@@ -96,24 +100,102 @@ def canonical_sha256(document):
     return hashlib.sha256(json.dumps(document, sort_keys=True, separators=(",", ":")).encode("utf-8")).hexdigest()
 
 
-def spreads(directory, main):
-    """External numerical spread per (wavelength, tilt, waist) across the available convergence tables."""
-    others = [json.loads(p.read_text(encoding="utf-8")) for p in sorted(Path(directory).glob("focus_nG*_N*.json"))
-              if p.name != main.name]
-    key = lambda r: (r["wavelength_nm"], r["tilt_deg"], r["input_waist_radius_um"])  # noqa: E731
-    base = {key(r): r for r in json.loads(main.read_text(encoding="utf-8"))["rows"]}
-    result = {}
-    for table in others:
-        for row in table["rows"]:
-            ref = base.get(key(row))
-            if ref is None:
-                continue
-            entry = result.setdefault(key(row), {"z_rel": 0.0, "w_rel": 0.0, "eff_abs": 0.0, "settings": []})
+CONVERGENCE_WAVELENGTHS_NM = (490, 515, 532, 545, 580)  # table rows and calibration wavelengths across the band
+
+
+class ConvergenceDataMissing(ValueError):
+    """The external numerical spread cannot be computed from the files in the run directory."""
+
+    code = "CONVERGENCE_DATA_MISSING"
+
+
+def case_key(row):
+    return row["wavelength_nm"], row["tilt_deg"], row["input_waist_radius_um"]
+
+
+def calibration_keys(table, waist):
+    """Cases of the calibration set: table rows and calibration wavelengths (30 um beam) and the calibration extras."""
+    keys = {(lam, 0.0, waist) for lam in TABLE_NM + CALIBRATION_NM}
+    keys |= {case_key(r) for r in table["rows"] if r.get("set") == "calibration"}
+    return keys
+
+
+def convergence_commands(directory):
+    lams = " ".join(str(w) for w in CONVERGENCE_WAVELENGTHS_NM)
+    base = "python examples/interop/metasurface"
+    return [f"{base}/step1_unit_cells.py --out {directory} --nG 201 --wavelengths-nm {lams}",
+            f"{base}/step2_focusing.py {directory} --nG 201",
+            f"{base}/step2_focusing.py {directory} --samples 2048 --wavelengths-nm {lams}"]
+
+
+def spreads(directory, main, keys):
+    """External numerical spread per calibration case across the convergence tables next to the model's table.
+
+    A convergence table is another step-2 table of the same design and method that differs in the RCWA orders
+    (library) or in the propagation samples. Only calibration-set cases contribute; test cases never do. Both kinds
+    of variation are required, otherwise ``ConvergenceDataMissing`` names the commands that produce them.
+    """
+    directory = Path(directory)
+    main_table = json.loads(main.read_text(encoding="utf-8"))
+    base = {case_key(r): r for r in main_table["rows"] if case_key(r) in keys}
+    reference = {k: v for k, v in main_table["design"].items() if k != "atoms_used"}
+    used, result = [], {}
+    varied = {"orders": False, "samples": False}
+    for path in sorted(directory.glob("focus_nG*_N*.json")):
+        if path.name == main.name:
+            continue
+        table = json.loads(path.read_text(encoding="utf-8"))
+        design = {k: v for k, v in table["design"].items() if k != "atoms_used"}
+        if design != reference or table["method"] != main_table["method"]:
+            continue
+        rows = [row for row in table["rows"] if case_key(row) in base]
+        if not rows:
+            continue
+        orders = table["library"] != main_table["library"]
+        samples = table["grid"]["samples"] != main_table["grid"]["samples"]
+        varied["orders"] |= orders
+        varied["samples"] |= samples
+        setting = f"{table['library']} N{table['grid']['samples']}"
+        used.append({"table": path.name, "library": table["library"], "samples": table["grid"]["samples"],
+                     "calibration_cases": len(rows)})
+        for row in rows:
+            ref = base[case_key(row)]
+            entry = result.setdefault(case_key(row), {"z_rel": 0.0, "w_rel": 0.0, "eff_abs": 0.0, "settings": []})
             entry["z_rel"] = max(entry["z_rel"], abs(row["z_focus_um"] / ref["z_focus_um"] - 1.0))
             entry["w_rel"] = max(entry["w_rel"], abs(row["w_focus_um"] / ref["w_focus_um"] - 1.0))
             entry["eff_abs"] = max(entry["eff_abs"], abs(row["focusing_efficiency"] - ref["focusing_efficiency"]))
-            entry["settings"].append(table["library"] + f" N{table['grid']['samples']}")
-    return [p.name for p in Path(directory).glob("focus_nG*_N*.json") if p.name != main.name], result
+            entry["settings"].append(setting)
+    missing = [name for name, found in (("other RCWA orders", varied["orders"]),
+                                        ("other propagation samples", varied["samples"])) if not found]
+    if missing:
+        raise ConvergenceDataMissing(
+            f"the error bounds include the external numerical spread, but {directory} has no focus table with "
+            f"{' or '.join(missing)} for the calibration cases of {main.name}; produce them with: "
+            + "; ".join(convergence_commands(directory)))
+    return used, result
+
+
+def orders_of(library_name):
+    match = re.fullmatch(r"library_nG(\d+)\.json", library_name)
+    return int(match.group(1)) if match else 0
+
+
+def settings_text(main_table, used):
+    """Settings the spread was taken over, e.g. 'RCWA orders 101/201 and propagation grids of 1024/2048 samples'."""
+    orders = sorted({orders_of(main_table["library"])} | {orders_of(t["library"]) for t in used})
+    samples = sorted({main_table["grid"]["samples"]} | {t["samples"] for t in used})
+    return (f"RCWA orders {'/'.join(str(o) for o in orders)} and propagation grids of "
+            f"{'/'.join(str(n) for n in samples)} samples")
+
+
+def largest_spread(spread):
+    """Largest spread per metric and the case where it occurs."""
+    summary = {}
+    for metric in ("z_rel", "w_rel", "eff_abs"):
+        case, entry = max(spread.items(), key=lambda item: item[1][metric])
+        summary[metric] = entry[metric]
+        summary[f"{metric}_case"] = {"wavelength_nm": case[0], "tilt_deg": case[1], "input_waist_radius_um": case[2]}
+    return summary
 
 
 def transmittance_of(efficiency, fraction):
@@ -135,7 +217,8 @@ def deviation(ext, f_um, transmittance, waist_um, clear_um, label):
             "power_rel_err": efficiency / ext["focusing_efficiency"] - 1.0}
 
 
-def build_model(rows, bounds, max_angle, waist, clear_um, transmittance_interpolation, tools, library_path, configuration):
+def build_model(rows, bounds, max_angle, waist, clear_um, transmittance_interpolation, tools, library_path, configuration,
+                spread_settings):
     lam_lo, lam_hi = rows[0]["wavelength_nm"], rows[-1]["wavelength_nm"]
     model = {
         "model_kind": "TABULATED_THIN_LENS", "model_version": "1",
@@ -169,8 +252,8 @@ def build_model(rows, bounds, max_angle, waist, clear_um, transmittance_interpol
                          f"interpolation linear in optical power and {transmittance_interpolation.lower()} in transmittance",
             "validation_summary": f"rows {lam_lo}-{lam_hi} nm; error bounds from calibration wavelengths "
                                   f"{', '.join(str(w) for w in CALIBRATION_NM)} nm, a 20 um beam and field angles up to "
-                                  f"{decimal_text(max_angle)} deg (Engine vs external), plus the external spread over RCWA "
-                                  "orders 101/201 and propagation windows 1024/2048 samples; checked on separate test "
+                                  f"{decimal_text(max_angle)} deg (Engine vs external), plus the external spread over "
+                                  f"{spread_settings}; checked on separate test "
                                   "wavelengths and settings",
             "date": date.today().isoformat(),
         },
@@ -223,8 +306,9 @@ def run_example(directory, n_g, samples, transmittance_interpolation):
     rows = [{"wavelength_nm": lam, "focal_length_um": equivalent_focal_length_um(normal[lam]["z_focus_um"], waist, lam),
              "transmittance": transmittance_of(normal[lam]["focusing_efficiency"], fraction)} for lam in TABLE_NM]
 
-    convergence_tables, spread = spreads(directory, table_path)
-    max_spread = {k: max([s[k] for s in spread.values()] or [0.0]) for k in ("z_rel", "w_rel", "eff_abs")}
+    convergence_tables, spread = spreads(directory, table_path, calibration_keys(table, waist))
+    max_spread = largest_spread(spread)
+    spread_settings = settings_text(table, convergence_tables)
 
     calibration = []
     for lam in TABLE_NM + CALIBRATION_NM:
@@ -252,7 +336,7 @@ def run_example(directory, n_g, samples, transmittance_interpolation):
     configuration = {"unit_cells": {k: library[k] for k in ("assumptions", "solver", "radii_um")},
                      "focusing": {k: table[k] for k in ("design", "grid", "method")}}
     provisional = build_model(rows, bounds, 89, waist, clear_um, transmittance_interpolation, tools, library_path,
-                              configuration)
+                              configuration, spread_settings)
     field = engine_field_angles(provisional, table, waist, bounds)
     max_angle = None
     for entry in field:  # accepted from the smallest angle upward until the first one outside the bounds
@@ -262,7 +346,7 @@ def run_example(directory, n_g, samples, transmittance_interpolation):
     if max_angle is None:
         raise ValueError("no field angle stays inside the bounds: the model would have no field-angle domain")
     optical_model = build_model(rows, bounds, max_angle, waist, clear_um, transmittance_interpolation, tools,
-                                library_path, configuration)
+                                library_path, configuration, spread_settings)
     write_json(directory / "metalens_model.json", optical_model)
     report = {"example": "interop/metasurface step 3", "outcome": "COMPLETED",
               "model": str(directory / "metalens_model.json"), "rows": rows, "aperture_fraction": fraction,
