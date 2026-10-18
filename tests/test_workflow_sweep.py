@@ -159,10 +159,11 @@ class SweepSpecTests(unittest.TestCase):
                          {"value": 16.0, "unit": "mm"})
         self.assertEqual(sp.substitute(["$value", 0], 1.5, None), [1.5, 0])
 
-    def test_unknown_target_in_selection_is_unknown(self):
+    def test_unknown_target_in_selection_is_refused(self):
         spec = {"parameters": [{"name": "f3", "values": [100.0]}], "max_evaluations": 1, "targets": ["nope"]}
-        summary = sp.run_sweep(spec, self.dir / "sel", build=lambda p: expander(f3=p["f3"]))
-        self.assertEqual(summary["rows"][0]["outcome"], "UNKNOWN")
+        with self.assertRaises(wc.WorkflowError) as raised:
+            sp.run_sweep(spec, self.dir / "sel", build=lambda p: expander(f3=p["f3"]))
+        self.assertEqual(raised.exception.code, "TARGET_UNKNOWN")
 
 
 if __name__ == "__main__":

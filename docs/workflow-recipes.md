@@ -24,7 +24,7 @@ complete specification. Verified with opensci-engine **0.8.0** and catalog relea
 
 | Script | Exit 0 | 1 | 2 | 3 | 4 |
 | --- | --- | --- | --- | --- | --- |
-| `edit_project.py` | `EDITED`, `ALREADY_APPLIED`, `DESCRIBED`; with `--run` the run's `PASS` / `WARNING` | run `FAIL` | run `UNKNOWN` | run `OUT_OF_MODEL_SCOPE` | refused, `RUN_REFUSED` |
+| `edit_project.py` | `EDITED`, `ALREADY_APPLIED`, `DESCRIBED`; with `--run` outcome `PASS` (run `PASS` / `WARNING`) | outcome `FAIL` | outcome `UNKNOWN` | outcome `OUT_OF_MODEL` | refused, `RUN_REFUSED` |
 | `sweep_parameters.py` | `COMPLETED` | `NO_FEASIBLE` (constraints given, none met) | | | refused |
 | `sensitivity_analysis.py` | `COMPLETED` | | `INCOMPLETE` (a derivative unavailable) | | refused |
 | `tolerance_study.py` | `COMPLETED` (at least one PASS), `DRAWN`, `REPRODUCED` | `NO_FEASIBLE` (no PASS), `MISMATCH` | | | refused |
@@ -32,9 +32,9 @@ complete specification. Verified with opensci-engine **0.8.0** and catalog relea
 | `catalog_candidates.py` | `COMPLETED` | `NO_MATCH` | | | invalid input, no catalog |
 | three design workflows | nominal `PASS` | nominal `FAIL` | `UNKNOWN` | `OUT_OF_MODEL` | `ERROR`, refused |
 
-`edit_project.py --run` exits with the run status; its `run.outcome` applies the outcome
-classes below. A run with model-scope issues can therefore exit 1 with outcome
-`OUT_OF_MODEL`: read the outcome and `model_scope_issues`, not the exit code alone.
+`edit_project.py --run` exits with the run's outcome class (below): a run with any
+model-scope issue exits 3 even when its Engine status is `FAIL`. `run.status` keeps the
+Engine status and `run.model_scope_issues` the reasons.
 
 ## Outcome classes
 
@@ -139,9 +139,9 @@ python examples/sweep_parameters.py SPEC.json [--base BASE.json] --out STUDY_DIR
 | `base_project` | Project file relative to the spec; `--base` overrides |
 | `parameters` | 1 or 2 entries `{name, unit?, values \| range {start, stop, count}, ops}`; two give the full grid, first outermost |
 | `max_evaluations` | required; refused with `BUDGET_EXCEEDED` before any run when the sample count exceeds it |
-| `targets` | ids deciding each sample's outcome (default all) |
+| `targets` | ids deciding each sample's outcome (default all); an id not in the Project is refused with `TARGET_UNKNOWN` |
 | `constraints` | all must hold: `{"outcome": [...]}`, `{"target": ID, "status": [...]}`, `{"column": C, "min"?, "max"?}` (quantities convert to the column unit) |
-| `objective` | `{"column": C, "sense": "minimize" \| "maximize"}` over feasible samples |
+| `objective` | `{"column": C, "sense": "minimize" \| "maximize"}` over feasible samples (in model, not `ERROR` or `UNKNOWN`, every constraint met) |
 | `derived` | `{"name", "op": add \| sub \| mul \| div \| abs \| abs_diff, "a", "b"}` |
 | `stop_on` | outcome classes that stop the sweep; remaining samples become `ERROR` (default none) |
 

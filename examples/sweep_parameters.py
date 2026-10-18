@@ -15,7 +15,7 @@ SPEC.json (keys; units as in edit_project.py):
     ],
     "max_evaluations": 50,                        # required; the sweep is refused before any run when exceeded
     "targets": ["spot_radius"],                   # optional: target ids deciding each sample's outcome (default
-                                                  # all); a listed target missing from a run makes it UNKNOWN
+                                                  # all); an id not in the Project is refused (TARGET_UNKNOWN)
     "constraints": [                              # optional, all must hold for a sample to be feasible
       {"outcome": ["PASS"]},
       {"target": "spot_radius", "status": ["PASS", "WARNING"]},
@@ -34,7 +34,7 @@ sub, mul, div (a, b: columns or numbers), abs (a) and abs_diff (|a - b|).
 
 Outcome per sample (precedence): ERROR (edit, load or run refused, or not run after a stop rule), OUT_OF_MODEL
 (any model-scope issue, whatever the status), UNKNOWN, FAIL, PASS. No sample is dropped. A feasible sample is
-in model scope, not ERROR, and meets every constraint; the best sample optimizes the objective among feasible ones
+in model scope, not ERROR or UNKNOWN, and meets every constraint; the best sample optimizes the objective among feasible ones
 (ties: lowest sample id).
 
 Writes STUDY_DIR/study.json (spec as given and normalized, base project hash, engine / catalog identity,
@@ -241,9 +241,9 @@ def _bound(row, column, bound):
 
 
 def constraint_failures(row, constraints):
-    """Names of the constraints a row does not meet (empty = feasible, when in model scope and not ERROR)."""
+    """Names of the constraints a row does not meet (empty = feasible: in model scope, not ERROR or UNKNOWN)."""
     failed = []
-    if row["outcome"] in ("ERROR", "OUT_OF_MODEL"):
+    if row["outcome"] in ("ERROR", "OUT_OF_MODEL", "UNKNOWN"):
         failed.append(f"outcome {row['outcome']}")
     for rule in constraints:
         if "outcome" in rule:
@@ -325,6 +325,17 @@ def run_sweep(spec, study_dir, *, base=None, build=None, base_path=None, overwri
     if build is None:  # unit and op errors are spec errors: refuse before running anything
         for _sample_id, values in points:
             normalize_ops(base, sample_ops(parameters, values))
+    if normalized["targets"] and points:  # a selected target id must exist, or every sample would read UNKNOWN
+        first = points[0][1]
+        try:
+            reference = build(dict(first)) if build is not None else                 apply_edits(base, sample_ops(parameters, first), validate=False)["project"]
+        except EditError:
+            reference = base
+        known = sorted({t["target_id"] for doc in (base, reference) if doc for t in doc.get("targets", [])})
+        unknown = [t for t in normalized["targets"] if t not in known]
+        if unknown:
+            raise wc.WorkflowError("TARGET_UNKNOWN", f"targets {unknown} are not in the Project; known: {known}",
+                                   unknown=unknown, known=known)
     started = wc.utc_now()
     study_dir = _prepare_dir(study_dir, overwrite)
     base_check = wc.check(base) if base is not None else None

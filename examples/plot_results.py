@@ -16,8 +16,9 @@ bounds (minimum / maximum, or target value +- tolerance) are drawn as a band.
 power: power received by each observation plane and the run's power ledger sinks, in W.
 
 Axis labels carry units; a caption names the data file (path relative to the output directory and sha256 prefix),
-the Engine build and the catalog release. Output (default DIR: the study or run directory's "plots"):
-<name>.png and <name>.svg (text kept as text). Stdout: one JSON document with the written paths. Exit 0, 4 on error.
+the Engine build and the catalog release. Output (default DIR: "plots" inside a study directory; for a run
+directory, "plots" next to it, so the run's own files stay as its manifest lists them): <name>.png and <name>.svg
+(text kept as text). Stdout: one JSON document with the written paths. Exit 0, 4 on error.
 """
 
 from __future__ import annotations

@@ -736,10 +736,21 @@ def main(argv=None):
                            overwrite=args.overwrite, expect_base_hash=args.expect_base_hash)
         if args.run is not None:
             result["run"] = run_edited(args.out, args.run)
-            result["status"] = result["run"]["status"]
+            result["status"] = outcome_status(result["run"])
         return result
 
     return wc.emit(workflow, {**wc.WORKFLOW_EXIT_CODES, "DESCRIBED": 0, "RUN_REFUSED": 4})
+
+
+def outcome_status(run):
+    """Exit status of an edit-and-run from the run's outcome class: any model-scope issue gives
+    OUT_OF_MODEL_SCOPE (exit 3) whatever the run status; otherwise the run status."""
+    outcome = run.get("outcome")
+    if outcome == "OUT_OF_MODEL":
+        return "OUT_OF_MODEL_SCOPE"
+    if outcome in ("UNKNOWN", "FAIL"):
+        return outcome
+    return run["status"]
 
 
 def run_edited(project_path, run_dir):
