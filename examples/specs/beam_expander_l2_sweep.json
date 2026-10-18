@@ -50,7 +50,8 @@
    "name": "waist_error_mm",
    "op": "abs_diff",
    "a": "target:expanded_waist",
-   "b": 1.9961240310077522
+   "b": 1.9961240310077522,
+   "unit": "mm"
   }
  ],
  "objective": {
