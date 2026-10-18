@@ -81,7 +81,7 @@ Check `run-adapted/project.json` to confirm the saved inputs, `targets` to asses
 the interval, and `issues` / `model_scope_issues` before using the result.
 The original pinned catalog references and original run remain unchanged.
 
-On catalog `2026-10-06.3`, the combined edits above produce a waist radius near
+On catalog `2026-10-15.1`, the combined edits above produce a waist radius near
 `1.1149 mm`: the `1.8–2.2 mm` interval is **not met**, so the recipe and saved
 summary exit with code `1`. This is a completed simulation with a failing design,
 not a command error. Inspect the result before deciding which edit to revise;

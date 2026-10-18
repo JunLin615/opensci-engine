@@ -256,6 +256,54 @@ class AlignmentReportingTests(unittest.TestCase):
             self.assertIn("503", stderr.getvalue())
             self.assertIn("## Engine alignment: PASS", summary.read_text(encoding="utf-8"))
 
+    def test_summary_names_catalog_source_python_and_blocking_check(self):
+        failed = report("0.8.0", failed=True)
+        failed["checks"][0].update(name="catalog-sync", category="catalog_network")
+        failed["checks"].append({"name": "beam-summary", "category": "catalog_network", "status": "SKIPPED",
+                                 "blocked_by": "catalog-sync"})
+        failed.update(python_version="3.11.16", catalog_source={
+            "mode": "sync", "file": None, "service_url": "https://opensci-optics.com/api/v1/catalog"})
+        failed["optional_checks"] = {"requested": [], "selected": [], "not_selected": ["interop-optimization"]}
+        failed["checks"].append({"name": "interop-quantum", "category": "setup", "status": "SKIPPED",
+                                 "requires_python": "3.12"})
+        summary = render_summary(read_back(failed))
+        for expected in ("| Python | 3.11.16 |", "fresh sync from https://opensci-optics.com/api/v1/catalog, no active release",
+                         "SKIPPED (blocked by catalog-sync)", "interop-optimization",
+                         "SKIPPED (requires Python &gt;= 3.12)"):
+            self.assertIn(expected, summary)
+        imported = report("0.8.0")
+        imported["requested_version"] = "0.8.0"
+        imported.update(catalog_source={"mode": "file", "file": "/data/2026-10-15.1.json", "sha256": "ce97" * 16,
+                                        "expected_sha256": "ce97" * 16, "catalog_version": "2026-10-15.1"},
+                        optional_checks={"requested": ["interop-optimization"], "selected": [], "not_selected": []})
+        summary = render_summary(read_back(imported))
+        self.assertIn("imported file /data/2026-10-15.1.json (sha256 " + "ce97" * 16 + "), release 2026-10-15.1", summary)
+        self.assertIn("--catalog-file /data/2026-10-15.1.json --catalog-sha256 " + "ce97" * 16
+                      + " --optional interop-optimization", summary)
+
+    def test_new_report_fields_do_not_change_the_fingerprint(self):
+        original = report("0.8.0", failed=True)
+        extended = deepcopy(original)
+        extended.update(python_version="3.14.0", catalog_source={"mode": "sync", "service_url": "x"},
+                        optional_checks={"requested": ["all"], "selected": ["topic"], "not_selected": []})
+        extended["checks"].append({"name": "topic", "category": "package_api", "status": "SKIPPED",
+                                   "blocked_by": "install-env-topic"})
+        self.assertEqual(observation_marker(original), observation_marker(extended))
+
+    def test_schema_rejects_malformed_optional_objects(self):
+        for field in ("catalog_source", "optional_checks"):
+            invalid = report()
+            invalid[field] = "file"
+            with self.subTest(field=field), self.assertRaises(ValueError):
+                read_back(invalid)
+
+
+def read_back(document):
+    with tempfile.TemporaryDirectory() as directory:
+        source = Path(directory) / "report.json"
+        source.write_text(json.dumps(document), encoding="utf-8")
+        return read_report(source)
+
 
 if __name__ == "__main__":
     unittest.main()

@@ -42,6 +42,9 @@ def read_report(path):
             raise ValueError("Expected optional version string: " + field)
     if not isinstance(report.get("requested_version", "baseline"), str):
         raise ValueError("Expected requested_version string")
+    for field in ("catalog_source", "optional_checks"):
+        if report.get(field) is not None and not isinstance(report[field], dict):
+            raise ValueError("Expected optional object: " + field)
     return report
 
 
@@ -88,6 +91,22 @@ def cell(value):
     return html.escape(str(value)).replace("|", "&#124;").replace("\n", "<br>")
 
 
+def catalog_text(source):
+    """Name the catalog source: an imported file is not a fresh download."""
+    if not source:
+        return None
+    release = source.get("catalog_version") or source.get("file_catalog_version")
+    if source.get("mode") == "file":
+        text = "imported file " + str(source.get("file"))
+        if source.get("sha256"):
+            text += " (sha256 " + source["sha256"] + ")"
+    else:
+        text = "fresh sync"
+        if source.get("service_url"):
+            text += " from " + source["service_url"]
+    return text + (", release " + release if release else ", no active release")
+
+
 def render_summary(report, run_url="", artifact_url=""):
     lines = [
         "## Engine alignment: " + report["status"],
@@ -98,6 +117,8 @@ def render_summary(report, run_url="", artifact_url=""):
         "| Requested | " + cell(report.get("requested_version")) + " |",
         "| Resolved candidate | " + cell(report.get("candidate_version")) + " |",
         "| Installed engine | " + cell(report.get("installed_version")) + " |",
+        "| Python | " + cell(report.get("python_version")) + " |",
+        "| Catalog | " + cell(catalog_text(report.get("catalog_source"))) + " |",
         "",
     ]
     if run_url:
@@ -116,8 +137,17 @@ def render_summary(report, run_url="", artifact_url=""):
         "| --- | --- | --- | --- |",
     ]
     for check in report["checks"]:
-        lines.append("| " + " | ".join(cell(check.get(key)) for key in (
-            "name", "category", "status", "exit_code")) + " |")
+        status = check["status"]
+        if status == "SKIPPED" and check.get("blocked_by"):
+            status += " (blocked by " + check["blocked_by"] + ")"
+        elif status == "SKIPPED" and check.get("requires_python"):
+            status += " (requires Python >= " + check["requires_python"] + ")"
+        lines.append("| " + " | ".join(cell(value) for value in (
+            check["name"], check["category"], status, check.get("exit_code"))) + " |")
+    optional = (report.get("optional_checks") or {}).get("not_selected") or []
+    if optional:
+        lines += ["", "Optional checks not selected (`--optional NAME` or `--optional all`): "
+                  + cell(", ".join(optional))]
 
     for check in failed_checks(report):
         lines += ["", "### Failed check: " + cell(check["name"]), ""]
@@ -135,6 +165,13 @@ def render_summary(report, run_url="", artifact_url=""):
     version = observed_version(report) or report.get("requested_version", "baseline")
     if version != "baseline":
         reproduction += ["--candidate", version]
+    source = report.get("catalog_source") or {}
+    if source.get("mode") == "file" and source.get("file"):
+        reproduction += ["--catalog-file", source["file"]]
+        if source.get("expected_sha256"):
+            reproduction += ["--catalog-sha256", source["expected_sha256"]]
+    for name in (report.get("optional_checks") or {}).get("requested") or []:
+        reproduction += ["--optional", name]
     lines += ["", "### Reproduce", "", code_block(shlex.join(reproduction)), ""]
     return "\n".join(lines)
 
