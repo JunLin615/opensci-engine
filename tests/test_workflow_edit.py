@@ -328,5 +328,21 @@ class EditFileTests(unittest.TestCase):
         self.assertLess(len(json.dumps(out)), 6000)
 
 
+class HelpTests(unittest.TestCase):
+    def test_every_script_prints_english_help_on_stdout(self):
+        import subprocess
+        import sys
+
+        from tests.workflow_fixtures import ROOT
+
+        for name in ("edit_project", "sweep_parameters", "compare_runs", "plot_results", "build_report",
+                     "catalog_candidates"):
+            done = subprocess.run([sys.executable, str(ROOT / "examples" / f"{name}.py"), "--help"],
+                                  capture_output=True, text=True, timeout=120)
+            self.assertEqual(done.returncode, 0, name)
+            self.assertIn("usage:", done.stdout, name)
+            self.assertIn("Exit", done.stdout, name)
+
+
 if __name__ == "__main__":
     unittest.main()

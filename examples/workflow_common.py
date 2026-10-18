@@ -41,13 +41,21 @@ import sys
 import time
 
 if __package__:
-    from .result_summary import ArgumentParser, EXIT_CODES, ERROR_EXIT, summarize_results  # noqa: F401
+    from .result_summary import ArgumentParser as _SummaryParser, EXIT_CODES, ERROR_EXIT, summarize_results
 else:
-    from result_summary import ArgumentParser, EXIT_CODES, ERROR_EXIT, summarize_results  # noqa: F401
+    from result_summary import ArgumentParser as _SummaryParser, EXIT_CODES, ERROR_EXIT, summarize_results
 
 OUTCOMES = ("ERROR", "OUT_OF_MODEL", "UNKNOWN", "FAIL", "PASS")
 #: Exit codes of the workflow scripts: the run statuses of result_summary plus the study / edit outcomes.
 WORKFLOW_EXIT_CODES = {**EXIT_CODES, "COMPLETED": 0, "EDITED": 0, "ALREADY_APPLIED": 0, "NO_FEASIBLE": 1}
+
+
+class ArgumentParser(_SummaryParser):
+    """result_summary's parser (usage errors exit 4); --help goes to the real stdout although ``emit`` sends the
+    workflow's own prints to stderr."""
+
+    def print_help(self, file=None):
+        super().print_help(file if file is not None else sys.__stdout__)
 
 
 class WorkflowError(Exception):
