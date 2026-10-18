@@ -86,8 +86,8 @@ studies and checks exit codes, summary fields, the unmet and diagnostic samples,
 Project and its results, closed-form agreement within the stated tolerances, report links and artifact hashes, the
 synthetic-measurement variant, the spec files, and the polarization and catalog beam-expander demonstrations. With the
 catalog installed: 25 tests OK in 42 s; with an empty catalog store: 25 OK, 3 skipped (the catalog demonstration).
-The full suite (`python -m unittest discover -s tests`): 190 tests OK in 106 s with the catalog; 190 run, 7 skipped,
-all others OK in 92 s with an empty catalog store.
+The full suite (`python -m unittest discover -s tests`) on 2026-10-19: 282 tests OK in
+121 s with the catalog; 282 run, 7 skipped, all others OK in 135 s with an empty catalog store.
 
 ## Observed outcomes: workflows
 
@@ -190,7 +190,9 @@ mm/mm, RMSE 0.0033346664001066297 mm. Fitted pointing 1.9973333439854573 ± 0.01
    1.9964496422827251 mm, identical to sweep sample s0007.
 6. `compare_runs.py` (base, swapped, final) against `final.json`: targets aligned by ID, `output_beam_radius` listed as
    missing in the base run; freshness HISTORICAL (PROJECT_CHANGED) for the base and swapped runs, CURRENT for the
-   final run; input differences: L2 position, L2 SKU, the added target's fields.
+   final run; inputs: 8 of the 54 compared fields of the runs' `project.json` differ (L2 position, L2 SKU and six
+   fields of the added target); the runs report lists them with the target issue code `TARGET_NOT_MET` of the
+   swapped run under Diagnostics.
 7. Plots `sweep_target_expanded_waist` and `sweep_target_output_beam_radius` (PNG + SVG, status markers, target band,
    data-file caption), the study report and the runs report (`report/report.md`, 16 artifacts with sha256, 4 of them
    plot files) link only existing files.
@@ -213,28 +215,30 @@ lists the edit (`minimum` 0.0008 → 0.00085).
 ## Output volume and time
 
 UTF-8 bytes of each command's stdout JSON with one LF terminator, and wall time of the separate process on this host
-(about 2.5 s of each is Python start-up and `import opensci_engine`):
+(about 2.5 s of each is Python start-up and `import opensci_engine`), measured on 2026-10-19 with the current scripts
+(edit runs list `out_of_model_issues`, sweeps `samples_with_warnings`, comparisons `inputs_compared`, plots the
+target bounds and samples without a value):
 
 | command | exit | status | stdout bytes | wall (s) |
 | --- | ---: | --- | ---: | ---: |
-| beam_expansion_focus.py (defaults) | 0 | PASS | 3,876 | 11.96 |
-| polarization_control.py (defaults) | 0 | PASS | 2,942 | 8.51 |
-| alignment_analysis.py (defaults) | 0 | PASS | 4,809 | 9.04 |
-| alignment_analysis.py synthetic variant | 1 | FAIL | 2,491 | 4.68 |
-| beam_expander.py (base run) | 0 | PASS | 2,769 | 4.33 |
-| catalog_candidates.py | 0 | COMPLETED | 2,044 | 4.21 |
-| edit_project.py swap + run | 1 | FAIL | 1,672 | 4.57 |
-| sweep_parameters.py L2 sweep | 0 | COMPLETED | 2,393 | 7.42 |
-| plot_results.py expanded_waist / output_beam_radius | 0 / 0 | COMPLETED | 343 / 351 | 1.52 / 1.49 |
-| edit_project.py move + run | 0 | PASS | 1,434 | 4.70 |
-| compare_runs.py (3 runs) | 0 | COMPLETED | 2,553 | 4.77 |
-| build_report.py study / runs | 0 / 0 | COMPLETED | 901 / 297 | 6.35 / 4.75 |
-| polarization_control.py --no-studies | 0 | PASS | 1,375 | 4.28 |
-| edit_project.py threshold + run | 0 | PASS | 1,348 | 2.82 |
-| sweep_parameters.py HWP × wavelength | 0 | COMPLETED | 2,345 | 6.28 |
-| plot_results.py heatmap | 0 | COMPLETED | 299 | 1.53 |
-| compare_runs.py (2 runs) | 0 | COMPLETED | 1,139 | 2.53 |
-| build_report.py study | 0 | COMPLETED | 969 | 5.36 |
+| beam_expansion_focus.py (defaults) | 0 | PASS | 3,876 | 11.13 |
+| polarization_control.py (defaults) | 0 | PASS | 2,942 | 7.85 |
+| alignment_analysis.py (defaults) | 0 | PASS | 4,809 | 8.49 |
+| alignment_analysis.py synthetic variant | 1 | FAIL | 2,491 | 3.96 |
+| beam_expander.py (base run) | 0 | PASS | 2,769 | 3.53 |
+| catalog_candidates.py | 0 | COMPLETED | 2,044 | 3.41 |
+| edit_project.py swap + run | 1 | FAIL | 1,697 | 3.81 |
+| sweep_parameters.py L2 sweep | 0 | COMPLETED | 2,477 | 6.54 |
+| plot_results.py expanded_waist / output_beam_radius | 0 / 0 | COMPLETED | 453 / 461 | 1.38 / 1.32 |
+| edit_project.py move + run | 0 | PASS | 1,459 | 3.77 |
+| compare_runs.py (3 runs) | 0 | COMPLETED | 2,716 | 4.10 |
+| build_report.py study / runs | 0 / 0 | COMPLETED | 935 / 315 | 5.56 / 3.84 |
+| polarization_control.py --no-studies | 0 | PASS | 1,375 | 3.32 |
+| edit_project.py threshold + run | 0 | PASS | 1,373 | 1.97 |
+| sweep_parameters.py HWP × wavelength | 0 | COMPLETED | 2,429 | 5.42 |
+| plot_results.py heatmap | 0 | COMPLETED | 389 | 1.36 |
+| compare_runs.py (2 runs) | 0 | COMPLETED | 1,174 | 1.75 |
+| build_report.py study | 0 | COMPLETED | 969 | 4.38 |
 
 The `--help` texts are 6,843 (expansion), 7,604 (polarization) and 9,738 (alignment) bytes.
 
