@@ -16,8 +16,11 @@ What it provides:
 * ``check`` (``json_api.check_project``) and ``run_sample``: one in-process run into a sample directory, returned as
   a sample record whatever happens (an Engine refusal at load or at run is recorded, never raised);
 * sample outcome classes, in this precedence: ``ERROR`` (refused or not run), ``OUT_OF_MODEL`` (completed with any
-  model-scope issue, whatever the status), ``UNKNOWN`` (no target to evaluate, or a selected target has no value or
-  is UNKNOWN), ``FAIL`` (a selected target failed), ``PASS`` (every selected target PASS, or WARNING with a value);
+  model-scope issue or any issue whose status is OUT_OF_MODEL_SCOPE -- a run issue such as a tabulated thin lens
+  used outside its rows, or a target row --, whatever the run status), ``UNKNOWN`` (no target to evaluate, or a
+  selected target has no value or is UNKNOWN), ``FAIL`` (a selected target failed), ``PASS`` (every selected target
+  PASS, or WARNING with a value); the issues behind OUT_OF_MODEL are listed in ``model_scope_issues`` and
+  ``out_of_model_issues``;
 * ``freshness``: whether a saved run is CURRENT for a Project (both hashes and the Engine build agree) or HISTORICAL,
   with reasons ``PROJECT_CHANGED``, ``ENGINE_CHANGED``, ``RUN_UNVERIFIED``;
 * sha256 / JSON / CSV writers (LF line endings) and bounded-output helpers.
@@ -361,11 +364,12 @@ def target_bounds(target):
     return {"minimum": low, "maximum": high}
 
 
-def classify(status, model_scope_issues, targets, selected=None):
-    """Sample outcome class (module docstring) from a run status, its model-scope issues and its target rows."""
+def classify(status, model_scope_issues, targets, selected=None, out_of_model_issues=()):
+    """Sample outcome class (module docstring) from a run status, its model-scope issues, the issues whose status is
+    OUT_OF_MODEL_SCOPE (``out_of_model_issues``) and its target rows."""
     if status is None:
         return "ERROR"
-    if model_scope_issues or status == "OUT_OF_MODEL_SCOPE":
+    if model_scope_issues or out_of_model_issues or status == "OUT_OF_MODEL_SCOPE":
         return "OUT_OF_MODEL"
     rows = {t["id"]: t for t in targets}
     chosen = list(rows) if selected is None else list(selected)
@@ -397,7 +401,8 @@ def _empty_record(sample_dir, project_file, selected):
         "project_file_sha256": None if project_file is None or not Path(project_file).exists()
         else sha256_file(project_file),
         "run_dir": None, "outcome": "ERROR", "status": None, "engine_status": None, "in_model_scope": None,
-        "model_scope_issues": [], "targets": [], "selected_targets": None if selected is None else list(selected),
+        "model_scope_issues": [], "out_of_model_issues": [], "targets": [],
+        "selected_targets": None if selected is None else list(selected),
         "issues": [], "warnings": [], "error": None,
         "identity": {"engine_version": None, "engine_build_id": None, "catalog_version": None, "project_hash": None,
                      "input_hash": None, "result_hash": None},
@@ -459,11 +464,19 @@ def sample_from_summary(summary, selected=None):
         if row.get("issue_codes"):
             kept["issue_codes"] = list(row["issue_codes"])
         targets.append(kept)
+    # issues the Engine reports with status OUT_OF_MODEL_SCOPE but not as model-scope issues (e.g. a tabulated thin
+    # lens outside its rows): a FAIL target makes the run status FAIL, yet the run left a model's validity
+    out_of_model = [i for i in issues if i.get("status") == "OUT_OF_MODEL_SCOPE"]
+    out_of_model += [{"code": code, "status": "OUT_OF_MODEL_SCOPE", "location": f"target {t['id']}"}
+                     for t in targets if t.get("status") == "OUT_OF_MODEL_SCOPE"
+                     for code in (t.get("issue_codes") or ["OUT_OF_MODEL_SCOPE"])]
+    status = summary["status"]
     return {
-        "outcome": classify(summary["status"], scope, targets, selected),
-        "status": summary["status"], "engine_status": summary.get("engine_status"),
-        "in_model_scope": not scope and summary["status"] != "OUT_OF_MODEL_SCOPE",
-        "model_scope_issues": scope, "targets": targets,
+        "outcome": classify(status, scope, targets, selected, out_of_model),
+        "status": status, "engine_status": summary.get("engine_status"),
+        "in_model_scope": not scope and not out_of_model and status != "OUT_OF_MODEL_SCOPE" and
+        summary.get("engine_status") != "OUT_OF_MODEL_SCOPE",
+        "model_scope_issues": scope, "out_of_model_issues": out_of_model, "targets": targets,
         "issues": issues, "warnings": sorted({i["code"] for i in issues if i.get("status") == "WARNING"}),
         "error": None,
     }

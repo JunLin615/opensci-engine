@@ -89,7 +89,8 @@ def study_section(study_dir, out_dir, project=None):
         record = wc.read_json(sample_dir / "sample.json") if (sample_dir / "sample.json").is_file() else {}
         entry = {"sample_id": row["sample_id"], "outcome": row["outcome"], "status": row["status"],
                  "parameters": record.get("parameters"), "targets": record.get("targets", []),
-                 "model_scope_issues": record.get("model_scope_issues", []), "warnings": record.get("warnings", []),
+                 "model_scope_issues": record.get("model_scope_issues", []),
+                 "out_of_model_issues": record.get("out_of_model_issues", []), "warnings": record.get("warnings", []),
                  "error": record.get("error"), "identity": record.get("identity"),
                  "run_dir": None if row.get("run_dir") is None else wc.relative(study_dir / row["run_dir"], out_dir)}
         for name, role in (("project.json", "sample project"), ("sample.json", "sample record"),
@@ -133,7 +134,7 @@ def _diagnostics(section):
     issues, scope, warnings, errors = {}, {}, {}, {}
     entries = section["samples"] if section["kind"] == "study" else section["runs"]
     for entry in entries:
-        for item in entry.get("model_scope_issues") or []:
+        for item in [*(entry.get("model_scope_issues") or []), *(entry.get("out_of_model_issues") or [])]:
             code = item.get("code") if isinstance(item, dict) else item
             scope[code] = scope.get(code, 0) + 1
         for code in entry.get("warnings") or []:
@@ -298,7 +299,8 @@ def render_markdown(report):
                              t.get("unit") or "-", cell.get("status") or "-", _fmt(cell.get("delta"))])
         lines += _table(["target", "run", "value", "unit", "status", f"delta vs {section['reference']}"], rows)
         lines += [""] + _table(["run", "outcome", "status", "model scope issues", "run directory"], [
-            [r["label"], r.get("outcome_label", r["outcome"]), r["status"], ", ".join(r["model_scope_issues"]) or "-",
+            [r["label"], r.get("outcome_label", r["outcome"]), r["status"],
+             ", ".join([*r["model_scope_issues"], *r.get("out_of_model_issues", [])]) or "-",
              f"[{r['run_dir']}]({r['run_dir']})" if r["run_dir"] else "-"] for r in section["runs"]]) + [""]
     diag = report["diagnostics"]
     lines += ["## Diagnostics", ""]

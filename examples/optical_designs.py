@@ -621,8 +621,8 @@ def run_design(document: Mapping[str, Any], output_dir: Any = None) -> Any:
 def design_outcome(run: Any) -> dict[str, Any]:
     """Status, model-scope issues, Engine issue codes and every target of a ``LocalOpticalRun``.
 
-    ``in_model_scope`` is ``False`` whenever ``model_scope_issues`` is non-empty or the run, the Engine or a target
-    reports ``OUT_OF_MODEL_SCOPE``, whatever ``status`` says (a FAIL target takes precedence over OUT_OF_MODEL_SCOPE
+    ``in_model_scope`` is ``False`` whenever ``model_scope_issues`` is non-empty or the run, the Engine, an Engine
+    issue or a target reports ``OUT_OF_MODEL_SCOPE``, whatever ``status`` says (a FAIL target takes precedence over OUT_OF_MODEL_SCOPE
     in ``status``)."""
     scope = [issue.as_dict() for issue in run.model_scope_issues]
     targets = {}
@@ -631,7 +631,8 @@ def design_outcome(run: Any) -> dict[str, Any]:
                                 "unit": t.unit, "status": t.status.value, "minimum": t.minimum, "maximum": t.maximum,
                                 "target_value": t.target_value, "tolerance": t.tolerance,
                                 "issue_codes": [str(getattr(c, "value", c)) for c in t.issue_codes]}
-    statuses = {run.status.value, run.result.status.value} | {t["status"] for t in targets.values()}
+    statuses = {run.status.value, run.result.status.value} | {t["status"] for t in targets.values()} | {
+        i.status.value for i in run.result.issues}
     return {"status": run.status.value, "engine_status": run.result.status.value,
             "in_model_scope": not scope and "OUT_OF_MODEL_SCOPE" not in statuses,
             "model_scope_issues": scope, "issues": sorted({i.code.value for i in run.result.issues}),

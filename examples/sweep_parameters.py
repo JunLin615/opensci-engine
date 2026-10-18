@@ -37,7 +37,8 @@ objective, constraint or derived operand) refuses the spec before any run (TARGE
 known ids and columns).
 
 Outcome per sample (precedence): ERROR (edit, load or run refused, or not run after a stop rule), OUT_OF_MODEL
-(any model-scope issue, whatever the status), UNKNOWN, FAIL, PASS. No sample is dropped. A feasible sample is
+(any model-scope issue or any issue whose status is OUT_OF_MODEL_SCOPE, whatever the run status; the codes are in the
+model_scope_issues and out_of_model_issues columns), UNKNOWN, FAIL, PASS. No sample is dropped. A feasible sample is
 in model scope, not ERROR or UNKNOWN, and meets every constraint; the best sample optimizes the objective among feasible ones
 (ties: lowest sample id).
 
@@ -235,6 +236,7 @@ def row_from_record(sample_id, values, parameters, record, study_dir):
     row = {"sample_id": sample_id, "outcome": record["outcome"], "status": record["status"],
            "in_model_scope": record["in_model_scope"],
            "model_scope_issues": sorted({i.get("code") for i in record["model_scope_issues"]}),
+           "out_of_model_issues": sorted({i.get("code") for i in record.get("out_of_model_issues") or []}),
            "warnings": record["warnings"],
            "error_stage": (record["error"] or {}).get("stage"), "error_code": (record["error"] or {}).get("code"),
            "error_problems": sorted({p.get("code") for p in (record["error"] or {}).get("problems", [])})}

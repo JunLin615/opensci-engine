@@ -288,7 +288,8 @@ def target_value(record, target_id):
         codes = sorted(set(problem_codes(error.get("problems"))) - {None, error.get("code")})
         return None, f"ERROR {error.get('code')}" + (f" ({', '.join(codes)})" if codes else "")
     if outcome == "OUT_OF_MODEL":
-        codes = sorted({i.get("code") for i in record.get("model_scope_issues") or []} - {None})
+        codes = sorted({i.get("code") for i in [*(record.get("model_scope_issues") or []),
+                                                *(record.get("out_of_model_issues") or [])]} - {None})
         return None, "OUT_OF_MODEL" + (f" ({', '.join(codes)})" if codes else f" (status {record['status']})")
     row = next((t for t in record.get("targets") or [] if t["id"] == target_id), None)
     if row is None:

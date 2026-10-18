@@ -29,8 +29,9 @@ Output directory layout:
                                     plots/<target>.png / .svg, closed_form.csv / .json, report/report.md / .json
   report/report.md, report.json     nominal run, inputs, closed-form check and the study index with links
 
-Outcome classes per sample (workflow_common): ERROR, OUT_OF_MODEL (any model-scope issue, whatever the status),
-UNKNOWN, FAIL, PASS (WARNING targets with a value count as PASS; their warning codes are listed).
+Outcome classes per sample (workflow_common): ERROR, OUT_OF_MODEL (any model-scope issue or any issue whose status
+is OUT_OF_MODEL_SCOPE, whatever the run status), UNKNOWN, FAIL, PASS (WARNING targets with a value count as PASS; their
+warning codes are listed).
 """
 
 from __future__ import annotations
@@ -461,6 +462,7 @@ def run_workflow(config, inputs, studies, out_dir, *, max_evaluations, max_plots
     nominal = {"outcome": record["outcome"], "status": record["status"],
                "targets": [{k: t.get(k) for k in ("id", "value", "unit", "status")} for t in record["targets"]],
                "model_scope_issues": sorted({i.get("code") for i in record["model_scope_issues"]}),
+               "out_of_model_issues": sorted({i.get("code") for i in record.get("out_of_model_issues") or []}),
                "warnings": record["warnings"], "error": record["error"],
                "identity": record["identity"], "run_dir": wc.relative(nominal_run, out_dir) if nominal_run else None,
                "analysis": checks.get("analysis")}

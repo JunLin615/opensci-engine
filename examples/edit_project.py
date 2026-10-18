@@ -751,8 +751,8 @@ def main(argv=None):
 
 
 def outcome_status(run):
-    """Exit status of an edit-and-run from the run's outcome class: any model-scope issue gives
-    OUT_OF_MODEL_SCOPE (exit 3) whatever the run status; otherwise the run status."""
+    """Exit status of an edit-and-run from the run's outcome class: any model-scope issue or any issue whose status is
+    OUT_OF_MODEL_SCOPE gives OUT_OF_MODEL_SCOPE (exit 3) whatever the run status; otherwise the run status."""
     outcome = run.get("outcome")
     if outcome == "OUT_OF_MODEL":
         return "OUT_OF_MODEL_SCOPE"
@@ -779,8 +779,8 @@ def run_edited(project_path, run_dir):
     summary, fields = wc.read_saved_run(run_dir)
     return {"status": summary["status"], "outcome": fields["outcome"], "reused": reused,
             "run_dir": run_dir.as_posix(), "targets": fields["targets"],
-            "model_scope_issues": fields["model_scope_issues"], "warnings": fields["warnings"],
-            "identity": fields["identity"]}
+            "model_scope_issues": fields["model_scope_issues"], "out_of_model_issues": fields["out_of_model_issues"],
+            "warnings": fields["warnings"], "identity": fields["identity"]}
 
 
 if __name__ == "__main__":

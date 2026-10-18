@@ -43,8 +43,8 @@ json_api.check_project, the ops at zero offset must reproduce the base Project h
 STUDY_DIR/sampling.json (normalized distributions, bounds, seed, generator, numpy version, samples.csv sha256) and
 STUDY_DIR/samples.csv (sample_id, offset and applied value of every parameter) are written. --draw-only stops there.
 
-Outcome per sample (precedence): ERROR (refused or not run), OUT_OF_MODEL (any model-scope issue, whatever the
-status), UNKNOWN (a selected target without a value), FAIL (a selected target failed), PASS (every selected target
+Outcome per sample (precedence): ERROR (refused or not run), OUT_OF_MODEL (any model-scope issue or any issue whose
+status is OUT_OF_MODEL_SCOPE, whatever the run status), UNKNOWN (a selected target without a value), FAIL (a selected target failed), PASS (every selected target
 PASS or WARNING with a value). Counts use all requested samples as denominator; the PASS fraction among evaluable
 samples (PASS + FAIL) is listed separately. The PASS fraction is the fraction of simulated samples, drawn from the
 stated independent distributions around this Project, in which every selected target passed. Target-value
