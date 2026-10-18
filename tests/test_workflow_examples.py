@@ -333,14 +333,17 @@ class AlignmentAnalysisTests(unittest.TestCase):
 class SpecFileTests(unittest.TestCase):
     def test_every_spec_is_documented_and_valid(self):
         names = sorted(p.name for p in SPECS.glob("*.json"))
-        self.assertEqual(names, ["beam_expander_l2_sweep.json", "beam_expander_move_l2.json",
-                                 "beam_expander_swap_l2.json", "polarization_hwp_wavelength_sweep.json",
-                                 "polarization_threshold.json"])
-        base = D.polarization_control(azimuth_target_deg=45.0)
-        for name in names:
+        edit_and_sweep = ["beam_expander_l2_sweep.json", "beam_expander_move_l2.json",
+                          "beam_expander_swap_l2.json", "polarization_hwp_wavelength_sweep.json",
+                          "polarization_threshold.json"]
+        self.assertTrue(set(edit_and_sweep) <= set(names), names)
+        for name in names:  # sensitivity_*/tolerance_* specs are validated by their own tests
             spec = wc.read_json(SPECS / name)
             self.assertIsInstance(spec.get("description"), str, name)
             self.assertGreater(len(spec["description"]), 40, name)
+        base = D.polarization_control(azimuth_target_deg=45.0)
+        for name in edit_and_sweep:
+            spec = wc.read_json(SPECS / name)
             if "parameters" in spec:
                 sp.normalize_spec(spec)
             else:
