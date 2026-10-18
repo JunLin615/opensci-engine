@@ -25,4 +25,4 @@ Install the package into your Python environment before running these scripts. `
 
 Guides are checked against **opensci-engine 0.6.1**. Commands expose their options through `--help`; Python APIs are documented in the installed package and the [PyPI reference](https://pypi.org/project/opensci-engine/).
 
-[OpenSci website](https://opensci-optic.com/) · [Package releases](https://pypi.org/project/opensci-engine/#history) · [Ask a question](https://github.com/JunLin615/opensci-engine/issues/new/choose)
+[OpenSci website](https://opensci-optics.com/) · [Package releases](https://pypi.org/project/opensci-engine/#history) · [Ask a question](https://github.com/JunLin615/opensci-engine/issues/new/choose)

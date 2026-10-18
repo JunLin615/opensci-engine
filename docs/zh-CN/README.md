@@ -25,4 +25,4 @@
 
 指南对应 **opensci-engine 0.6.1**。命令参数可通过 `--help` 查看；Python API 说明可查阅已安装的软件包和 [PyPI 参考文档](https://pypi.org/project/opensci-engine/)。
 
-[OpenSci 官网](https://opensci-optic.com/) · [软件包版本](https://pypi.org/project/opensci-engine/#history) · [交流与反馈](https://github.com/JunLin615/opensci-engine/issues/new/choose)
+[OpenSci 官网](https://opensci-optics.com/) · [软件包版本](https://pypi.org/project/opensci-engine/#history) · [交流与反馈](https://github.com/JunLin615/opensci-engine/issues/new/choose)
