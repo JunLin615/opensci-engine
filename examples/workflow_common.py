@@ -474,8 +474,7 @@ def sample_from_summary(summary, selected=None):
     return {
         "outcome": classify(status, scope, targets, selected, out_of_model),
         "status": status, "engine_status": summary.get("engine_status"),
-        "in_model_scope": not scope and not out_of_model and status != "OUT_OF_MODEL_SCOPE" and
-        summary.get("engine_status") != "OUT_OF_MODEL_SCOPE",
+        "in_model_scope": not scope and not out_of_model and status != "OUT_OF_MODEL_SCOPE",
         "model_scope_issues": scope, "out_of_model_issues": out_of_model, "targets": targets,
         "issues": issues, "warnings": sorted({i["code"] for i in issues if i.get("status") == "WARNING"}),
         "error": None,
