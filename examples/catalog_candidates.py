@@ -14,9 +14,10 @@ Filters:
   design_wavelength_nm, center_wavelength_nm, bandwidth_fwhm_nm, edge_wavelength_nm, parent_focal_length_mm,
   off_axis_angle_deg, deviation_angle_deg, wedge_angle_deg, cone_angle_deg, reflectance, transmittance,
   retardance_waves, extinction_ratio, optical_density). MIN and MAX are in the field's unit (name suffix) unless UNIT
-  is given (nm/um/mm/m, deg/rad/mrad/urad), e.g. focal_length_mm=0.09..0.11m. Products without the field are
-  excluded and counted.
+  is given (nm/um/mm/m, deg/rad/mrad/urad), e.g. focal_length_mm=0.09..0.11m.
 Sorting: --near FIELD=VALUE (closest first), or --sort FIELD [--descending]; ties by SKU. Default: SKU.
+Products without a --range, --near or --sort field are excluded and counted per field in excluded_missing_field
+(engine_matches = matched + excluded by a missing field + outside a range).
 --limit (default 10, at most 100) bounds the table; --out writes every matched row (sorted) as CSV.
 
 Values are the catalog's decimal strings, compared exactly. Output: one JSON document with catalog_version, the
@@ -131,11 +132,15 @@ def candidates(*, category=None, form=None, wavelength_nm=None, readiness=None, 
                 break
         if keep:
             matched.append(row)
+    order_field = near_field or sort
+    if order_field is not None:  # products without the ordering field cannot be placed: excluded and counted
+        dropped = sum(1 for r in matched if _decimal(r.get(order_field)) is None)
+        if dropped:
+            missing[order_field] = missing.get(order_field, 0) + dropped
+        matched = [r for r in matched if _decimal(r.get(order_field)) is not None]
     if near_field is not None:
-        matched = [r for r in matched if _decimal(r.get(near_field)) is not None]
         matched.sort(key=lambda r: (abs(_decimal(r[near_field]) - near_value), r["optical_sku"]))
     elif sort is not None:
-        matched = [r for r in matched if _decimal(r.get(sort)) is not None]
         matched.sort(key=lambda r: r["optical_sku"])
         matched.sort(key=lambda r: _decimal(r[sort]), reverse=descending)
     else:

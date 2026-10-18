@@ -90,13 +90,20 @@ def invoke(main, argv):
 
 
 def catalog_available():
-    """True when a public catalog release is installed for this environment (catalog tests skip otherwise)."""
+    """True when a public catalog release is installed for this environment (catalog tests skip otherwise).
+
+    With OPENSCI_EXAMPLES_REQUIRE_CATALOG=1 (set by the alignment runner's catalog-tests check) a missing catalog
+    raises instead, so the catalog tests fail rather than skip."""
     try:
         from opensci_engine.local import json_api
 
-        return bool(json_api.catalog_status().get("available"))
+        available = bool(json_api.catalog_status().get("available"))
     except Exception:  # noqa: BLE001
-        return False
+        available = False
+    if not available and os.environ.get("OPENSCI_EXAMPLES_REQUIRE_CATALOG") == "1":
+        raise RuntimeError("OPENSCI_EXAMPLES_REQUIRE_CATALOG=1 but no catalog release is installed "
+                           f"(OPENSCI_CATALOG_DIR={os.environ.get('OPENSCI_CATALOG_DIR')!r})")
+    return available
 
 
 def quiet_environment():

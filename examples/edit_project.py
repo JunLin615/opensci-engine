@@ -24,18 +24,23 @@ vocabulary, applied in order to a copy of BASE; ``changes`` objects are merged a
                           "selection_centroid" | {"point_mm": [x, y, z]} | {"component": ID}}
                           rigid move computed by opensci_engine.composition; translation and axis are in the frame's
                           axes, so frame {"component": "L2"} with translation_mm [0, 0, 5] moves L2 5 mm along its
-                          own optical axis (local +Z)
+                          own optical axis (local +Z). Workspace frames {"group": ID} and {"instance": ID} need a
+                          Designer workspace; a Project file has neither, so the Engine refuses them (FRAME_INVALID)
 
 Units: a number is in the field's schema unit (name suffix _mm, _nm, _w/_W, _deg, _rad; target bounds in the
 target's unit) or is given as {"value": x, "unit": "u"} with u in nm/um/mm/m, deg/rad/mrad/urad, W/mW/uW. Rotation
 angles are degrees; quaternions [w, x, y, z] are unitless. An unknown or incompatible unit refuses the edit.
 
+An argument that is left out is refused (BAD_ARGUMENT), as in the Designer; give null to release a DOF
+(set_retained_dof control) or to remove the design intent.
+
 Atomic and retry-safe: every operation applies to the unchanged BASE (never modified); the edited Project is checked
 with json_api.check_project and written only when the Engine accepts it, as the normalized document. The change record
 (NEW.changes.json, or --changes) holds every operation as given and normalized, the sha256 digest of the normalized
-operations, before/after values of every affected field, the base and output project hashes and the output file
-sha256. A repeated command whose existing record has the same base hash and operations digest, and whose output file
-still matches it, reports already_applied: true and writes nothing. Any other existing output is refused unless
+operations (numbers in schema units and compared as floats, so the same edit written in other units has the same
+digest), before/after values of every affected field, the base and output project hashes and the output file sha256.
+A repeated command whose existing record has the same base hash and operations digest, and whose output file still
+matches it, reports already_applied: true and writes nothing. Any other existing output is refused unless
 --overwrite. --expect-base-hash H refuses (BASE_CHANGED, with the current hash) when BASE no longer hashes to H.
 
 --describe prints a compact index of the Project's objects (id, kind, role); with --ids it adds, per object, the
@@ -68,6 +73,7 @@ DOF_AXES = ("Tx", "Ty", "Tz", "Rx", "Ry", "Rz")
 DESIGN_INTENTS = ("LAB_ASSEMBLY", "OPTICAL_SYSTEM")
 TARGET_VALUE_KEYS = ("minimum", "maximum", "target_value", "tolerance_abs")
 AIR = "AIR"
+_ABSENT = object()  # an op argument that is not given (an explicit null removes; an absent argument is refused)
 RECORD_KIND = "opensci-example.project-edit"
 
 
@@ -260,7 +266,7 @@ def _apply_one(doc, op, index):
     elif name == "set_retained_dof":
         at = component(op.get("instance_id"))
         axis = _axis(op.get("axis"), index)
-        control = op.get("control")
+        control = op.get("control", _ABSENT)
         if control not in (None, "MANUAL", "NUMERICAL"):
             raise _op_error("BAD_ARGUMENT", "control must be MANUAL, NUMERICAL or null", index)
         others = [d for d in comps[at].get("retained_dofs") or [] if d.get("axis") != axis]
@@ -296,7 +302,7 @@ def _apply_one(doc, op, index):
         current.pop("product", None)
         comps[at] = current
     elif name == "set_design_intent":
-        intent = op.get("design_intent")
+        intent = op.get("design_intent", _ABSENT)
         if intent is not None and intent not in DESIGN_INTENTS:
             raise _op_error("BAD_ARGUMENT", f"design_intent must be one of {', '.join(DESIGN_INTENTS)} or null", index)
         if intent is None:
@@ -475,7 +481,9 @@ def _unit_warnings(document, target_ids):
 
 
 def ops_digest(normalized_ops):
-    return wc.canonical_digest(normalized_ops)
+    """sha256 of the normalized operations with every number as a float: the same edit written in other units (1 mm,
+    1000 um) or as 1 / 1.0 has the same digest."""
+    return wc.canonical_digest(wc.canonical_numbers(normalized_ops))
 
 
 def normalize_ops(document, ops):
@@ -743,8 +751,8 @@ def main(argv=None):
 
 
 def outcome_status(run):
-    """Exit status of an edit-and-run from the run's outcome class: any model-scope issue gives
-    OUT_OF_MODEL_SCOPE (exit 3) whatever the run status; otherwise the run status."""
+    """Exit status of an edit-and-run from the run's outcome class: any model-scope issue or any issue whose status is
+    OUT_OF_MODEL_SCOPE gives OUT_OF_MODEL_SCOPE (exit 3) whatever the run status; otherwise the run status."""
     outcome = run.get("outcome")
     if outcome == "OUT_OF_MODEL":
         return "OUT_OF_MODEL_SCOPE"
@@ -771,8 +779,8 @@ def run_edited(project_path, run_dir):
     summary, fields = wc.read_saved_run(run_dir)
     return {"status": summary["status"], "outcome": fields["outcome"], "reused": reused,
             "run_dir": run_dir.as_posix(), "targets": fields["targets"],
-            "model_scope_issues": fields["model_scope_issues"], "warnings": fields["warnings"],
-            "identity": fields["identity"]}
+            "model_scope_issues": fields["model_scope_issues"], "out_of_model_issues": fields["out_of_model_issues"],
+            "warnings": fields["warnings"], "identity": fields["identity"]}
 
 
 if __name__ == "__main__":

@@ -42,6 +42,16 @@ checks run each design workflow once (beam expansion with a three-value study, t
 polarization workflow at 1064 nm, which must report `OUT_OF_MODEL` with exit 3, and the
 alignment workflow with its synthetic-measurement fit), one parameter sweep, one
 sensitivity study and a 20-sample tolerance study; together they add about 40 s.
+Once the catalog is prepared, the default checks also run the catalog helper flow
+(candidate query, then the beam-expander L2 swap, sweep, move, comparison, plot and
+report) and `catalog-tests`, a second unittest pass over the catalog-dependent test
+classes; together they add about 70 s. `offline-tests` runs before the catalog step, so
+those classes skip there;
+`catalog-tests` sets `OPENSCI_EXAMPLES_REQUIRE_CATALOG=1`, which makes them fail
+instead of skip when no catalog release is installed. To run them locally, install a
+release (`opensci-engine catalog sync` or `catalog import FILE`) and run
+`python -m unittest discover -s tests`, or set the variable to make a missing
+catalog an error.
 
 ### Catalog source
 
@@ -70,8 +80,7 @@ release; it does not establish that the service delivers it.
 Checks marked `optional` run only on request. A check with a `requirements` file runs
 in its own environment (`OUTPUT/.venv-<topic>`) holding the candidate engine and that
 file; the other optional checks (full workflow studies, edit retry, seed verification,
-zero tolerance, the band-edge sensitivity and the catalog beam-expander demonstration
-from candidate query to report) use the main environment:
+zero tolerance and the band-edge sensitivity) use the main environment:
 
 ```bash
 python scripts/check_alignment.py --optional interop-optimization --out run-optimization
@@ -165,7 +174,10 @@ Failures are separated by cause:
   `CATALOG_INTEGRITY_FAILED`, `CATALOG_RELEASE_CONFLICT`, `CATALOG_STORE_ERROR`,
   `CATALOG_ACTIVE_UNKNOWN`, `ENGINE_UPGRADE_REQUIRED`, other `CATALOG_*` codes),
   a product/model code such as `EXAMPLE_UNAVAILABLE`, a catalog file whose SHA-256
-  differs, or an active release other than the imported file.
+  differs, or an active release other than the imported file. A refused catalog
+  query (`CATALOG_QUERY_INVALID`) or a model kind the engine does not support
+  (`SIMULATION_MODEL_UNSUPPORTED`) is a `package_api` failure: the engine's query
+  vocabulary or supported models changed.
 - `documentation`: a current document disagrees with the baseline. `problems` in
   the row lists each file and line: a version pin other than the baseline, a
   listed document without a pin or without its `engine-baseline.json` reference,

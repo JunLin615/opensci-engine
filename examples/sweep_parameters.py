@@ -22,7 +22,7 @@ SPEC.json (keys; units as in edit_project.py):
       {"column": "target:spot_radius", "max": {"value": 18, "unit": "um"}}   # min / max, in the column's unit
     ],
     "objective": {"column": "target:spot_radius", "sense": "minimize"},     # or "maximize"
-    "derived": [{"name": "spot_um", "op": "mul", "a": "target:spot_radius", "b": 1000}],
+    "derived": [{"name": "spot_um", "op": "mul", "a": "target:spot_radius", "b": 1000, "unit": "um"}],
     "stop_on": []                                 # outcome classes that stop the sweep (default: never stop)
   }
 
@@ -30,20 +30,27 @@ Placeholder syntax in "ops": the string "$value" is replaced by the sample's val
 {"value": v, "unit": <parameter unit>} so the edit converts it to the field's unit; {"$value": {"scale": s,
 "offset": o}} is replaced by o + s * v (o in the parameter's unit). Each sample applies its ops to the unchanged base.
 Columns: "param:<name>", "target:<id>" (target value in the target's unit), "derived:<name>"; derived ops are add,
-sub, mul, div (a, b: columns or numbers), abs (a) and abs_diff (|a - b|).
+sub, mul, div (a, b: columns or numbers), abs (a) and abs_diff (|a - b|); a derived column may declare its "unit"
+(nm/um/mm/m, deg/rad/mrad/urad, W/mW/uW or 1), which then applies to its constraints, objective, table and plots, and
+may use the derived columns listed before it. A target id or column that the spec cannot produce (a misspelt
+objective, constraint or derived operand) refuses the spec before any run (TARGET_UNKNOWN / COLUMN_UNKNOWN, with the
+known ids and columns).
 
 Outcome per sample (precedence): ERROR (edit, load or run refused, or not run after a stop rule), OUT_OF_MODEL
-(any model-scope issue, whatever the status), UNKNOWN, FAIL, PASS. No sample is dropped. A feasible sample is
+(any model-scope issue or any issue whose status is OUT_OF_MODEL_SCOPE, whatever the run status; the codes are in the
+model_scope_issues and out_of_model_issues columns), UNKNOWN, FAIL, PASS. No sample is dropped. A feasible sample is
 in model scope, not ERROR or UNKNOWN, and meets every constraint; the best sample optimizes the objective among feasible ones
 (ties: lowest sample id).
 
 Writes STUDY_DIR/study.json (spec as given and normalized, base project hash, engine / catalog identity,
 environment, budget, timestamps), samples/<id>/project.json, samples/<id>/run/ (run directory),
 samples/<id>/sample.json (full record), table.csv and summary.json. The study directory must be new or empty
-(--overwrite replaces the files this script writes there).
+(--overwrite replaces the files this script writes there and removes the study's plots/ and report/ directories,
+which describe the previous samples).
 
-Stdout: one compact JSON document (counts per outcome with denominators, best sample or no-feasible outcome, at most
-five rows, paths). Exit 0 completed, 1 no feasible sample, 4 refused spec or invalid input.
+Stdout: one compact JSON document (counts per outcome with denominators, best sample or no-feasible outcome, the
+samples whose runs carry warnings, at most five rows with their warnings, paths). Exit 0 completed, 1 no feasible
+sample, 4 refused spec or invalid input.
 """
 
 from __future__ import annotations
@@ -64,8 +71,11 @@ else:
     from edit_project import EditError, apply_edits, normalize_ops
 
 PLACEHOLDER = "$value"
+KNOWN_UNITS = ("nm", "um", "µm", "mm", "m", "deg", "rad", "mrad", "urad", "W", "mW", "uW")
 DERIVED_OPS = ("add", "sub", "mul", "div", "abs", "abs_diff")
 TOP_ROWS = 5
+#: Directories removed by --overwrite: the samples and the default plot and report output of the study.
+STUDY_DIRS = ("samples", "plots", "report")
 
 
 # --------------------------------------------------------------------------------------------- spec
@@ -124,8 +134,7 @@ def normalize_spec(spec, *, build=None):
         unit = parameter.get("unit")
         if unit is not None:
             wc.convert(1.0, unit, unit, path=f"parameter {name} unit")
-            if unit not in wc.UNITLESS and unit not in ("nm", "um", "µm", "mm", "m", "deg", "rad", "mrad",
-                                                       "urad", "W", "mW", "uW"):
+            if unit not in wc.UNITLESS and unit not in KNOWN_UNITS:
                 raise wc.WorkflowError("UNIT_UNKNOWN", f"parameter {name!r}: unknown unit {unit!r}", unit=unit)
         ops = parameter.get("ops")
         if build is None and (not isinstance(ops, list) or not ops):
@@ -142,6 +151,10 @@ def normalize_spec(spec, *, build=None):
     for item in derived:
         if item.get("op") not in DERIVED_OPS or not item.get("name"):
             raise wc.WorkflowError("SPEC_INVALID", f"derived columns need a name and op in {DERIVED_OPS}")
+        unit = item.get("unit")
+        if unit is not None and unit not in KNOWN_UNITS and unit not in wc.UNITLESS:
+            raise wc.WorkflowError("UNIT_UNKNOWN", f"derived column {item['name']!r}: unknown unit {unit!r}; known: "
+                                   f"{', '.join(KNOWN_UNITS)} or 1", unit=unit)
     objective = spec.get("objective")
     if objective is not None and (objective.get("sense") not in ("minimize", "maximize") or
                                   not isinstance(objective.get("column"), str)):
@@ -155,6 +168,52 @@ def normalize_spec(spec, *, build=None):
     return {"parameters": out, "samples": total, "max_evaluations": budget, "targets": spec.get("targets"),
             "constraints": spec.get("constraints") or [], "objective": objective, "derived": derived,
             "stop_on": stop_on}
+
+
+def known_columns(normalized, target_ids):
+    """Columns a sample row can hold for this spec: ``param:``, ``target:`` and ``derived:`` names."""
+    return ([f"param:{p['name']}" for p in normalized["parameters"]] + [f"target:{t}" for t in target_ids] +
+            [f"derived:{d['name']}" for d in normalized["derived"]])
+
+
+def validate_columns(normalized, target_ids):
+    """Refuse (before any run) a target id or column that no sample row can hold.
+
+    Raises WorkflowError TARGET_UNKNOWN (selected targets, ``{"target": id}`` constraints) or COLUMN_UNKNOWN
+    (objective, ``{"column": ...}`` constraints and derived operands; a derived operand may use the parameters, the
+    targets and the derived columns listed before it), each with the known ids / columns."""
+    target_ids = sorted(target_ids)
+    columns = known_columns(normalized, target_ids)
+
+    def target(ident, where):
+        if ident not in target_ids:
+            raise wc.WorkflowError("TARGET_UNKNOWN", f"{where}: target {ident!r} is not in the Project; known: "
+                                   f"{target_ids}", unknown=[ident], known=target_ids)
+
+    def column(name, where, available):
+        if name not in available:
+            raise wc.WorkflowError("COLUMN_UNKNOWN", f"{where}: column {name!r} is not produced by this sweep; "
+                                   f"known: {available}", column=name, known=list(available))
+
+    for ident in normalized["targets"] or []:
+        target(ident, "targets")
+    available = [c for c in columns if not c.startswith("derived:")]
+    for item in normalized["derived"]:
+        for key in ("a", "b"):
+            operand = item.get(key)
+            if isinstance(operand, str):
+                column(operand, f"derived {item['name']}.{key}", available)
+        available = [*available, f"derived:{item['name']}"]
+    for index, rule in enumerate(normalized["constraints"]):
+        if "outcome" in rule:
+            continue
+        if "target" in rule:
+            target(rule["target"], f"constraint {index}")
+        else:
+            column(rule["column"], f"constraint {index}", columns)
+    if normalized["objective"] is not None:
+        column(normalized["objective"]["column"], "objective", columns)
+    return columns
 
 
 def sample_points(parameters):
@@ -177,6 +236,7 @@ def row_from_record(sample_id, values, parameters, record, study_dir):
     row = {"sample_id": sample_id, "outcome": record["outcome"], "status": record["status"],
            "in_model_scope": record["in_model_scope"],
            "model_scope_issues": sorted({i.get("code") for i in record["model_scope_issues"]}),
+           "out_of_model_issues": sorted({i.get("code") for i in record.get("out_of_model_issues") or []}),
            "warnings": record["warnings"],
            "error_stage": (record["error"] or {}).get("stage"), "error_code": (record["error"] or {}).get("code"),
            "error_problems": sorted({p.get("code") for p in (record["error"] or {}).get("problems", [])})}
@@ -221,11 +281,13 @@ def add_derived(row, derived):
             elif op == "abs_diff":
                 value = abs(a - b)
         row[f"derived:{item['name']}"] = value
+        if item.get("unit") is not None:
+            row[f"derived:{item['name']}:unit"] = item["unit"]
     return row
 
 
 def column_unit(row, column):
-    if column.startswith(("param:", "target:")):
+    if column.startswith(("param:", "target:", "derived:")):
         return row.get(f"{column}:unit")
     return None
 
@@ -304,7 +366,8 @@ def _prepare_dir(study_dir, overwrite):
         if not overwrite:
             raise wc.WorkflowError("OUTPUT_EXISTS", f"{study_dir} is not empty; choose a new directory or use "
                                    "--overwrite", out=study_dir.as_posix())
-        shutil.rmtree(study_dir / "samples", ignore_errors=True)
+        for name in STUDY_DIRS:
+            shutil.rmtree(study_dir / name, ignore_errors=True)
         for name in ("study.json", "table.csv", "summary.json"):
             (study_dir / name).unlink(missing_ok=True)
     study_dir.mkdir(parents=True, exist_ok=True)
@@ -325,17 +388,14 @@ def run_sweep(spec, study_dir, *, base=None, build=None, base_path=None, overwri
     if build is None:  # unit and op errors are spec errors: refuse before running anything
         for _sample_id, values in points:
             normalize_ops(base, sample_ops(parameters, values))
-    if normalized["targets"] and points:  # a selected target id must exist, or every sample would read UNKNOWN
-        first = points[0][1]
-        try:
-            reference = build(dict(first)) if build is not None else                 apply_edits(base, sample_ops(parameters, first), validate=False)["project"]
-        except EditError:
-            reference = base
-        known = sorted({t["target_id"] for doc in (base, reference) if doc for t in doc.get("targets", [])})
-        unknown = [t for t in normalized["targets"] if t not in known]
-        if unknown:
-            raise wc.WorkflowError("TARGET_UNKNOWN", f"targets {unknown} are not in the Project; known: {known}",
-                                   unknown=unknown, known=known)
+    # target ids and columns must exist: a misspelt id would make every sample UNKNOWN or infeasible
+    first = points[0][1]
+    try:
+        reference = build(dict(first)) if build is not None else \
+            apply_edits(base, sample_ops(parameters, first), validate=False)["project"]
+    except EditError:
+        reference = base
+    validate_columns(normalized, {t["target_id"] for doc in (base, reference) if doc for t in doc.get("targets", [])})
     started = wc.utc_now()
     study_dir = _prepare_dir(study_dir, overwrite)
     base_check = wc.check(base) if base is not None else None
@@ -451,9 +511,11 @@ def compact(summary, limit=TOP_ROWS):
     else:
         ordered = rows
     keep = ["sample_id", "outcome", "feasible"] + [c for c in summary["columns"] if c.startswith(
-        ("param:", "target:", "derived:")) and not c.endswith(":unit")] + ["error_code"]
-    top = [{key: row.get(key) for key in keep if row.get(key) is not None} for row in ordered[:limit]]
+        ("param:", "target:", "derived:")) and not c.endswith(":unit")] + ["error_code", "warnings"]
+    top = [{key: row.get(key) for key in keep if row.get(key) is not None and row.get(key) != []}
+           for row in ordered[:limit]]
     return {"status": summary["status"], "counts": summary["counts"], "feasible": summary["feasible"],
+            "samples_with_warnings": wc.warning_summary(rows),
             "best": summary["best"], "no_feasible": summary["no_feasible"], "stopped_by": summary["stopped_by"],
             "units": {"parameters": {p["name"]: p["unit"] for p in summary["parameters"]},
                       "targets": summary["targets"]},

@@ -11,8 +11,10 @@ Usage:
 sweep: one parameter gives a curve of the column against the parameter; two parameters give a heatmap (first
 parameter on x). Columns: "target:<id>", "derived:<name>" or "param:<name>" as in sweep_parameters.py. Every
 sample is marked by its outcome (PASS, FAIL, UNKNOWN, OUT_OF_MODEL, ERROR) with its own marker and label; samples
-without a value are drawn at the lower axis edge (curve) or marked in their cell (heatmap), never omitted. The target's
-bounds (minimum / maximum, or target value +- tolerance) are drawn as a band.
+without a value are never omitted: on a curve they are drawn as hollow markers on a dotted line below the lowest
+value, labelled "samples without a value" (that position carries no value), with their own legend entry per outcome;
+on a heatmap their cell stays empty with the outcome marker. The target's bounds (minimum / maximum, or target value
++- tolerance) are drawn as a band on a curve and as lines on the heatmap colour bar.
 power: power received by each observation plane and the run's power ledger sinks, in W.
 
 Axis labels carry units; a caption names the data file (path relative to the output directory and sha256 prefix),
@@ -132,13 +134,15 @@ def plot_sweep(study_dir, y, *, out_dir=None, name=None):
     text = caption(summary_path, out_dir, engine_build=summary["identity"]["engine"]["engine_build_id"],
                    catalog_version=", ".join(releases) or None)
     stem = name or ("sweep_" if len(parameters) == 1 else "heatmap_") + y.replace(":", "_")
+    bounds = _bounds(study_dir, rows, y.split(":", 1)[1]) if y.startswith("target:") else None
     if len(parameters) == 1:
-        fig, info = _curve(rows, parameters[0], y, unit, study_dir)
-        return {**info, "out": save(fig, out_dir, stem, text)}
-    return {"out": save(_heatmap(rows, parameters, y, unit), out_dir, stem, text)}
+        fig, info = _curve(rows, parameters[0], y, unit, bounds)
+        return {**info, "bounds": bounds, "out": save(fig, out_dir, stem, text)}
+    fig, info = _heatmap(rows, parameters, y, unit, bounds)
+    return {**info, "bounds": bounds, "out": save(fig, out_dir, stem, text)}
 
 
-def _curve(rows, parameter, y, unit, study_dir):
+def _curve(rows, parameter, y, unit, bounds):
     plt = _pyplot()
     fig, ax = plt.subplots(figsize=(6.4, 4.2))
     x_col = f"param:{parameter['name']}"
@@ -146,9 +150,11 @@ def _curve(rows, parameter, y, unit, study_dir):
     if valued:
         xs, ys = zip(*sorted(valued))
         ax.plot(xs, ys, color=LINE_COLOR, linewidth=1.5, zorder=2, label=_label(y, None))
-    if y.startswith("target:"):
-        _band(ax, _bounds(study_dir, rows, y.split(":", 1)[1]))
-    lower = min((v for _x, v in valued), default=0.0)
+    _band(ax, bounds)
+    values = [v for _x, v in valued]
+    low, high = (min(values), max(values)) if values else (0.0, 1.0)
+    span = (high - low) or abs(high) or 1.0
+    lower = low - 0.12 * span  # position of the valueless samples: below every value, never on a real point
     counts = {}
     for outcome, (marker, color, label) in STATUS_STYLE.items():
         pts = [r for r in rows if r["outcome"] == outcome]
@@ -162,16 +168,21 @@ def _curve(rows, parameter, y, unit, study_dir):
                        zorder=3, label=f"{label} ({len(pts)})")
         if without:
             ax.scatter(without, [lower] * len(without), marker=marker, s=46, facecolors="none", edgecolors=color,
-                       linewidths=1.2, zorder=3, clip_on=False,
-                       label=f"{label}, no value ({len(without)})" if not with_value else None)
+                       linewidths=1.2, zorder=3, clip_on=False, label=f"{label}, no value ({len(without)})")
+    missing = len(rows) - len(valued)
+    if missing:
+        ax.axhline(lower, color="#8a8a8a", linewidth=0.8, linestyle=":", zorder=1)
+        ax.annotate("samples without a value", xy=(0.0, lower), xycoords=("axes fraction", "data"),
+                    xytext=(2, 3), textcoords="offset points", fontsize=6.5, color="#555555")
     ax.set_xlabel(_label(x_col, parameter["unit"]))
     ax.set_ylabel(_label(y, unit))
     ax.set_title(f"{y.split(':', 1)[1]} vs {parameter['name']}")
     ax.legend(fontsize=7, loc="best", frameon=False)
-    return fig, {"points": len(rows), "with_value": len(valued), "by_outcome": counts}
+    return fig, {"points": len(rows), "with_value": len(valued), "without_value": missing,
+                 "no_value_position": lower if missing else None, "by_outcome": counts}
 
 
-def _heatmap(rows, parameters, y, unit):
+def _heatmap(rows, parameters, y, unit, bounds):
     import numpy as np
 
     plt = _pyplot()
@@ -185,8 +196,16 @@ def _heatmap(rows, parameters, y, unit):
     fig, ax = plt.subplots(figsize=(6.4, 4.8))
     mesh = ax.pcolormesh(np.arange(len(xs) + 1) - 0.5, np.arange(len(ys) + 1) - 0.5, np.ma.masked_invalid(grid),
                          cmap="Blues", shading="flat", edgecolors="white", linewidth=1.0)
+    limits = [v for v in ((bounds or {}).get("minimum"), (bounds or {}).get("maximum")) if v is not None]
+    if limits and np.isfinite(grid).any():  # the colour scale reaches the bounds, so their lines are visible
+        mesh.set_clim(min(np.nanmin(grid), *limits), max(np.nanmax(grid), *limits))
     bar = fig.colorbar(mesh, ax=ax)
     bar.set_label(_label(y, unit))
+    drawn = []
+    for value, text in (((bounds or {}).get("minimum"), "minimum"), ((bounds or {}).get("maximum"), "maximum")):
+        if value is not None:
+            bar.ax.axhline(value, color="#d03b3b", linewidth=1.4, linestyle="--")
+            drawn.append(f"target {text} {value:.6g}")
     for outcome, (marker, color, label) in STATUS_STYLE.items():
         pts = [r for r in rows if r["outcome"] == outcome]
         if pts:
@@ -198,10 +217,12 @@ def _heatmap(rows, parameters, y, unit):
     ax.set_xlabel(_label(f"param:{px['name']}", px["unit"]))
     ax.set_ylabel(_label(f"param:{py['name']}", py["unit"]))
     ax.grid(False)
-    ax.set_title(f"{y.split(':', 1)[1]} (empty cell: no value)")
+    ax.set_title(f"{y.split(':', 1)[1]} (empty cell: no value)" + (
+        f"; {', '.join(drawn)} (dashed on the colour bar)" if drawn else ""), fontsize=8)
     ax.legend(fontsize=6.5, loc="upper left", bbox_to_anchor=(0.0, -0.14), ncol=3, frameon=False)
     fig.subplots_adjust(bottom=0.3)
-    return fig
+    return fig, {"points": len(rows), "with_value": int(np.isfinite(grid).sum()),
+                 "without_value": len(rows) - int(np.isfinite(grid).sum())}
 
 
 def plot_bars(labels, values, unit, out_dir, name, *, title, ylabel=None, source=None, engine_build=None,

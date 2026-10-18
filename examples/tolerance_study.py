@@ -31,8 +31,10 @@ or to explicit bounds [low, high] (sigma 0 gives the fixed offset mean_offset, w
 All parameters are independent. Sampling: numpy Generator(PCG64(seed)) draws one uniform number u in [0, 1) per
 sample and parameter, row by row (sample 1 parameters 1..P, then sample 2, ...); uniform: low + (high - low) u;
 truncated normal: inverse CDF, mean_offset + sigma * Phi^-1(Phi(a) + (Phi(b) - Phi(a)) u) with a, b the standardized
-bounds (statistics.NormalDist), clipped to the bounds against round-off. The first n samples of a larger run with the
-same seed are identical. Same seed + same spec give the same samples.csv bytes (--verify-seed redraws and compares).
+bounds (statistics.NormalDist), clipped to the bounds against round-off; bounds holding less than 1e-9 of the normal
+distribution (more than about 6 sigma into one tail) are refused (SPEC_INVALID). The first n samples of a larger
+run with the same seed are identical. Same seed + same spec give the same samples.csv bytes (--verify-seed redraws
+and compares).
 --zero-tolerance replaces every distribution by the fixed offset 0: every sample then reproduces the nominal Project
 hash and result exactly (the Engine run is deterministic; numerical tolerance 0).
 
@@ -41,8 +43,8 @@ json_api.check_project, the ops at zero offset must reproduce the base Project h
 STUDY_DIR/sampling.json (normalized distributions, bounds, seed, generator, numpy version, samples.csv sha256) and
 STUDY_DIR/samples.csv (sample_id, offset and applied value of every parameter) are written. --draw-only stops there.
 
-Outcome per sample (precedence): ERROR (refused or not run), OUT_OF_MODEL (any model-scope issue, whatever the
-status), UNKNOWN (a selected target without a value), FAIL (a selected target failed), PASS (every selected target
+Outcome per sample (precedence): ERROR (refused or not run), OUT_OF_MODEL (any model-scope issue or any issue whose
+status is OUT_OF_MODEL_SCOPE, whatever the run status), UNKNOWN (a selected target without a value), FAIL (a selected target failed), PASS (every selected target
 PASS or WARNING with a value). Counts use all requested samples as denominator; the PASS fraction among evaluable
 samples (PASS + FAIL) is listed separately. The PASS fraction is the fraction of simulated samples, drawn from the
 stated independent distributions around this Project, in which every selected target passed. Target-value
@@ -54,7 +56,8 @@ nominal), table.csv, summary.json, plots/ (histogram per selected target with it
 with its distribution bounds; PNG + SVG; needs matplotlib, see requirements-examples.txt) and report/ (report.md,
 report.json via build_report.py).
 
-Stdout: one compact JSON document. Exit 0 completed with at least one PASS sample, 1 no PASS sample (or a
+Stdout: one compact JSON document (counts with denominators, target distributions, samples whose runs carry
+warnings, unsuccessful samples). Exit 0 completed with at least one PASS sample, 1 no PASS sample (or a
 --verify-seed mismatch), 4 refused spec or invalid input.
 """
 
@@ -129,6 +132,18 @@ def _distribution(parameter, raw, zero_tolerance):
         raise wc.WorkflowError("SPEC_INVALID", f"parameter {name!r}: mean_offset lies outside the bounds")
     if sigma > 0 and not low < high:
         raise wc.WorkflowError("SPEC_INVALID", f"parameter {name!r}: the truncation interval is empty")
+    if sigma > 0:
+        from statistics import NormalDist
+
+        standard = NormalDist()
+        mass = standard.cdf((high - mean) / sigma) - standard.cdf((low - mean) / sigma)
+        if not mass >= MIN_TRUNCATED_MASS:
+            raise wc.WorkflowError("SPEC_INVALID", f"parameter {name!r}: the bounds [{low:.6g}, {high:.6g}] hold "
+                                   f"{mass:.3g} of the normal distribution (mean_offset {mean:.6g}, sigma {sigma:.6g}), "
+                                   f"less than {MIN_TRUNCATED_MASS:g}: they lie more than about 6 sigma into one "
+                                   "tail, where the inverse CDF cannot be sampled in double precision; use bounds "
+                                   "nearer the mean, a larger sigma or a uniform distribution",
+                                   probability=mass, minimum_probability=MIN_TRUNCATED_MASS)
     out = {"kind": "normal", "sigma": sigma, "mean_offset": mean, "bounds": [low, high]}
     if "truncate_sigma" in raw:
         out["truncate_sigma"] = float(raw["truncate_sigma"])
@@ -181,6 +196,10 @@ def normalize_spec(spec, *, build=None, seed=None, samples=None, zero_tolerance=
 
 # --------------------------------------------------------------------------------------------- sampling
 
+MIN_TRUNCATED_MASS = 1e-9  # smallest probability of a truncated normal's bounds that is sampled
+_P_LOW, _P_HIGH = math.nextafter(0.0, 1.0), math.nextafter(1.0, 0.0)
+
+
 def draw_samples(parameters, count, seed):
     """``[(sample_id, {name: offset})]`` for samples s0001.. (module docstring: generator, order, inverse CDF)."""
     import numpy as np
@@ -203,7 +222,8 @@ def draw_samples(parameters, count, seed):
             else:
                 a = standard.cdf((low - d["mean_offset"]) / d["sigma"])
                 b = standard.cdf((high - d["mean_offset"]) / d["sigma"])
-                value = d["mean_offset"] + d["sigma"] * standard.inv_cdf(a + (b - a) * u)
+                p = min(max(a + (b - a) * u, _P_LOW), _P_HIGH)  # stays inside (0, 1) against round-off
+                value = d["mean_offset"] + d["sigma"] * standard.inv_cdf(p)
             offsets[parameter["name"]] = min(max(value, low), high)
         rows.append((f"s{i + 1:04d}", offsets))
     return rows
@@ -538,6 +558,7 @@ def compact(summary, limit=5):
                 for r in summary["rows"] if r["outcome"] in ("ERROR", "OUT_OF_MODEL", "UNKNOWN")]
     shown = wc.bounded(problems, limit)
     return {"status": summary["status"], "sampling": summary["sampling"],
+            "samples_with_warnings": wc.warning_summary(summary["rows"]),
             "parameters": [{"name": p["name"], "unit": p["unit"], "nominal": p["nominal"],
                             "distribution": p["description"]} for p in summary["parameters"]],
             "nominal": {k: summary["nominal"][k] for k in ("outcome", "targets")},

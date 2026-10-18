@@ -73,14 +73,16 @@ within 1e-6 and the 0.1° curvature within 1e-4 of the closed form.
 ## Sensitivity: example specs
 
 Stdout is one compact JSON document; bytes count UTF-8 with the LF terminator, with the `--out` names of the
-commands above. Wall time is one CLI process (about 2 s of it is the Engine import).
+commands above. Wall time is one CLI process (about 2 s of it is the Engine import). Stdout bytes and wall times in
+this record were measured again on 2026-10-19 with the current scripts (tolerance stdout lists
+`samples_with_warnings`); sample outcomes and values are unchanged.
 
 | Spec | Exit | Samples (outcomes) | Stdout bytes | Wall |
 | --- | ---: | --- | ---: | ---: |
-| sensitivity_expander | 0 | 17 (17 PASS) | 3,400 | 8.75 s |
-| sensitivity_expander_band_edge | 0 | 9 (8 FAIL, 1 OUT_OF_MODEL) | 2,526 | 6.71 s |
-| sensitivity_polarization | 0 | 13 (13 PASS) | 1,918 | 7.17 s |
-| sensitivity_alignment | 0 | 15 (11 PASS, 2 FAIL, 2 UNKNOWN) | 5,204 | 8.34 s |
+| sensitivity_expander | 0 | 17 (17 PASS) | 3,399 | 7.16 s |
+| sensitivity_expander_band_edge | 0 | 9 (8 FAIL, 1 OUT_OF_MODEL) | 2,525 | 5.28 s |
+| sensitivity_polarization | 0 | 13 (13 PASS) | 1,917 | 5.80 s |
+| sensitivity_alignment | 0 | 15 (11 PASS, 2 FAIL, 2 UNKNOWN) | 5,204 | 6.82 s |
 
 **Expander and focus** (nominal PASS: expanded radius 1.5011183040943072 mm, spot radius
 0.01655211408155712 mm). Primary estimates (central, smallest step), scale = declared normalization scale:
@@ -132,10 +134,10 @@ target statistics use samples that completed in model scope with a value.
 
 | Spec | Exit | ERROR | OUT_OF_MODEL | UNKNOWN | FAIL | PASS | PASS / all | PASS / (PASS + FAIL) | Stdout bytes | Wall |
 | --- | ---: | ---: | ---: | ---: | ---: | ---: | ---: | ---: | ---: | ---: |
-| tolerance_expander | 0 | 0 | 0 | 0 | 8 | 92 | 92/100 | 92/100 | 3,210 | 29.66 s |
-| tolerance_polarization | 0 | 0 | 33 | 0 | 1 | 66 | 66/100 | 66/67 | 3,531 | 28.25 s |
-| tolerance_alignment | 0 | 0 | 0 | 0 | 36 | 64 | 64/100 | 64/100 | 4,837 | 29.62 s |
-| tolerance_expander --zero-tolerance --samples 5 | 0 | 0 | 0 | 0 | 0 | 5 | 5/5 | 5/5 | 3,249 | 5.50 s |
+| tolerance_expander | 0 | 0 | 0 | 0 | 8 | 92 | 92/100 | 92/100 | 3,293 | 28.82 s |
+| tolerance_polarization | 0 | 0 | 33 | 0 | 1 | 66 | 66/100 | 66/67 | 3,614 | 29.19 s |
+| tolerance_alignment | 0 | 0 | 0 | 0 | 36 | 64 | 64/100 | 64/100 | 4,920 | 31.94 s |
+| tolerance_expander --zero-tolerance --samples 5 | 0 | 0 | 0 | 0 | 0 | 5 | 5/5 | 5/5 | 3,332 | 4.71 s |
 
 Distributions (offsets from nominal) and sampled ranges:
 

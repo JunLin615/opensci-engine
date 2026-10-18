@@ -145,6 +145,17 @@ expected non-zero exits were observed: `workflow-polarization-out-of-model` 3,
 `workflow-budget-refused` 4 with a JSON error. The external-tool checks were not
 selected in this run.
 
+On 2026-10-19 the catalog candidate query and the beam-expander chain (`spec-be-base` to
+`spec-be-report`) became default checks, together with `catalog-tests`, which reruns the
+catalog-dependent test classes after the catalog is prepared and fails instead of skipping
+without a catalog. A refused catalog query (`CATALOG_QUERY_INVALID`) and an unsupported
+model kind (`SIMULATION_MODEL_UNSUPPORTED`) are now `package_api` failures. Default run
+with Python 3.11.16, baseline 0.8.0 from PyPI and catalog file `2026-10-15.1`
+(`python scripts/check_alignment.py --catalog-file 2026-10-15.1.json --out run-alignment`):
+**PASS**, all 33 rows, 306 s including the installation. `offline-tests` ran 282 tests
+(7 skipped: the catalog classes); `catalog-tests` ran their 9 tests with none skipped;
+`spec-be-swap` exited 1 as expected.
+
 ### Baseline update
 
 `engine-baseline.json` now records version 0.8.0, CI Python 3.11 and 3.14, the

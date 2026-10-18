@@ -17,6 +17,11 @@ tokenizer method below:
 | `docs/agent-recipes.md` | 1,284 | 5,614 | `a04688548a824551b5664c1d0c9ccbad071c3e7a9784c0233b8e4fe6a44f6764` |
 | `docs/workflow-recipes.md` | 5,011 | 18,343 | `de7785f204c5f8848617e72bc76a970786844ece0c4c655387a9c07515cffe93` |
 
+After the 2026-10-19 corrections (complete input comparison, spec column checks, outcome rule
+for issues with status `OUT_OF_MODEL_SCOPE`): `AGENT_GUIDE.md` 2,317 tokens, 9,370 bytes
+(`baac621e123f064a`), `docs/workflow-recipes.md` 5,736 tokens, 21,236 bytes
+(`b93d75d36ba44429`). The trials below used the 2026-10-18 revision.
+
 Environment: Windows 10 (AMD64), CPython 3.11.16, published PyPI `opensci-engine[protected]==0.8.0`
 (build `0.8.0+94f6dc70bb40a2ed`), matplotlib 3.10.7, catalog release `2026-10-15.1` imported from
 its release file. Every task-table invocation without a placeholder was run once, in table order,
@@ -33,7 +38,7 @@ from a clean working tree:
 | `python examples/edit_project.py run-example/project.json --describe --ids L2` | 0 | `DESCRIBED` | 1,760 |
 | `python examples/catalog_candidates.py --category LENS --wavelength-nm 780 --range focal_length_mm=95..105 --near focal_length_mm=100 --limit 5` | 0 | `COMPLETED` | 2,130 |
 | `python examples/sensitivity_analysis.py examples/specs/sensitivity_expander.json --out run-sensitivity` | 0 | `COMPLETED` | 3,391 |
-| `python examples/tolerance_study.py examples/specs/tolerance_expander.json --out run-tolerance` | 0 | `COMPLETED` | 3,201 |
+| `python examples/tolerance_study.py examples/specs/tolerance_expander.json --out run-tolerance` | 0 | `COMPLETED` | 3,285 |
 | `python examples/beam_expansion_focus.py --out run-expansion` | 0 | `PASS` | 3,869 |
 | `python examples/polarization_control.py --out run-polarization` | 0 | `PASS` | 2,934 |
 | `python examples/alignment_analysis.py --out run-alignment` | 0 | `PASS` | 4,802 |

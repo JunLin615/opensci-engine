@@ -8,10 +8,11 @@ import inspect
 import math
 import unittest
 
-from opensci_engine.local import LocalRunError, json_api
+from opensci_engine.local import LocalRunError
 from opensci_engine.results import load_run
 
 from examples import optical_designs as D
+from tests.workflow_fixtures import catalog_available
 
 
 def outcome(document):
@@ -22,11 +23,6 @@ def values(result):
     return {k: t["value"] for k, t in result["targets"].items()}
 
 
-def catalog_available():
-    try:
-        return bool(json_api.catalog_status().get("available"))
-    except Exception:  # noqa: BLE001 - any failure means no usable catalog here
-        return False
 
 
 def rel(a, b):
