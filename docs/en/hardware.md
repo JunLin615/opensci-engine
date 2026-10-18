@@ -19,14 +19,11 @@ Choose the route that fits your experiment:
 
 ## Connect your Account
 
-Create an Agent token in your [OpenSci Account](https://account.opensci-optics.com/?lang=en) and complete the token setup shown there. Set `OPENSCI_API_URL` to the OpenSci service, then inspect the connection:
+Start at the [OpenSci website](https://opensci-optics.com/). Your Account provides the service URL and Agent-token setup. Configure `OPENSCI_API_URL` with that URL and complete the token setup shown in your Account. Then inspect the connection:
 
 ```bash
-export OPENSCI_API_URL=https://opensci-optics.com
 opensci-engine account status
 ```
-
-In Windows PowerShell, set the variable with `$env:OPENSCI_API_URL = "https://opensci-optics.com"`.
 
 The `protected` extra from the [installation guide](installation.md) supports opening assembly previews and details.
 

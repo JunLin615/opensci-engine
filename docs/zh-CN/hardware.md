@@ -19,14 +19,11 @@
 
 ## 连接 Account
 
-在 [OpenSci Account](https://account.opensci-optics.com/?lang=zh-CN) 中创建 Agent Token，并按页面完成 Token 配置。将 `OPENSCI_API_URL` 设置为 OpenSci 服务地址，然后检查连接：
+从 [OpenSci 官网](https://opensci-optics.com/) 进入。Account 提供服务地址与 Agent Token 配置方式。将 `OPENSCI_API_URL` 设置为 Account 显示的地址，按页面完成 Token 配置，然后检查连接：
 
 ```bash
-export OPENSCI_API_URL=https://opensci-optics.com
 opensci-engine account status
 ```
-
-Windows PowerShell 中使用 `$env:OPENSCI_API_URL = "https://opensci-optics.com"` 设置该变量。
 
 [安装指南](installation.md)中的 `protected` 扩展支持打开装配预览和装配详情。
 
