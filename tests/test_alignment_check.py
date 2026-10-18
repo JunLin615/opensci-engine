@@ -23,6 +23,23 @@ def default_checks():
     return [check for check in document["checks"] if not check.get("optional")]
 
 
+def declared_result(command):
+    """Exit code and output a default check declares, for a command built from its argv (fake runs)."""
+    for check in default_checks():
+        template = check["argv"][1:]
+        if len(template) != len(command) - 1:
+            continue
+        if all(item == arg or ("}" in item and arg.replace("\\", "/").endswith(item.split("}", 1)[1]))
+               for item, arg in zip(template, command[1:])):
+            code = check.get("expected_exit", 0)
+            if check.get("json_error"):
+                return code, "", json.dumps({"error": {"code": "DECLARED", "message": "declared refusal"}})
+            status = check.get("expected_status", "COMPLETED")
+            status = status[0] if isinstance(status, list) else status
+            return code, json.dumps({check.get("status_field", "status"): status}), ""
+    return None
+
+
 class ReleaseSelectionTests(unittest.TestCase):
     def test_only_exact_public_versions_are_accepted(self):
         for version in ("0.6.1", "1.0", "1.2.3rc1", "1.2.3.post2", "1.2.3.dev1"):
@@ -196,7 +213,7 @@ class CheckDefinitionTests(unittest.TestCase):
         names = [check["name"] for check in definitions["checks"]]
         default = alignment.select_checks(definitions["checks"], [])
         self.assertEqual(sorted(default), sorted(check["name"] for check in default_checks()))
-        self.assertTrue(all(check["requirements"] for check in definitions["checks"] if check["optional"]))
+        self.assertTrue(all(check["optional"] for check in definitions["checks"] if check["requirements"]))
         self.assertEqual(alignment.select_checks(definitions["checks"], ["all"]), set(names))
 
     def test_defaults_and_normalization(self):
@@ -302,6 +319,8 @@ class AlignmentRunnerTests(unittest.TestCase):
                 stdout = json.dumps({"status": "PASS"})
             elif "examples/topic.py" in command:
                 stdout = json.dumps({"outcome": "WITHIN_TOLERANCE"})
+            elif declared_result(command):
+                code, stdout, stderr = declared_result(command)
             return subprocess.CompletedProcess(command, code, stdout, stderr)
         return run
 
@@ -452,8 +471,9 @@ class AlignmentRunnerTests(unittest.TestCase):
         blocked = report["checks"][names.index("installed-version-match") + 1:]
         self.assertEqual([row["name"] for row in blocked], [check["name"] for check in default_checks()])
         self.assertEqual({(row["status"], row["category"]) for row in blocked}, {("SKIPPED", "package_api")})
-        self.assertEqual({row["blocked_by"] for row in blocked if not row["name"].startswith("saved-")},
-                         {"installed-version-match"})
+        self.assertEqual({row["blocked_by"] for row in blocked if not dict(
+            (check["name"], check.get("needs")) for check in default_checks())[row["name"]]},
+            {"installed-version-match"})
         self.assertFalse(self.calls(commands, "unittest"))
 
     def test_existing_output_is_rejected_without_touching_prior_evidence(self):

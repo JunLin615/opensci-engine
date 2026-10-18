@@ -122,6 +122,29 @@ reports `WITHIN_TOLERANCE` with bounds that include that spread (±1.4 µm) and 
 +0.315 µm deviation at 575 nm. The documented route therefore does not reproduce the
 recorded outcome; this is an example/documentation finding, not an engine change.
 
+### Workflow checks
+
+The check list gained the workflow, study and demonstration checks: seven default
+checks (`workflow-expansion`, `workflow-polarization-out-of-model`,
+`workflow-alignment-synthetic`, `spec-pol-design`, `spec-pol-sweep`,
+`sensitivity-polarization`, `tolerance-polarization`) and eighteen optional ones that use
+the main environment (full workflow studies, refusal and unmet cases, edit retry, seed
+verification, zero tolerance, band-edge sensitivity, catalog candidates and the catalog
+beam-expander chain from base run to report).
+
+```bash
+python scripts/check_alignment.py --catalog-file 2026-10-15.1.json \
+  --optional tolerance-verify-seed,tolerance-zero,sensitivity-band-edge,workflow-expansion-full,workflow-expansion-unmet,workflow-budget-refused,workflow-polarization-full,workflow-alignment-full,spec-pol-edit,spec-pol-edit-retry,catalog-candidates,spec-be-base,spec-be-swap,spec-be-sweep,spec-be-move,spec-be-compare,spec-be-plot,spec-be-report \
+  --out run-alignment-workflows
+```
+
+Python 3.11.16, baseline 0.8.0 from PyPI, catalog file `2026-10-15.1`: **PASS**, all 42
+rows. The offline tests ran 244 tests (7 skipped) in the runner's environment. The
+expected non-zero exits were observed: `workflow-polarization-out-of-model` 3,
+`workflow-alignment-synthetic`, `workflow-expansion-unmet` and `spec-be-swap` 1,
+`workflow-budget-refused` 4 with a JSON error. The external-tool checks were not
+selected in this run.
+
 ### Baseline update
 
 `engine-baseline.json` now records version 0.8.0, CI Python 3.11 and 3.14, the

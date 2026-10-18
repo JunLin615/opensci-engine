@@ -9,8 +9,9 @@
 3. [使用光学目录](catalog.md)：查找元件、管理版本、复现项目。
 4. [读取与导出结果](results.md)：验证状态、光束数据、可视化和 CSV 导出。
 5. [继续完成硬件实现](hardware.md)：元件选型、装配预览和订购。
-6. [分析测量数据](measurements.md)：背景扣除、参考归一化、线性拟合及残差图。
-7. [联用外部科学工具](interop.md)：用 SciPy、Optuna、SALib、LightPipes、prysm、POPPY、Perceval、Piquasso 和 grcwa 完成优化、衍射、量子光子学和超表面元件计算。
+6. [设计研究与工作流程](workflows.md)：按标识修改项目、参数扫描、运行比较、绘图、报告、灵敏度与公差分析，以及三个参数化光学工作流程。
+7. [分析测量数据](measurements.md)：背景扣除、参考归一化、线性拟合及残差图。
+8. [联用外部科学工具](interop.md)：用 SciPy、Optuna、SALib、LightPipes、prysm、POPPY、Perceval、Piquasso 和 grcwa 完成优化、衍射、量子光子学和超表面元件计算。
 
 ## 示例
 
@@ -18,6 +19,7 @@
 | --- | --- | --- |
 | [扩束系统](../../examples/beam_expander.py) | `python examples/beam_expander.py --out run-example` | 是；首次使用时下载 |
 | [理想透镜聚焦](../../examples/ideal_lens_focus.py) | `python examples/ideal_lens_focus.py` | 否；使用数学模型元件 |
+| [设计研究与工作流程](../../examples/) | 按[工作流程指南](workflows.md)运行 | 第 1–3 节使用；第 4–5 节不使用 |
 | [测量数据分析](../../examples/analyze_measurements.py) | 按[两个 CSV 示例](measurements.md)运行 | 否；无需引擎，安装 `requirements-examples.txt` |
 | [外部工具联用](../../examples/interop/) | 按[外部工具指南](interop.md)运行 | 否；安装各专题的依赖文件 |
 

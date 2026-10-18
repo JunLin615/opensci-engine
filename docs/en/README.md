@@ -9,8 +9,9 @@ Start with a working optical design, then explore its results and adapt it to yo
 3. [Work with the catalog](catalog.md) — find optics, manage releases, and reproduce a project.
 4. [Read and export results](results.md) — validation, beam data, visualization, and CSV exports.
 5. [Continue to hardware](hardware.md) — component selection, assembly preview, and ordering.
-6. [Analyze measurements](measurements.md) — background subtraction, reference normalization, linear fits and residual plots.
-7. [Use external scientific tools](interop.md) — optimization, diffraction, quantum photonics and metasurface components with SciPy, Optuna, SALib, LightPipes, prysm, POPPY, Perceval, Piquasso and grcwa.
+6. [Run design studies and workflows](workflows.md) — edit by ID, parameter sweeps, run comparison, plots, reports, sensitivity and tolerance studies, and three parameterized optical workflows.
+7. [Analyze measurements](measurements.md) — background subtraction, reference normalization, linear fits and residual plots.
+8. [Use external scientific tools](interop.md) — optimization, diffraction, quantum photonics and metasurface components with SciPy, Optuna, SALib, LightPipes, prysm, POPPY, Perceval, Piquasso and grcwa.
 
 ## Examples
 
@@ -18,6 +19,7 @@ Start with a working optical design, then explore its results and adapt it to yo
 | --- | --- | --- |
 | [Beam expander](../../examples/beam_expander.py) | `python examples/beam_expander.py --out run-example` | Yes; downloads on first use |
 | [Ideal-lens focus](../../examples/ideal_lens_focus.py) | `python examples/ideal_lens_focus.py` | No; uses mathematical elements |
+| [Design studies and workflows](../../examples/) | Follow the [workflow guide](workflows.md) | Sections 1–3 yes; sections 4–5 no |
 | [Measurement analysis](../../examples/analyze_measurements.py) | Follow the [two CSV examples](measurements.md) | No; engine-independent, install `requirements-examples.txt` |
 | [External tools](../../examples/interop/) | Follow the [external tools guide](interop.md) | No; install each topic's requirements file |
 

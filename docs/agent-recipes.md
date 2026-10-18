@@ -3,6 +3,9 @@
 [Agent guide](../AGENT_GUIDE.md). These instructions are English-only; customer
 walkthroughs remain available in [English](en/getting-started.md) and
 [Simplified Chinese](zh-CN/getting-started.md). Use the published **0.8.0** baseline.
+The same edits by ID, with unit conversion, a change record and retry safety, are
+available without writing Python through `examples/edit_project.py`
+([workflow recipes](workflow-recipes.md#edit-a-project-by-id)).
 
 ## Adapt a native beam-expander project
 
@@ -98,8 +101,11 @@ the [catalog guide](en/catalog.md).
 For just the acceptance bound, no source edit is needed:
 
 ```bash
-python examples/ideal_lens_focus.py --out run-ideal-bound --maximum-radius-mm 0.02
+python examples/ideal_lens_focus.py --out run-ideal-bound --maximum-radius-mm 0.01
 ```
+
+The default layout focuses to a beam radius of `0.016934085944977664 mm`, so the
+0.01 mm bound is not met: `FAIL`, exit `1`.
 
 For a different ideal optical layout, read only
 [`build_project`](../examples/ideal_lens_focus.py) and adapt its explicit

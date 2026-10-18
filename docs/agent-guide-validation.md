@@ -4,6 +4,51 @@ Evidence for [issue #3](https://github.com/JunLin615/opensci-engine/issues/3),
 following standing rules [#1](https://github.com/JunLin615/opensci-engine/issues/1)
 and [#2](https://github.com/JunLin615/opensci-engine/issues/2).
 
+## 0.8.0 baseline (2026-10-18)
+
+The entry now routes to the workflow scripts (editing by ID, sweeps, saved-run comparison,
+plots, reports, catalog candidates, sensitivity, tolerance and three design workflows) and
+points to [workflow recipes](workflow-recipes.md) for their specifications. Sizes by the
+tokenizer method below:
+
+| File | Tokens | UTF-8 bytes | SHA-256 |
+| --- | ---: | ---: | --- |
+| `AGENT_GUIDE.md` | 2,269 | 9,182 | `4755192b4e453b07a5cfb51639cc2e6835ec8dbcae55e9c3dc6ee43fa951f1b4` |
+| `docs/agent-recipes.md` | 1,284 | 5,614 | `a04688548a824551b5664c1d0c9ccbad071c3e7a9784c0233b8e4fe6a44f6764` |
+| `docs/workflow-recipes.md` | 5,011 | 18,343 | `de7785f204c5f8848617e72bc76a970786844ece0c4c655387a9c07515cffe93` |
+
+Environment: Windows 10 (AMD64), CPython 3.11.16, published PyPI `opensci-engine[protected]==0.8.0`
+(build `0.8.0+94f6dc70bb40a2ed`), matplotlib 3.10.7, catalog release `2026-10-15.1` imported from
+its release file. Every task-table invocation without a placeholder was run once, in table order,
+from a clean working tree:
+
+| Invocation | Exit | Status | Stdout bytes |
+| --- | ---: | --- | ---: |
+| `python -m opensci_engine doctor` | 0 | `report` | 4,087 |
+| `python examples/ideal_lens_focus.py --out run-ideal-focus` | 0 | `PASS` | 1,189 |
+| `python examples/beam_expander.py --out run-example` | 0 | `PASS` | 2,616 |
+| `python examples/result_summary.py run-example` | 0 | `PASS` | 2,562 |
+| `python examples/result_summary.py run-example --details` | 0 | `PASS` | 7,003 |
+| `python examples/edit_project.py run-example/project.json --describe` | 0 | `DESCRIBED` | 686 |
+| `python examples/edit_project.py run-example/project.json --describe --ids L2` | 0 | `DESCRIBED` | 1,760 |
+| `python examples/catalog_candidates.py --category LENS --wavelength-nm 780 --range focal_length_mm=95..105 --near focal_length_mm=100 --limit 5` | 0 | `COMPLETED` | 2,130 |
+| `python examples/sensitivity_analysis.py examples/specs/sensitivity_expander.json --out run-sensitivity` | 0 | `COMPLETED` | 3,391 |
+| `python examples/tolerance_study.py examples/specs/tolerance_expander.json --out run-tolerance` | 0 | `COMPLETED` | 3,201 |
+| `python examples/beam_expansion_focus.py --out run-expansion` | 0 | `PASS` | 3,869 |
+| `python examples/polarization_control.py --out run-polarization` | 0 | `PASS` | 2,934 |
+| `python examples/alignment_analysis.py --out run-alignment` | 0 | `PASS` | 4,802 |
+| `python examples/analyze_measurements.py examples/data/measurements/detector_response.csv --x input_power_mW --signal signal_V --background dark_V --x-unit mW --signal-unit V --out run-detector` | 0 | `WARNING` | 1,871 |
+
+The placeholder rows (edit, sweep, compare, plot, report) were run with concrete files through
+the sequences in [workflow recipes](workflow-recipes.md) and the
+[design-study walkthrough](en/workflows.md); their results are recorded in
+[workflow validation](workflow-validation.md) and
+[sensitivity and tolerance validation](sensitivity-tolerance-validation.md). The [editing recipe](agent-recipes.md)
+reproduces 1.1148985411200965 mm (`FAIL`, exit 1) on catalog `2026-10-15.1`, and the ideal
+focus with `--maximum-radius-mm 0.01` gives 0.016934085944977664 mm (`FAIL`, exit 1).
+
+The sections that follow are the 2026-10-13 record for engine 0.6.1 and its entry revision.
+
 ## Entry size
 
 On 2026-10-13, the complete UTF-8 Markdown of `AGENT_GUIDE.md` contained **1,289

@@ -37,6 +37,11 @@ The runner installs `opensci-engine[protected]` and the `default_requirements` o
 `alignment-checks.json` into `OUTPUT/.venv`, strips `PYTHONPATH`/`PYTHONHOME`,
 disables user-site imports, and verifies the imported engine version and that its
 module lies inside that environment. Every check runs with that interpreter.
+Besides the offline tests and the ideal-lens and beam-expander examples, the default
+checks run each design workflow once (beam expansion with a three-value study, the
+polarization workflow at 1064 nm, which must report `OUT_OF_MODEL` with exit 3, and the
+alignment workflow with its synthetic-measurement fit), one parameter sweep, one
+sensitivity study and a 20-sample tolerance study; together they add about 40 s.
 
 ### Catalog source
 
@@ -62,9 +67,11 @@ release; it does not establish that the service delivers it.
 
 ### Optional checks
 
-Checks marked `optional` need heavier third-party packages and run only on request,
-each group in its own environment (`OUTPUT/.venv-<topic>`) holding the candidate
-engine and the check's requirements file:
+Checks marked `optional` run only on request. A check with a `requirements` file runs
+in its own environment (`OUTPUT/.venv-<topic>`) holding the candidate engine and that
+file; the other optional checks (full workflow studies, edit retry, seed verification,
+zero tolerance, the band-edge sensitivity and the catalog beam-expander demonstration
+from candidate query to report) use the main environment:
 
 ```bash
 python scripts/check_alignment.py --optional interop-optimization --out run-optimization
