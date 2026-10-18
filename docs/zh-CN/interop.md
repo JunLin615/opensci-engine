@@ -19,7 +19,7 @@ OpenSci 计算光路、高斯光束、偏振、功率以及设计的线性光学
 
 ## 准备工作
 
-每个专题使用一个新的虚拟环境（Python 3.11 或更高；示例在 Python 3.12 上验证），在仓库根目录运行：
+外部工具环境需要 Python 3.12 或更高，因为固定版本的 numpy 2.5.4 和 scipy 1.18.1 要求如此：量子专题为 3.12 至 3.14，单独的 Diffractio 环境为 3.12。示例在 Python 3.12.14 上验证；本仓库的核心示例在 Python 3.11 或更高版本上运行。每个专题使用一个新的虚拟环境，在仓库根目录运行：
 
 ```bash
 python -m venv .venv-optimization
@@ -97,10 +97,15 @@ Perceval（SLOS）用噪声标签模拟部分可区分光子；Piquasso 把同�
 
 ```bash
 python examples/interop/metasurface/step1_unit_cells.py --out run-interop-metasurface
+python examples/interop/metasurface/step1_unit_cells.py --out run-interop-metasurface --nG 201 --wavelengths-nm 490 515 532 545 580
 python examples/interop/metasurface/step2_focusing.py run-interop-metasurface
+python examples/interop/metasurface/step2_focusing.py run-interop-metasurface --nG 201
+python examples/interop/metasurface/step2_focusing.py run-interop-metasurface --samples 2048 --wavelengths-nm 490 515 532 545 580
 python examples/interop/metasurface/step3_fit_model.py run-interop-metasurface
 python examples/interop/metasurface/step4_engine_check.py run-interop-metasurface
 ```
+
+第 1 步的第二条命令和第 2 步的后两条命令计算收敛表：RCWA 级次由 101 增至 201，传播网格由 1024 采样（333 µm）增至 2048 采样（666 µm），覆盖波段内 5 个波长以及视场角和光束尺寸情形。第 3 步从这些表中取外部数值分散；任一类缺失时以 `CONVERGENCE_DATA_MISSING`（退出码 4）停止，因为不含数值分散的误差上限会低估外部参考自身的不确定度。
 
 外部结果分成三组，各自用途不同：
 
@@ -112,10 +117,10 @@ python examples/interop/metasurface/step4_engine_check.py run-interop-metasurfac
 
 1. **单元**（grcwa）：半径 40–150 nm 柱体（周期 325 nm，高 600 nm，常数折射率 TiO2 2.43 / SiO2 1.46，正入射，x 偏振）在全部 19 个波长上的零级复透射系数。使用通量归一化振幅 `t·sqrt(T/|t|²)`，因为在折射率不同的介质之间，仅 `|t|²` 并不是功率比例。
 2. **聚焦**（numpy）：局部周期近似和标量角谱传播；给出每种情况的焦点位置、二阶矩半径和聚焦效率。斜入射沿用正入射的单元响应，这一近似随角度增大而变差。
-3. **模型**：每个表格波长一行（由高斯聚焦公式得到等效薄透镜焦距；透过率 = 聚焦效率 / 通光孔径内的高斯功率），光焦度和透过率随波长线性插值。各支持指标的误差上限 = 标定组上的最大偏差 + 外部数值分散（RCWA 级次 101/201、传播窗口 1024/2048 采样）。为确定视场角有效域，第 3 步在 OpenSci 中以各标定角度运行模型，把引擎焦点与外部焦点比较；不超出误差上限所能达到的最大角度作为 `max_field_angle_deg`。已验证的最大入射光束半径（30 µm）作为 `max_beam_radius_mm`；`LINEAR_X` 为已验证偏振；证据中记录工具版本和单元库的 SHA-256。结果为 `metalens_model.json`。
+3. **模型**：每个表格波长一行（由高斯聚焦公式得到等效薄透镜焦距；透过率 = 聚焦效率 / 通光孔径内的高斯功率），光焦度和透过率随波长线性插值。各支持指标的误差上限 = 标定组上的最大偏差 + 标定情形的外部数值分散（RCWA 级次 101/201、传播网格 1024/2048 采样，来自收敛命令）。为确定视场角有效域，第 3 步在 OpenSci 中以各标定角度运行模型，把引擎焦点与外部焦点比较；不超出误差上限所能达到的最大角度作为 `max_field_angle_deg`。已验证的最大入射光束半径（30 µm）作为 `max_beam_radius_mm`；`LINEAR_X` 为已验证偏振；证据中记录工具版本和单元库的 SHA-256。结果为 `metalens_model.json`。
 4. **OpenSci 检查**：在无目录 Project 中声明该模型。引擎必须复现模型自身的薄透镜预测，在测试组上保持在声明误差内，并拒绝各反例。标定组的偏差只作为包络报告：它们决定了误差上限，因此不能用来检验上限。
 
-验证运行结果（外部数值分散：焦点位置 0.50 %，光斑半径 0.71 %，效率 0.015）：
+在 PyPI 0.8.0 wheel 上的验证运行结果（外部数值分散：焦点位置 0.50 %，光斑半径 0.71 %，效率 0.015）：
 
 | 量 | 标定组（决定上限） | 测试组（检验上限） | 模型声明误差 |
 | --- | --- | --- | --- |

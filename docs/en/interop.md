@@ -30,8 +30,11 @@ Prompts for your own agent: [English](interop-prompts.md) · [简体中文](../z
 
 ## Before you start
 
-Use one fresh virtual environment per topic (Python 3.11 or newer; the examples were
-verified with Python 3.12) and run the commands from the repository root:
+The external-tool environments need Python 3.12 or newer, because the pinned numpy
+2.5.4 and scipy 1.18.1 require it: 3.12 to 3.14 for the quantum topic, 3.12 for the
+separate Diffractio environment. The examples were verified with Python 3.12.14; the
+core examples of this repository run on Python 3.11 or newer. Use one fresh virtual
+environment per topic and run the commands from the repository root:
 
 ```bash
 python -m venv .venv-optimization
@@ -196,10 +199,20 @@ externally and turned into an OpenSci `TABULATED_THIN_LENS` model:
 
 ```bash
 python examples/interop/metasurface/step1_unit_cells.py --out run-interop-metasurface
+python examples/interop/metasurface/step1_unit_cells.py --out run-interop-metasurface --nG 201 --wavelengths-nm 490 515 532 545 580
 python examples/interop/metasurface/step2_focusing.py run-interop-metasurface
+python examples/interop/metasurface/step2_focusing.py run-interop-metasurface --nG 201
+python examples/interop/metasurface/step2_focusing.py run-interop-metasurface --samples 2048 --wavelengths-nm 490 515 532 545 580
 python examples/interop/metasurface/step3_fit_model.py run-interop-metasurface
 python examples/interop/metasurface/step4_engine_check.py run-interop-metasurface
 ```
+
+The second step-1 command and the last two step-2 commands compute the convergence
+tables: 201 instead of 101 RCWA orders, and a 2048-sample (666 µm) instead of a
+1024-sample (333 µm) propagation grid, at five wavelengths across the band plus the
+field-angle and beam-size cases. Step 3 takes the external numerical spread from these
+tables and stops with `CONVERGENCE_DATA_MISSING` (exit 4) when either kind is missing,
+because bounds without the spread would understate the reference's own uncertainty.
 
 The external results are split into three sets that play different roles:
 
@@ -222,10 +235,10 @@ The external results are split into three sets that play different roles:
    Gaussian focusing law; transmittance = focusing efficiency / Gaussian power inside the
    clear aperture), optical power and transmittance interpolated linearly in wavelength.
    Each supported metric's error bound is the largest deviation over the calibration set
-   plus the external numerical spread (RCWA orders 101/201, propagation windows
-   1024/2048 samples). For the field-angle domain, step 3 runs the model in OpenSci at
-   each calibration angle and compares the Engine's focus with the external focus; the
-   largest angle reached without leaving the bounds becomes `max_field_angle_deg`. The
+   plus the external numerical spread of the calibration cases (RCWA orders 101/201,
+   propagation grids of 1024/2048 samples, from the convergence commands). For the
+   field-angle domain, step 3 runs the model in OpenSci at each calibration angle and
+   compares the Engine's focus with the external focus; the largest angle reached without leaving the bounds becomes `max_field_angle_deg`. The
    largest validated input beam radius (30 µm) becomes `max_beam_radius_mm`; `LINEAR_X`
    is the validated polarization;
    tool versions and the SHA-256 of the unit-cell library are the evidence. The result
@@ -235,8 +248,8 @@ The external results are split into three sets that play different roles:
    test set, and refuse the counterexamples. The calibration set's deviations are
    reported as an envelope only: they set the bounds, so they cannot test them.
 
-Results of the validated run (external spread: 0.50 % in focus position, 0.71 % in
-spot radius, 0.015 in efficiency):
+Results of the validated run on the PyPI 0.8.0 wheel (external spread: 0.50 % in focus
+position, 0.71 % in spot radius, 0.015 in efficiency):
 
 | Quantity | Calibration set (sets the bound) | Test set (checks it) | Stated model error |
 | --- | --- | --- | --- |

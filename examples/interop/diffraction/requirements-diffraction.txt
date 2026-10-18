@@ -1,5 +1,6 @@
 # Diffraction example (OpenSci side and external side in one environment); requires opensci-engine 0.8.0 or newer.
-# Versions verified with Python 3.12.14 (see docs/interop-validation.md).
+# Needs Python 3.12 or newer (numpy 2.5.4 and scipy 1.18.1 require it); versions verified with Python 3.12.14
+# (see docs/interop-validation.md).
 opensci-engine>=0.8.0
 numpy==2.5.4
 scipy==1.18.1
