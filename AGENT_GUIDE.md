@@ -10,18 +10,17 @@ human walkthrough, select [English](docs/en/README.md) or
 
 Run commands from the repository root in an activated Python 3.11+ virtual
 environment. Use the [installation guide](docs/en/installation.md) only if setup
-is needed. The verified engine baseline is **0.6.1**, shared with both READMEs;
-[validation evidence](docs/result-summary-validation.md) records the environment
-and catalog used. To reproduce it:
+is needed. The engine baseline is **0.8.0**, shared with both READMEs. To
+install it:
 
 ```bash
-python -m pip install "opensci-engine[protected]==0.6.1"
+python -m pip install "opensci-engine[protected]==0.8.0"
 python -c "from importlib.metadata import version; print(version('opensci-engine'))"
 python -m opensci_engine doctor
 ```
 
 The `protected` extra supports hardware previews; optical simulation alone needs
-only `opensci-engine==0.6.1`. A newer installed version is not automatically a
+only `opensci-engine==0.8.0`. A newer installed version is not automatically a
 verified baseline. Examples follow released engine APIs; implement engine changes
 in `opensci`, then update this repository against the published package.
 
@@ -47,13 +46,12 @@ its catalog release. On a download failure, check connectivity and the catalog
 guide; use the ideal-lens route for an independent installation check. Generic
 sweeps are not yet delivered; do not invent commands for them.
 
-## External scientific tools (requires opensci-engine 0.8.0)
+## External scientific tools
 
-These examples need **opensci-engine 0.8.0** or newer, not the 0.6.1 baseline above;
-scripts that run the Engine stop with a JSON error (exit 4) on an older engine. Install
-one topic's `requirements-<topic>.txt` into its own fresh virtual environment (it starts
-with `opensci-engine>=0.8.0`; with a local 0.8.0 wheel or source tree, install that
-first), then read the matching section of the [external tools guide](docs/en/interop.md):
+Scripts that run the Engine stop with a JSON error (exit 4) on an engine older than
+0.8.0. Install one topic's `requirements-<topic>.txt` into its own fresh virtual
+environment (it installs `opensci-engine>=0.8.0` and the pinned tool versions), then
+read the matching section of the [external tools guide](docs/en/interop.md):
 
 | Task | Entry point | Independent check |
 | --- | --- | --- |

@@ -2,7 +2,7 @@
 
 Evidence for the four examples in [examples/interop](../examples/interop/) and the
 [external tools guide](en/interop.md). These examples require **opensci-engine 0.8.0**
-or newer; the 0.6.1 baseline of the other examples is unchanged.
+or newer.
 
 Recorded on 2026-10-15 with opensci-engine 0.8.0, engine build
 `0.8.0+444e44652013a822`. Every engine-side number below comes from that build.

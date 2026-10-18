@@ -11,9 +11,9 @@ deviations.
 
 **These examples require opensci-engine 0.8.0 or newer.** They use the linear optical
 network with per-path group delays, native components and the `TABULATED_THIN_LENS`
-model kind; the guides for the 0.6.1 package do not cover them. The scripts that run
-the Engine check the installed version and stop with a clear message on an older engine;
-the external-side scripts read only exported files and do not import the Engine.
+model kind. The scripts that run the Engine check the installed version and stop with a
+clear message on an older engine; the external-side scripts read only exported files and
+do not import the Engine.
 
 | Topic | OpenSci provides | External tool computes | Example |
 | --- | --- | --- | --- |
@@ -39,11 +39,9 @@ python -m venv .venv-optimization
 ```
 
 On Windows use `.venv-optimization\Scripts\python`. Each requirements file starts with
-`opensci-engine>=0.8.0`; pip resolves it only where opensci-engine 0.8.0 is available
-from your package index. With an engine wheel or source tree of 0.8.0 that you already
-have, install it first (`python -m pip install <path to the wheel or source tree>`) and
-then the requirements file. The files pin the verified versions of the third-party
-packages, which are never dependencies of `opensci-engine` itself.
+`opensci-engine>=0.8.0`, which pip installs from PyPI. The files pin the verified
+versions of the third-party packages, which are never dependencies of `opensci-engine`
+itself.
 
 Every script prints one JSON summary on stdout. Its `outcome` compares OpenSci with an
 external tool or an independent reference, and is not an OpenSci run status:

@@ -87,10 +87,9 @@ print(results.power_budget())
 | 结果、可视化与导出 | [阅读](docs/zh-CN/results.md) | [Read](docs/en/results.md) |
 | 测量数据预处理、拟合与参考归一化 | [阅读](docs/zh-CN/measurements.md) | [Read](docs/en/measurements.md) |
 | 从设计到硬件 | [阅读](docs/zh-CN/hardware.md) | [Read](docs/en/hardware.md) |
-| 外部科学工具联用（需要 0.8.0） | [阅读](docs/zh-CN/interop.md) | [Read](docs/en/interop.md) |
+| 外部科学工具联用 | [阅读](docs/zh-CN/interop.md) | [Read](docs/en/interop.md) |
 
-本文档和示例对应已发布的 **0.6.1** 版本。其他软件包版本见 [PyPI 发布记录](https://pypi.org/project/opensci-engine/#history)。
-外部工具联用示例（优化、衍射、量子光子学、超表面元件）需要 **opensci-engine 0.8.0** 或更高版本。
+本文档和示例（包括优化、衍射、量子光子学、超表面元件等外部工具联用示例）对应已发布的 **0.8.0** 版本。其他软件包版本见 [PyPI 发布记录](https://pypi.org/project/opensci-engine/#history)。
 
 ## 参与项目
 
