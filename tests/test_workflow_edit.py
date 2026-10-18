@@ -114,7 +114,7 @@ class EditOpTests(unittest.TestCase):
         self.assertEqual(fields["source_model.wavelength_nm"]["after"], 532.0)
         self.assertEqual(record["normalized_ops"][4]["changes"]["maximum"], 0.015)
         self.assertEqual(record["ops"][4]["changes"]["maximum"], {"value": 15, "unit": "um"})
-        self.assertEqual(record["ops_digest"], wc.canonical_digest(record["normalized_ops"]))
+        self.assertEqual(record["ops_digest"], wc.canonical_digest(wc.canonical_numbers(record["normalized_ops"])))
         self.assertNotEqual(record["base"]["project_hash"], record["result"]["project_hash"])
         self.assertEqual(record["result"]["project_hash"], wc.check(project)["project_hash"])
 

@@ -92,6 +92,18 @@ class ClassificationTests(unittest.TestCase):
                     output = json.dumps({"status": "ERROR", "error": {"code": code, "message": "x"}}, indent=2)
                     self.assertEqual(alignment.catalog_failure_category(output), expected)
 
+    def test_refused_queries_and_unsupported_models_are_package_failures(self):
+        # A changed query vocabulary or a model kind the engine no longer supports is an engine change.
+        for code in ("CATALOG_QUERY_INVALID", "SIMULATION_MODEL_UNSUPPORTED"):
+            with self.subTest(code=code):
+                output = json.dumps({"error": {"code": code, "message": "x"}})
+                self.assertEqual(alignment.catalog_failure_category(output), "package_api")
+                self.assertEqual(alignment.catalog_failure_category(
+                    "CatalogError: " + code + ": refused", transport=True), "package_api")
+        both = json.dumps({"error": {"code": "CATALOG_NOT_AVAILABLE", "problems": [
+            {"code": "CATALOG_QUERY_INVALID"}]}})
+        self.assertEqual(alignment.catalog_failure_category(both), "catalog_network")
+
     def test_non_json_failures_use_only_explicit_signals(self):
         cases = (
             ("Traceback (most recent call last):\nopensci_engine.catalog.errors.CatalogError: "
@@ -215,6 +227,33 @@ class CheckDefinitionTests(unittest.TestCase):
         self.assertEqual(sorted(default), sorted(check["name"] for check in default_checks()))
         self.assertTrue(all(check["optional"] for check in definitions["checks"] if check["requirements"]))
         self.assertEqual(alignment.select_checks(definitions["checks"], ["all"]), set(names))
+
+    def test_catalog_helper_flow_and_catalog_tests_run_by_default(self):
+        definitions = alignment.load_checks(ROOT)
+        by_name = {check["name"]: check for check in definitions["checks"]}
+        default = alignment.select_checks(definitions["checks"], [])
+        flow = ("catalog-candidates", "spec-be-base", "spec-be-swap", "spec-be-sweep", "spec-be-move",
+                "spec-be-compare", "spec-be-plot", "spec-be-report", "catalog-tests")
+        for name in flow:
+            with self.subTest(name=name):
+                self.assertIn(name, default)
+                self.assertTrue(by_name[name]["needs_catalog"])
+        tests = by_name["catalog-tests"]
+        self.assertEqual(tests["env"], {"OPENSCI_EXAMPLES_REQUIRE_CATALOG": "1"})
+        for module in tests["argv"][4:]:  # each named test class exists
+            path, cls = module.rsplit(".", 1)
+            self.assertIn(f"class {cls}(", (ROOT / (path.replace(".", "/") + ".py")).read_text(encoding="utf-8"))
+
+    def test_required_catalog_fails_instead_of_skipping(self):
+        from tests import workflow_fixtures
+
+        with patch.dict(alignment.os.environ, {"OPENSCI_EXAMPLES_REQUIRE_CATALOG": "1"}), \
+                patch("opensci_engine.local.json_api.catalog_status", return_value={"available": False}):
+            with self.assertRaises(RuntimeError):
+                workflow_fixtures.catalog_available()
+        with patch.dict(alignment.os.environ, {"OPENSCI_EXAMPLES_REQUIRE_CATALOG": ""}), \
+                patch("opensci_engine.local.json_api.catalog_status", return_value={"available": False}):
+            self.assertFalse(workflow_fixtures.catalog_available())
 
     def test_defaults_and_normalization(self):
         definitions = self.load([{"name": "workflow", "argv": ["{python}", "examples/w.py", "--out", "{runs}/w"],
