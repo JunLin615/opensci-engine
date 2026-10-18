@@ -1,0 +1,143 @@
+{
+  "schema_version": 1,
+  "default_requirements": [
+    "requirements-examples.txt"
+  ],
+  "checks": [
+    {
+      "name": "offline-tests",
+      "description": "Offline unittest discovery",
+      "argv": ["{python}", "-m", "unittest", "discover", "-s", "tests", "-v"],
+      "timeout": 600
+    },
+    {
+      "name": "ideal-pass",
+      "description": "Catalog-free ideal lens; target met",
+      "argv": ["{python}", "examples/ideal_lens_focus.py", "--out", "{runs}/ideal-pass"],
+      "expected_status": "PASS"
+    },
+    {
+      "name": "ideal-unmet-target",
+      "description": "Catalog-free ideal lens; strict bound must report FAIL with exit 1",
+      "argv": ["{python}", "examples/ideal_lens_focus.py", "--out", "{runs}/ideal-fail", "--maximum-radius-mm", "0.001"],
+      "expected_exit": 1,
+      "expected_status": "FAIL"
+    },
+    {
+      "name": "ideal-invalid-input",
+      "description": "Invalid bound must exit 4 with a JSON error on stderr and empty stdout",
+      "argv": ["{python}", "examples/ideal_lens_focus.py", "--maximum-radius-mm", "nan"],
+      "expected_exit": 4,
+      "json_error": true
+    },
+    {
+      "name": "beam-summary",
+      "description": "Catalog beam expander and saved-result summary comparison",
+      "argv": ["{python}", "-m", "tests.check_beam_summary", "--out", "{runs}/beam"],
+      "needs_catalog": true,
+      "expected_status": "PASS"
+    },
+    {
+      "name": "saved-run-summary",
+      "description": "Summarize the saved beam-expander run without simulating",
+      "argv": ["{python}", "examples/result_summary.py", "{runs}/beam"],
+      "needs": ["beam-summary"],
+      "expected_status": "PASS"
+    },
+    {
+      "name": "interop-optimization",
+      "description": "SciPy, Optuna and SALib loop over a catalog-free Project",
+      "argv": ["{python}", "examples/interop/optimization/optimize_expander.py", "--out", "{runs}/interop-optimization"],
+      "requirements": "examples/interop/optimization/requirements-optimization.txt",
+      "optional": true,
+      "status_field": "outcome",
+      "expected_status": "WITHIN_TOLERANCE",
+      "timeout": 1800
+    },
+    {
+      "name": "interop-diffraction-handoff",
+      "description": "Engine transverse-plane handoffs for three stop radii",
+      "argv": ["{python}", "examples/interop/diffraction/opensci_handoff.py", "--out", "{runs}/interop-diffraction"],
+      "requirements": "examples/interop/diffraction/requirements-diffraction.txt",
+      "optional": true,
+      "status_field": "outcome",
+      "expected_status": "COMPLETED",
+      "timeout": 900
+    },
+    {
+      "name": "interop-diffraction-external",
+      "description": "LightPipes, prysm and POPPY propagation of the handoffs",
+      "argv": ["{python}", "examples/interop/diffraction/external_focus.py", "{runs}/interop-diffraction"],
+      "requirements": "examples/interop/diffraction/requirements-diffraction.txt",
+      "needs": ["interop-diffraction-handoff"],
+      "optional": true,
+      "status_field": "outcome",
+      "expected_status": "WITHIN_TOLERANCE",
+      "timeout": 1800
+    },
+    {
+      "name": "interop-quantum-layouts",
+      "description": "Catalog-free layouts exported as linear optical networks",
+      "argv": ["{python}", "examples/interop/quantum/build_layouts.py", "--out", "{runs}/interop-quantum"],
+      "requirements": "examples/interop/quantum/requirements-quantum.txt",
+      "optional": true,
+      "status_field": "outcome",
+      "expected_status": "COMPLETED",
+      "timeout": 900
+    },
+    {
+      "name": "interop-quantum-simulation",
+      "description": "Perceval and Piquasso on the exported networks",
+      "argv": ["{python}", "examples/interop/quantum/run_quantum.py", "{runs}/interop-quantum", "--inputs", "examples/interop/quantum/quantum_inputs.json"],
+      "requirements": "examples/interop/quantum/requirements-quantum.txt",
+      "needs": ["interop-quantum-layouts"],
+      "optional": true,
+      "status_field": "outcome",
+      "expected_status": "WITHIN_TOLERANCE",
+      "timeout": 900
+    },
+    {
+      "name": "interop-metasurface-unit-cells",
+      "description": "grcwa unit-cell library",
+      "argv": ["{python}", "examples/interop/metasurface/step1_unit_cells.py", "--out", "{runs}/interop-metasurface"],
+      "requirements": "examples/interop/metasurface/requirements-metasurface.txt",
+      "optional": true,
+      "status_field": "outcome",
+      "expected_status": "COMPLETED",
+      "timeout": 1800
+    },
+    {
+      "name": "interop-metasurface-focusing",
+      "description": "Angular-spectrum focusing of the metalens",
+      "argv": ["{python}", "examples/interop/metasurface/step2_focusing.py", "{runs}/interop-metasurface"],
+      "requirements": "examples/interop/metasurface/requirements-metasurface.txt",
+      "needs": ["interop-metasurface-unit-cells"],
+      "optional": true,
+      "status_field": "outcome",
+      "expected_status": "COMPLETED",
+      "timeout": 1800
+    },
+    {
+      "name": "interop-metasurface-model",
+      "description": "Fit the tabulated metalens model",
+      "argv": ["{python}", "examples/interop/metasurface/step3_fit_model.py", "{runs}/interop-metasurface"],
+      "requirements": "examples/interop/metasurface/requirements-metasurface.txt",
+      "needs": ["interop-metasurface-focusing"],
+      "optional": true,
+      "status_field": "outcome",
+      "expected_status": "COMPLETED",
+      "timeout": 900
+    },
+    {
+      "name": "interop-metasurface-engine-check",
+      "description": "Engine run of the fitted model against the external focus tables",
+      "argv": ["{python}", "examples/interop/metasurface/step4_engine_check.py", "{runs}/interop-metasurface"],
+      "requirements": "examples/interop/metasurface/requirements-metasurface.txt",
+      "needs": ["interop-metasurface-model"],
+      "optional": true,
+      "status_field": "outcome",
+      "expected_status": "WITHIN_TOLERANCE",
+      "timeout": 900
+    }
+  ]
+}
