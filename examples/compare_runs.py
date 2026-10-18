@@ -21,7 +21,8 @@ What is compared, by ID:
   are identical (equal project hashes), or that the project hashes differ although no field does;
 * outcome class per run (ERROR, OUT_OF_MODEL, UNKNOWN, FAIL, PASS), decided by the study's selected targets for
   study samples and by all targets for run directories (--targets overrides both; an id in no run is refused),
-  with its model-scope issues, warnings and target issue codes;
+  with its model-scope issues, the codes of issues whose status is OUT_OF_MODEL_SCOPE (out_of_model_issues; either
+  list makes the run OUT_OF_MODEL), warnings and target issue codes;
 * freshness, when --project is given: CURRENT or HISTORICAL (reasons PROJECT_CHANGED, ENGINE_CHANGED,
   RUN_UNVERIFIED) for every run; the outcome of a historical run is labelled e.g. "HISTORICAL PASS".
 
@@ -131,8 +132,16 @@ def project_inputs(project):
     return out
 
 
-def _key_unit(key):
-    return wc.field_unit(key.split(".")[-1])
+TARGET_VALUE_FIELDS = ("minimum", "maximum", "target_value", "tolerance_abs")
+
+
+def _key_unit(key, entries=()):
+    """Unit of an input key: the field-name suffix, or for target bounds the target's own unit."""
+    head, _, field = key.rpartition(".")
+    if head.startswith("target:") and field in TARGET_VALUE_FIELDS:
+        units = {e["inputs"].get(f"{head}.unit") for e in entries} - {None}
+        return units.pop() if len(units) == 1 else None
+    return wc.field_unit(field)
 
 
 def load_entry(label, run_dir, record, selected=None):
@@ -140,7 +149,7 @@ def load_entry(label, run_dir, record, selected=None):
     entry = {"label": label, "run_dir": None if run_dir is None else Path(run_dir).as_posix()}
     if run_dir is None:
         entry.update({"outcome": "ERROR", "status": None, "targets": [], "observations": {}, "inputs": {},
-                      "model_scope_issues": [], "warnings": [], "identity": (record or {}).get("identity") or {},
+                      "model_scope_issues": [], "out_of_model_issues": [], "warnings": [], "identity": (record or {}).get("identity") or {},
                       "error": (record or {}).get("error") or {"code": "RUN_MISSING"}, "power_budget": None})
         return entry
     from opensci_engine.results import load_run
@@ -148,7 +157,8 @@ def load_entry(label, run_dir, record, selected=None):
     summary, fields = wc.read_saved_run(run_dir, selected)
     results = load_run(run_dir, verify=False)
     entry.update({"outcome": fields["outcome"], "status": fields["status"], "targets": fields["targets"],
-                  "model_scope_issues": fields["model_scope_issues"], "warnings": fields["warnings"],
+                  "model_scope_issues": fields["model_scope_issues"],
+                  "out_of_model_issues": fields["out_of_model_issues"], "warnings": fields["warnings"],
                   "identity": fields["identity"], "power_budget": summary.get("power_budget"),
                   "observations": {m["observation_id"]: {"total_power_W": m["total_power_W"],
                                                          "arrival_count": m["arrival_count"], "status": m["status"]}
@@ -227,7 +237,7 @@ def compare(paths, *, labels=None, reference=None, project=None, targets=None):
         values = {e["label"]: e["inputs"].get(key, "<missing>" if e["run_dir"] else None) for e in entries}
         present = {wc.canonical_json(e["inputs"].get(key, "<missing>")) for e in compared}
         if len(present) > 1:
-            differences.append({"input": key, "unit": _key_unit(key), "values": values})
+            differences.append({"input": key, "unit": _key_unit(key, compared), "values": values})
     hashes = {e["label"]: e["identity"].get("project_hash") for e in compared}
     equal = len(set(hashes.values())) <= 1
     if differences:
@@ -242,6 +252,7 @@ def compare(paths, *, labels=None, reference=None, project=None, targets=None):
     for entry in entries:
         item = {"label": entry["label"], "outcome": entry["outcome"], "status": entry["status"],
                 "model_scope_issues": sorted({i.get("code") for i in entry["model_scope_issues"]}),
+                "out_of_model_issues": sorted({i.get("code") for i in entry.get("out_of_model_issues") or []}),
                 "warnings": list(entry.get("warnings") or []),
                 "target_issue_codes": {t["id"]: list(t["issue_codes"]) for t in entry["targets"]
                                        if t.get("issue_codes")},
@@ -298,7 +309,9 @@ def compact(document, paths=None):
     return {
         "status": document["status"], "reference": document["reference"], "run_count": len(runs),
         "runs": [{key: r.get(key) for key in ("label", "outcome", "outcome_label", "status", "model_scope_issues")
-                  if r.get(key) is not None} | ({"warnings": r["warnings"]} if r.get("warnings") else {})
+                  if r.get(key) is not None}
+                 | ({"out_of_model_issues": r["out_of_model_issues"]} if r.get("out_of_model_issues") else {})
+                 | ({"warnings": r["warnings"]} if r.get("warnings") else {})
                  | ({"freshness": r["freshness"]["freshness"], "reasons": r["freshness"]["reasons"]}
                     if r.get("freshness") else {})
                  for r in shown],
