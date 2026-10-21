@@ -64,7 +64,7 @@ python examples/edit_project.py run-example/project.json --describe --ids SRC,L2
 ```
 
 The first prints every component, observation and target with `id`, `kind`, `role`,
-`binding` and position (686 bytes for the catalog beam expander). `--ids` adds, per
+`binding` and position (a short index). `--ids` adds, per
 object, the current values with units, pose with `local_axes` in design axes, retained
 DOFs, the allowed ops, target bounds with `bounds_unit`, and the model and catalog
 wavelength bands, plus one `conventions` block (transform frames and pivots, pose

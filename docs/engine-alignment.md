@@ -10,10 +10,9 @@ Two files in the repository root drive the alignment checks:
 Current entry and installation documents state the baseline version and reference
 `engine-baseline.json`; historical validation records keep their original versions.
 
-These checks belong to this customer examples repository. They do not run in the
-engine's development repository, gate engine releases, or require the engine to
-preserve obsolete example interfaces. Examples and helpers follow released engine
-contracts.
+The checks run in this repository against published releases; when a release changes
+an interface, update the affected example here. Examples and helpers follow released
+engine contracts.
 
 ## Run a check
 
@@ -102,10 +101,10 @@ Checks run in list order.
 
 ```json
 {
-  "name": "sweep-expander",
-  "description": "Parameter sweep over the catalog-free expander",
-  "argv": ["{python}", "examples/sweep_parameters.py", "--spec", "examples/specs/sweep_expander.json",
-           "--out", "{runs}/sweep-expander"],
+  "name": "sensitivity-expander",
+  "description": "Sensitivity of the catalog-free expander",
+  "argv": ["{python}", "examples/sensitivity_analysis.py", "examples/specs/sensitivity_expander.json",
+           "--out", "{runs}/sensitivity-expander", "--no-plots", "--no-report"],
   "expected_exit": 0,
   "expected_status": "COMPLETED",
   "timeout": 600

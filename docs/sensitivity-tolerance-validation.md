@@ -42,8 +42,8 @@ Recorded on 2026-10-18 with Windows 10 (AMD64), CPython 3.11.16, released PyPI p
 `opensci-engine==0.8.0` (build `0.8.0+94f6dc70bb40a2ed`), numpy 2.4.6, matplotlib 3.10.7. The active catalog
 release was `2026-10-15.1`; it is recorded in every study's identity and not used by these designs.
 
-All 187 offline tests passed (164 existing, 22 in `test_sensitivity_tolerance.py`, 1 in
-`test_plot_bars_layout.py`) in 81 s; the 23 new tests take 17 s.
+All 187 offline tests passed in 81 s; the 23 sensitivity, tolerance and plot-layout tests
+(`test_sensitivity_tolerance.py`, `test_plot_bars_layout.py`) take 17 s.
 
 ## Sensitivity: derivatives against closed forms
 

@@ -96,7 +96,8 @@ python examples/plot_results.py sweep run-tutorial/l2-sweep --y target:expanded_
 Five of the twelve samples pass (pass fraction 5/12); the best is a shift of +0.54 mm
 with 1.99645 mm. Each sample keeps its own project and run under
 `run-tutorial/l2-sweep/samples/`, and `table.csv` lists parameter values with units,
-outcome, every target's value and status, identities and run paths. The plot
+outcome, every target's value and status, identities (hashes, engine build and catalog
+release) and run paths. The plot
 `run-tutorial/l2-sweep/plots/sweep_target_expanded_waist.png` (and `.svg`) shows every
 sample with its outcome marker and the target band.
 
