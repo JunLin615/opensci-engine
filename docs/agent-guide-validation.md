@@ -15,12 +15,17 @@ tokenizer method below:
 | --- | ---: | ---: | --- |
 | `AGENT_GUIDE.md` | 2,269 | 9,182 | `4755192b4e453b07a5cfb51639cc2e6835ec8dbcae55e9c3dc6ee43fa951f1b4` |
 | `docs/agent-recipes.md` | 1,284 | 5,614 | `a04688548a824551b5664c1d0c9ccbad071c3e7a9784c0233b8e4fe6a44f6764` |
-| `docs/workflow-recipes.md` | 5,011 | 18,343 | `de7785f204c5f8848617e72bc76a970786844ece0c4c655387a9c07515cffe93` |
+| `docs/workflow-recipes.md` | 5,038 | 18,453 | `8d76cf3233955c10e24e83976199dbeee99055227a692a332d47e27e9eb4848d` |
 
-After the 2026-10-19 corrections (complete input comparison, spec column checks, outcome rule
-for issues with status `OUT_OF_MODEL_SCOPE`): `AGENT_GUIDE.md` 2,317 tokens, 9,370 bytes
-(`baac621e123f064a`), `docs/workflow-recipes.md` 5,736 tokens, 21,236 bytes
-(`b93d75d36ba44429`). The trials below used the 2026-10-18 revision.
+The trials below used this revision. The current revision, after the 2026-10-19 corrections
+(complete input comparison, spec column checks, outcome rule for issues with status
+`OUT_OF_MODEL_SCOPE`) and the 2026-10-21 wording corrections, measures:
+
+| File | Tokens | UTF-8 bytes | SHA-256 |
+| --- | ---: | ---: | --- |
+| `AGENT_GUIDE.md` | 2,336 | 9,417 | `6d49d53a08c10e5ba5ed0d44d3bf01b1a7cce7f93cda91f2617370e9d9bbe222` |
+| `docs/agent-recipes.md` | 1,284 | 5,614 | `a04688548a824551b5664c1d0c9ccbad071c3e7a9784c0233b8e4fe6a44f6764` |
+| `docs/workflow-recipes.md` | 5,731 | 21,210 | `04517aa8bae405a54fd4ab190915d6e3cb19f250d488969ff098fdf1f97ca3bd` |
 
 Environment: Windows 10 (AMD64), CPython 3.11.16, published PyPI `opensci-engine[protected]==0.8.0`
 (build `0.8.0+94f6dc70bb40a2ed`), matplotlib 3.10.7, catalog release `2026-10-15.1` imported from
@@ -59,8 +64,10 @@ twice with the previous revision (the 0.8.0-aligned guide and result summary, wi
 workflow scripts): an edit with an evaluation of every target, a 19-point waveplate scan, a
 read of one saved result, a wavelength outside a waveplate's band, the currency of a saved
 PASS after an edit, a mirror tilt that an earlier attempt may already have applied (two
-variants), a two-lens move, and a tolerance study started from the website's agent
-instructions. Starting projects used parameters that appear in no example. The agents used
+variants), a two-lens move, and a tolerance study started from a local text copy of the
+Portal's Agent guidance: for the previous revision the v0.9.3 text, which does not name this
+repository, without a checkout of it; for this revision the v0.9.4 text, which links this
+repository, with a checkout of it. Starting projects used parameters that appear in no example. The agents used
 the same model, prompt, PyPI 0.8.0 environment and catalog `2026-10-15.1`; their answers
 were graded against values computed directly with the engine.
 
@@ -68,7 +75,7 @@ were graded against values computed directly with the engine.
 | --- | ---: | ---: |
 | Answers agreeing with the reference in every field (strict grading) | 15 | 16 |
 | Out-of-band waveplate run identified as out of model scope | 0 of 2 | 2 of 2 |
-| Tolerance study found the public workflow from the website instructions | 0 of 2 | 2 of 2 |
+| Tolerance study found the public workflow from the Portal's Agent guidance | 0 of 2 | 2 of 2 |
 | Agent tokens, total | 1,573,437 | 1,555,980 |
 | Tool calls, total | 216 | 208 |
 

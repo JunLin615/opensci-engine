@@ -102,7 +102,7 @@ download public data on first use; on a download failure check connectivity and 
 ## External scientific tools
 
 Install one topic's `requirements-<topic>.txt` into its own fresh Python 3.12+ virtual
-environment, then read its section of the [external tools guide](docs/en/interop.md):
+environment (3.12–3.14 for quantum, 3.12 for Diffractio), then read its section of the [external tools guide](docs/en/interop.md):
 
 | Task | Entry point | Independent check |
 | --- | --- | --- |

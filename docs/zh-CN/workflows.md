@@ -2,8 +2,8 @@
 
 [用户指南](README.md) · [English](../en/workflows.md) · 简体中文
 
-`examples/` 中的工作流程脚本把一个设计从首次运行带到一份有据可查的研究：按标识修改元件和
-目标、扫描参数、比较已保存的运行、绘图并生成报告，以及估计灵敏度和公差。每一步都会保存
+`examples/` 中的工作流程脚本帮助你从首次运行出发，完成一项有完整记录的设计研究：按标识修改
+元件和目标、扫描参数、比较已保存的运行、绘图并生成报告，以及估计灵敏度和公差。每一步都会保存
 各自的项目和运行，输出一个紧凑的 JSON 摘要，并把完整数据保存在文件中。三个参数化工作流程
 把同样的步骤用于扩束与聚焦、偏振控制和光路对准。
 
@@ -42,8 +42,8 @@ python examples/catalog_candidates.py --category LENS --form PLANO_CONVEX_LENS -
     --limit 8 --columns optical_sku,focal_length_mm,outer_diameter_mm,working_band_nm
 ```
 
-在 471 片模型适用于 780 nm 的平凸透镜中，有 8 片符合条件：5 片 f = 100 mm，2 片
-f = 100.3 mm 的熔融石英透镜，1 片 f = 100.4 mm。
+在 471 款模型适用于 780 nm 的平凸透镜中，有 8 款符合条件：5 款 f = 100 mm，2 款
+f = 100.3 mm 的熔融石英透镜，1 款 f = 100.4 mm。
 
 [`beam_expander_swap_l2.json`](../../examples/specs/beam_expander_swap_l2.json) 把 L2 换成
 f = 100.3 mm 的熔融石英透镜，并新增目标 `output_beam_radius`：输出平面上的 1/e² 光束半径，
@@ -61,7 +61,7 @@ python examples/edit_project.py run-tutorial/base/project.json --edits examples/
 长度达数米，焦距的微小变化会把光腰移到很远处，并显著改变光腰大小；而平面上的光束半径几乎
 不变。
 
-修改以按标识排列的操作列表表示。数值使用字段本身的单位（`_mm`、`_nm`、`_w`、`_deg`），
+修改写成一组操作，每个操作按标识指定要修改的对象。数值使用字段本身的单位（`_mm`、`_nm`、`_w`、`_deg`），
 也可以自带单位，例如 `{"value": 540, "unit": "um"}`。`transform` 操作在设计坐标系或某个元件
 自身的坐标系中平移或旋转所选对象。重复执行完全相同的命令会报告 `already_applied`，不做任何
 改动。
@@ -85,7 +85,7 @@ python examples/plot_results.py sweep run-tutorial/l2-sweep --y target:expanded_
 
 12 个样本中有 5 个通过（通过比例 5/12）；最佳样本为位移 +0.54 mm，光腰半径 1.99645 mm。每个
 样本在 `run-tutorial/l2-sweep/samples/` 下保存各自的项目和运行，`table.csv` 列出带单位的参数
-值、结果类别、每个目标的数值和判定、标识以及运行路径。图
+值、结果类别、每个目标的数值和判定、身份信息（哈希、引擎构建和目录版本）以及运行路径。图
 `run-tutorial/l2-sweep/plots/sweep_target_expanded_waist.png`（及 `.svg`）用结果类别标记显示
 每个样本，并画出目标范围。
 
@@ -186,7 +186,8 @@ python examples/beam_expansion_focus.py --out run-tutorial/expansion-strict --no
   ±2 % 以内；`spot_radius`：聚焦平面上的半径不超过 0.02 mm；`waist_location`：光腰与该平面的距离
   在 ±0.5 mm 以内。标称值为 1.50112 mm、0.016552 mm、−0.0365 mm，全部 `PASS`。复数 q 参数
   参考计算的偏差小于 6e-14 mm。
-- **研究：** 只有当间距误差绝对值 ≤ 1 mm 且 f3 ≤ 100 mm 时焦斑才通过；1064 nm 时焦斑增大到
+- **研究：** 间距误差研究中，只有间距误差绝对值 ≤ 1 mm 时焦斑通过；f3 研究中，只有 f3 ≤ 100 mm
+  时焦斑通过；1064 nm 时焦斑增大到
   0.02258 mm（`FAIL`）；1300 nm 超出透镜声明的波段，样本为 `OUT_OF_MODEL`；光源光腰 3 mm 时
   带警告 `GAUSSIAN_TRUNCATION` 通过，4 mm 时为 `OUT_OF_MODEL`（`GAUSSIAN_SEVERE_TRUNCATION`）。
 - **未达标示例：** 第二条命令把焦斑上限收紧到 10 µm；0.016552 mm 的焦斑半径不满足，命令退出码

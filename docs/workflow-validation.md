@@ -20,7 +20,7 @@ This record covers:
 Validated on 2026-10-18 with Windows 10 (AMD64), CPython 3.11.16, released PyPI package
 `opensci-engine[protected]==0.8.0` (build `0.8.0+94f6dc70bb40a2ed`), numpy 2.4.6, matplotlib 3.10.7, and catalog
 release `2026-10-15.1` (sha256 `ce974b614b15b857edb6053709eb57136c339e592ef5116402047a5d8cdf5e87`) installed in the
-local store, with `OPENSCI_CATALOG_CHECK_INTERVAL=0`. The private development repository was not imported. This record
+local store, with `OPENSCI_CATALOG_CHECK_INTERVAL=0`. Only the published wheel was installed; no engine source tree was on the import path. This record
 does not change `engine-baseline.json`.
 
 The three workflows and the polarization demonstration use native Engine models only (`catalog_version` null in their
@@ -85,7 +85,7 @@ target values and result hashes.
 studies and checks exit codes, summary fields, the unmet and diagnostic samples, that design inputs change the built
 Project and its results, closed-form agreement within the stated tolerances, report links and artifact hashes, the
 synthetic-measurement variant, the spec files, and the polarization and catalog beam-expander demonstrations. With the
-catalog installed: 25 tests OK in 42 s; with an empty catalog store: 25 OK, 3 skipped (the catalog demonstration).
+catalog installed: 25 tests OK in 42 s; with an empty catalog store: 25 run, 22 OK, 3 skipped (the catalog demonstration).
 The full suite (`python -m unittest discover -s tests`) on 2026-10-19: 282 tests OK in
 121 s with the catalog; 282 run, 7 skipped, all others OK in 135 s with an empty catalog store.
 
@@ -261,7 +261,7 @@ Evaluations per command: expansion 22 (workflow time 9.49 s), polarization 14 (5
 synthetic variant 2 (2.21 s); beam-expander demonstration 15 (base, swap, 12 samples, move); polarization reuse 20
 (design, threshold edit, 18 samples).
 
-These figures describe these examples on this host; they are not a general token or time estimate. Terminal output
+These figures were measured for these examples on this host. Terminal output
 is bounded (at most eight listed samples per study, values to ten significant digits); full-precision values are in
 the files.
 

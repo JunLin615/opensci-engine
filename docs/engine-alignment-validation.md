@@ -27,10 +27,8 @@ digest in the service's catalog manifest; that digest is recorded as
 ### Offline checks
 
 `python -m unittest discover -s tests -v` passed in every runner-created
-environment: 106 tests at commit `49b9932` and 107 at `ea32626` (one added
-`requires_python` test). The first pinned-file run, at commit `40b072d`, failed one
-nested runner test that inherited the run's own `OPENSCI_CATALOG_CHECK_INTERVAL`;
-`49b9932` removes an inherited interval in sync mode. The alignment tests (34 runner, 22 reporting) use fake
+environment (106 tests at `49b9932`, the commit of the results below, and 107 at
+`ea32626`). The alignment tests (34 runner, 22 reporting) use fake
 subprocess and HTTP transports; they cover catalog error classification
 (`CATALOG_SERVICE_ERROR`, `CATALOG_STORE_BUSY` and the other service codes as
 `catalog_network`, release/store/model codes as `catalog_data`, explicit
@@ -96,10 +94,10 @@ python scripts/check_alignment.py --candidate 0.8.0   --catalog-file 2026-10-15.
 On Python 3.11.16 the topic environments could not be built: every requirements
 file pins `numpy==2.5.4`, which requires Python 3.12 or newer, so pip found no
 matching distribution (`install-env-*` failed as `package_api`; the checks were
-skipped with that category). The optional checks now declare `requires_python`
-`"3.12"` and are skipped on 3.11 with that reason (commit `ea32626`).
+skipped with that category). The optional checks declare `requires_python`
+`"3.12"` and are skipped on 3.11 with that reason.
 
-On Python 3.12.14 (commit `ea32626`), each topic environment installed the engine
+On Python 3.12.14, each topic environment installed the engine
 wheel and its pinned tools (numpy 2.5.4, scipy 1.18.1; Optuna 5.0.0, SALib 1.6.0;
 LightPipes 2.1.5, prysm 0.21.1, POPPY 1.2.0; perceval-quandela 1.3.1, piquasso 8.0.1;
 grcwa 0.1.2). The default checks passed as above.
@@ -119,8 +117,9 @@ stated focus-position bound was 0.3 µm (spot radius 7.4 %, power 16 %). The 575
 test case deviates by +0.3155 µm and lies outside it; the Engine reproduced its model
 to 4.4e-16 and every counterexample behaved as expected. The 2026-10-15 interop record
 reports `WITHIN_TOLERANCE` with bounds that include that spread (±1.4 µm) and the same
-+0.315 µm deviation at 575 nm. The documented route therefore does not reproduce the
-recorded outcome; this is an example/documentation finding, not an engine change.
++0.315 µm deviation at 575 nm. The documented route lacked the convergence commands; the
+[external tools guide](en/interop.md) now lists them, and step 3 stops with
+`CONVERGENCE_DATA_MISSING` when their tables are missing.
 
 ### Workflow checks
 
