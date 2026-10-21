@@ -47,8 +47,11 @@ matches it, reports already_applied: true and writes nothing. Any other existing
 current editable values with units and frames, the supported operations, retained DOFs, transform frames and pivots,
 and the model / catalog wavelength bands from public data (advisory: the Engine run decides validity).
 
-Output: one JSON document on stdout. Exit 0 edited / already applied / described; with --run the run status
-(0 PASS/WARNING, 1 FAIL, 2 UNKNOWN, 3 OUT_OF_MODEL_SCOPE); 4 refused edit or invalid input (JSON error on stderr).
+Output: one JSON document on stdout. Exit 0 edited / already applied / described. With --run, status and exit
+follow the run's outcome class: 0 PASS/WARNING, 1 FAIL, 2 UNKNOWN, 3 OUT_OF_MODEL_SCOPE (any model-scope issue or
+any issue whose status is OUT_OF_MODEL_SCOPE, whatever the run status); run.status keeps the Engine's run status,
+and a run the Engine refuses gives RUN_REFUSED (exit 4). Exit 4 also for a refused edit or invalid input (JSON
+error on stderr).
 """
 
 from __future__ import annotations
