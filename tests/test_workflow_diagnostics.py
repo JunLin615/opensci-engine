@@ -2,7 +2,8 @@
 
 Covers: report diagnostics of saved runs, complete input comparison, sweep column validation, study-target
 classification in comparisons, candidate exclusion counts, study overwrite, op argument checks, unit-equivalent edit
-retries, valueless plot markers, impossible truncation, derived-column units and warning flags in compact output.
+retries, valueless plot markers, impossible truncation, derived-column units, warning flags in compact output and
+distinct out-of-model issue entries.
 Catalog-free; run from the repository root: python -m unittest discover -s tests -v
 """
 
@@ -532,6 +533,52 @@ class EngineOutOfModelIssueTests(unittest.TestCase):
     def test_design_outcome_agrees(self):
         result = designs.design_outcome(designs.run_design(tabulated_lens_project([450.0, 530.0])))
         self.assertFalse(result["in_model_scope"])
+
+
+class OutOfModelIssueListTests(unittest.TestCase):
+    """out_of_model_issues holds one entry per distinct code and location; a target row adds an entry only for a code
+    that no run issue reports, and the report counts the fact once per sample."""
+
+    SUMMARY = {
+        "status": "OUT_OF_MODEL_SCOPE", "engine_status": "OUT_OF_MODEL_SCOPE", "model_scope_issues": [],
+        "issues": [
+            {"code": "GAUSSIAN_SEVERE_TRUNCATION", "status": "OUT_OF_MODEL_SCOPE", "location": "surface:L2/lens"},
+            {"code": "GAUSSIAN_SEVERE_TRUNCATION", "status": "OUT_OF_MODEL_SCOPE", "location": "surface:L2/lens"},
+            {"code": "GAUSSIAN_SEVERE_TRUNCATION", "status": "OUT_OF_MODEL_SCOPE", "location": "surface:L3/lens"},
+            {"code": "GAUSSIAN_TRUNCATION", "status": "WARNING", "location": "surface:L1/lens"},
+        ],
+        "targets": [
+            {"id": "waist", "metric": "waist_radius", "value": None, "unit": "mm", "status": "OUT_OF_MODEL_SCOPE",
+             "issue_codes": ["GAUSSIAN_SEVERE_TRUNCATION"]},
+            {"id": "spot", "metric": "spot_radius", "value": None, "unit": "mm", "status": "OUT_OF_MODEL_SCOPE",
+             "issue_codes": ["GAUSSIAN_SEVERE_TRUNCATION", "OBSERVATION_NOT_REACHED", "OBSERVATION_NOT_REACHED"]},
+            {"id": "power", "metric": "power", "value": None, "unit": "W", "status": "OUT_OF_MODEL_SCOPE"},
+            {"id": "ok", "metric": "power", "value": 1.0, "unit": "W", "status": "PASS"},
+        ],
+    }
+
+    def test_entries_are_distinct(self):
+        fields = wc.sample_from_summary(copy.deepcopy(self.SUMMARY))
+        self.assertEqual([(i["code"], i["location"]) for i in fields["out_of_model_issues"]], [
+            ("GAUSSIAN_SEVERE_TRUNCATION", "surface:L2/lens"), ("GAUSSIAN_SEVERE_TRUNCATION", "surface:L3/lens"),
+            ("OBSERVATION_NOT_REACHED", "target spot"), ("OUT_OF_MODEL_SCOPE", "target power")])
+        self.assertEqual(fields["outcome"], "OUT_OF_MODEL")
+        self.assertFalse(fields["in_model_scope"])
+        self.assertEqual(fields["warnings"], ["GAUSSIAN_TRUNCATION"])
+
+    def test_target_rows_alone_still_mark_the_sample(self):
+        summary = copy.deepcopy(self.SUMMARY)
+        summary["issues"] = []
+        fields = wc.sample_from_summary(summary)
+        self.assertEqual([(i["code"], i["location"]) for i in fields["out_of_model_issues"]], [
+            ("GAUSSIAN_SEVERE_TRUNCATION", "target waist"), ("GAUSSIAN_SEVERE_TRUNCATION", "target spot"),
+            ("OBSERVATION_NOT_REACHED", "target spot"), ("OUT_OF_MODEL_SCOPE", "target power")])
+        self.assertEqual(fields["outcome"], "OUT_OF_MODEL")
+
+    def test_report_counts_each_fact_once(self):
+        fields = wc.sample_from_summary(copy.deepcopy(self.SUMMARY))
+        scope = br._diagnostics({"kind": "runs", "runs": [fields]})["model_scope_issues"]
+        self.assertEqual(scope, {"GAUSSIAN_SEVERE_TRUNCATION": 2, "OBSERVATION_NOT_REACHED": 1, "OUT_OF_MODEL_SCOPE": 1})
 
 
 if __name__ == "__main__":
