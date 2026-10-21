@@ -26,17 +26,18 @@ digest in the service's catalog manifest; that digest is recorded as
 
 ### Offline checks
 
-`python -m unittest discover -s tests -v` passed in every runner-created
-environment (106 tests at `49b9932`, the commit of the results below, and 107 at
-`ea32626`). The alignment tests (34 runner, 22 reporting) use fake
-subprocess and HTTP transports; they cover catalog error classification
-(`CATALOG_SERVICE_ERROR`, `CATALOG_STORE_BUSY` and the other service codes as
-`catalog_network`, release/store/model codes as `catalog_data`, explicit
-`CatalogError` and transport tracebacks in non-JSON output), blocking categories on
-skipped rows, the declarative check list and its validation, optional environments,
-`requires_python`, catalog-file digest verification and import, documentation drift
-(version pins, retired host including the badge form, stale catalog release), the
-repository's own baseline/documentation consistency, and unchanged deduplication.
+`python -m unittest discover -s tests -v` passed in every runner-created environment:
+106 tests in the pinned-file runs on Python 3.11.16 and 3.14.7, and 107, including the
+`requires_python` test, in the later fresh-sync and external-tool runs. The alignment
+tests (34 runner, 22 reporting) use fake subprocess and HTTP transports; they cover
+catalog error classification (`CATALOG_SERVICE_ERROR`, `CATALOG_STORE_BUSY` and the
+other service codes as `catalog_network`, release/store/model codes as `catalog_data`,
+explicit `CatalogError` and transport tracebacks in non-JSON output), blocking
+categories on skipped rows, the declarative check list and its validation, optional
+environments, `requires_python`, catalog-file digest verification and import,
+documentation drift (version pins, retired host including the badge form, stale
+catalog release), the repository's own baseline/documentation consistency, and
+unchanged deduplication.
 
 ### Pinned catalog file: complete pass
 
@@ -144,12 +145,11 @@ expected non-zero exits were observed: `workflow-polarization-out-of-model` 3,
 `workflow-budget-refused` 4 with a JSON error. The external-tool checks were not
 selected in this run.
 
-On 2026-10-19 the catalog candidate query and the beam-expander chain (`spec-be-base` to
-`spec-be-report`) became default checks, together with `catalog-tests`, which reruns the
+Default run on 2026-10-19, with the catalog helper flow (`spec-be-base` to `spec-be-report`)
+and `catalog-tests` among the default checks, and `CATALOG_QUERY_INVALID` /
+`SIMULATION_MODEL_UNSUPPORTED` classified `package_api`. `catalog-tests` reruns the
 catalog-dependent test classes after the catalog is prepared and fails instead of skipping
-without a catalog. A refused catalog query (`CATALOG_QUERY_INVALID`) and an unsupported
-model kind (`SIMULATION_MODEL_UNSUPPORTED`) are now `package_api` failures. Default run
-with Python 3.11.16, baseline 0.8.0 from PyPI and catalog file `2026-10-15.1`
+without a catalog. Python 3.11.16, baseline 0.8.0 from PyPI and catalog file `2026-10-15.1`
 (`python scripts/check_alignment.py --catalog-file 2026-10-15.1.json --out run-alignment`):
 **PASS**, all 33 rows, 306 s including the installation. `offline-tests` ran 282 tests
 (7 skipped: the catalog classes); `catalog-tests` ran their 9 tests with none skipped;

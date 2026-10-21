@@ -215,7 +215,7 @@ lists the edit (`minimum` 0.0008 → 0.00085).
 ## Output volume and time
 
 UTF-8 bytes of each command's stdout JSON with one LF terminator, and wall time of the separate process on this host
-(about 2.5 s of each is Python start-up and `import opensci_engine`), measured on 2026-10-19 with the current scripts
+(about 2.5 s of each is Python start-up and `import opensci_engine`), measured on 2026-10-19 with the scripts of this revision
 (edit runs list `out_of_model_issues`, sweeps `samples_with_warnings`, comparisons `inputs_compared`, plots the
 target bounds and samples without a value):
 
