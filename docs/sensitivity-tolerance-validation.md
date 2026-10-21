@@ -74,7 +74,7 @@ within 1e-6 and the 0.1° curvature within 1e-4 of the closed form.
 
 Stdout is one compact JSON document; bytes count UTF-8 with the LF terminator, with the `--out` names of the
 commands above. Wall time is one CLI process (about 2 s of it is the Engine import). Stdout bytes and wall times in
-this record were measured again on 2026-10-19 with the current scripts (tolerance stdout lists
+this record were measured again on 2026-10-19 with the scripts of this revision (tolerance stdout lists
 `samples_with_warnings`); sample outcomes and values are unchanged.
 
 | Spec | Exit | Samples (outcomes) | Stdout bytes | Wall |

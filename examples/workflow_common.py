@@ -20,7 +20,7 @@ What it provides:
   used outside its rows, or a target row --, whatever the run status), ``UNKNOWN`` (no target to evaluate, or a
   selected target has no value or is UNKNOWN), ``FAIL`` (a selected target failed), ``PASS`` (every selected target
   PASS, or WARNING with a value); the issues behind OUT_OF_MODEL are listed in ``model_scope_issues`` and
-  ``out_of_model_issues``;
+  ``out_of_model_issues`` (one entry per distinct code and location);
 * ``freshness``: whether a saved run is CURRENT for a Project (both hashes and the Engine build agree) or HISTORICAL,
   with reasons ``PROJECT_CHANGED``, ``ENGINE_CHANGED``, ``RUN_UNVERIFIED``;
 * sha256 / JSON / CSV writers (LF line endings) and bounded-output helpers.
@@ -465,11 +465,22 @@ def sample_from_summary(summary, selected=None):
             kept["issue_codes"] = list(row["issue_codes"])
         targets.append(kept)
     # issues the Engine reports with status OUT_OF_MODEL_SCOPE but not as model-scope issues (e.g. a tabulated thin
-    # lens outside its rows): a FAIL target makes the run status FAIL, yet the run left a model's validity
-    out_of_model = [i for i in issues if i.get("status") == "OUT_OF_MODEL_SCOPE"]
-    out_of_model += [{"code": code, "status": "OUT_OF_MODEL_SCOPE", "location": f"target {t['id']}"}
-                     for t in targets if t.get("status") == "OUT_OF_MODEL_SCOPE"
-                     for code in (t.get("issue_codes") or ["OUT_OF_MODEL_SCOPE"])]
+    # lens outside its rows): a FAIL target makes the run status FAIL, yet the run left a model's validity.
+    # One entry per distinct code and location; a target row adds an entry only for a code no run issue reports.
+    out_of_model, seen = [], set()
+    for issue in issues:
+        if issue.get("status") == "OUT_OF_MODEL_SCOPE" and (issue.get("code"), issue.get("location")) not in seen:
+            seen.add((issue.get("code"), issue.get("location")))
+            out_of_model.append(issue)
+    issue_codes = {code for code, _ in seen}
+    for t in targets:
+        if t.get("status") != "OUT_OF_MODEL_SCOPE":
+            continue
+        for code in t.get("issue_codes") or ["OUT_OF_MODEL_SCOPE"]:
+            key = (code, f"target {t['id']}")
+            if code not in issue_codes and key not in seen:
+                seen.add(key)
+                out_of_model.append({"code": code, "status": "OUT_OF_MODEL_SCOPE", "location": key[1]})
     status = summary["status"]
     return {
         "outcome": classify(status, scope, targets, selected, out_of_model),

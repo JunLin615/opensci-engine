@@ -79,11 +79,13 @@ were graded against values computed directly with the engine.
 | Agent tokens, total | 1,573,437 | 1,555,980 |
 | Tool calls, total | 216 | 208 |
 
-Scientific values agreed in every graded field of the other tasks in both revisions, and
-every retry task applied the tilt exactly once. The token totals include each agent's fixed
-context and differ by about 1 %; these tasks show no token saving. The gains are in the
-out-of-scope classification, the saved and reproducible studies, and discovery. Durations
-are not compared because up to eight trials shared one host.
+In both revisions the out-of-band waveplate task failed strict grading on its
+`requirements_met` field: the answers said the requirements were not met, while the reference
+for an out-of-model run is "not determined". Scientific values agreed in every graded field of
+the other tasks in both revisions, and every retry task applied the tilt exactly once. The
+token totals include each agent's fixed context and differ by about 1 %; these tasks show no
+token saving. The gains are in the out-of-scope classification, the saved and reproducible
+studies, and discovery. Durations are not compared because up to eight trials shared one host.
 
 The sections that follow are the 2026-10-13 record for engine 0.6.1 and its entry revision.
 
