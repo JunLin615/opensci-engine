@@ -4,12 +4,16 @@ Run from the repository root: python -m tests.check_beam_summary
 Requires the published package and an available (or cached) optical catalog.
 """
 
+import argparse
 import hashlib
 from importlib.metadata import version
 import json
 from pathlib import Path
+import sys
 from unittest.mock import patch
 
+from opensci_engine.catalog import CatalogError
+from opensci_engine.local import LocalRunError
 from opensci_engine.results import load_run
 
 from examples.beam_expander import run_example
@@ -21,8 +25,10 @@ def snapshot(directory):
             for path in directory.iterdir() if path.is_file()}
 
 
-def main():
-    directory = Path("run-summary-check")
+def main(argv=None):
+    parser = argparse.ArgumentParser(description=__doc__)
+    parser.add_argument("--out", type=Path, default=Path("run-summary-check"))
+    directory = parser.parse_args(argv).out
     summary = run_example(directory)
     results = load_run(directory)
     # Reproduce the original example's JSON layout using this exact saved result.
@@ -69,4 +75,9 @@ def main():
 
 
 if __name__ == "__main__":
-    main()
+    try:
+        main()
+    except (CatalogError, LocalRunError) as exc:
+        # Preserve structured catalog/model failures for the alignment report.
+        print(json.dumps(exc.as_dict()), file=sys.stderr)
+        raise SystemExit(4)

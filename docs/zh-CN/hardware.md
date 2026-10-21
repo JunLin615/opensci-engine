@@ -2,7 +2,7 @@
 
 [用户指南](README.md) · [English](../en/hardware.md) · 简体中文
 
-[OpenSci](https://opensci-optic.com/) 将光学设计与元件采购、装配连接起来。先使用引擎在本地完成光学系统设计，再通过 OpenSci Account 获取元件清单、价格与硬件配置。
+[OpenSci](https://opensci-optics.com/) 将光学设计与元件采购、装配连接起来。先使用引擎在本地完成光学系统设计，再通过 OpenSci Account 获取元件清单、价格与硬件配置。
 
 ## 工作流程
 
@@ -19,7 +19,7 @@
 
 ## 连接 Account
 
-从 [OpenSci 官网](https://opensci-optic.com/) 进入。Account 提供服务地址与 Agent Token 配置方式。将 `OPENSCI_API_URL` 设置为 Account 显示的地址，按页面完成 Token 配置，然后检查连接：
+从 [OpenSci 官网](https://opensci-optics.com/) 进入。Account 提供服务地址与 Agent Token 配置方式。将 `OPENSCI_API_URL` 设置为 Account 显示的地址，按页面完成 Token 配置，然后检查连接：
 
 ```bash
 opensci-engine account status
@@ -76,4 +76,4 @@ opensci-engine order layout ORDER_ID --out layout --locale zh-CN
 
 使用 `--locale en` 生成英文图纸。图纸提供 SVG 和 PDF 格式。
 
-完整产品与服务请访问 **[opensci-optic.com](https://opensci-optic.com/)**。
+完整产品与服务请访问 **[opensci-optics.com](https://opensci-optics.com/)**。

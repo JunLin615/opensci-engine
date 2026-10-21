@@ -2,7 +2,10 @@
 
 [Agent guide](../AGENT_GUIDE.md). These instructions are English-only; customer
 walkthroughs remain available in [English](en/getting-started.md) and
-[Simplified Chinese](zh-CN/getting-started.md). Use the published **0.6.1** baseline.
+[Simplified Chinese](zh-CN/getting-started.md). Use the published **0.8.0** baseline.
+The same edits by ID, with unit conversion, a change record and retry safety, are
+available without writing Python through `examples/edit_project.py`
+([workflow recipes](workflow-recipes.md#edit-a-project-by-id)).
 
 ## Adapt a native beam-expander project
 
@@ -81,7 +84,7 @@ Check `run-adapted/project.json` to confirm the saved inputs, `targets` to asses
 the interval, and `issues` / `model_scope_issues` before using the result.
 The original pinned catalog references and original run remain unchanged.
 
-On catalog `2026-10-06.3`, the combined edits above produce a waist radius near
+On catalog `2026-10-15.1`, the combined edits above produce a waist radius near
 `1.1149 mm`: the `1.8–2.2 mm` interval is **not met**, so the recipe and saved
 summary exit with code `1`. This is a completed simulation with a failing design,
 not a command error. Inspect the result before deciding which edit to revise;
@@ -98,8 +101,11 @@ the [catalog guide](en/catalog.md).
 For just the acceptance bound, no source edit is needed:
 
 ```bash
-python examples/ideal_lens_focus.py --out run-ideal-bound --maximum-radius-mm 0.02
+python examples/ideal_lens_focus.py --out run-ideal-bound --maximum-radius-mm 0.01
 ```
+
+The default layout focuses to a beam radius of `0.016934085944977664 mm`, so the
+0.01 mm bound is not met: `FAIL`, exit `1`.
 
 For a different ideal optical layout, read only
 [`build_project`](../examples/ideal_lens_focus.py) and adapt its explicit
