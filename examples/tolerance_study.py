@@ -43,19 +43,12 @@ json_api.check_project, the ops at zero offset must reproduce the base Project h
 STUDY_DIR/sampling.json (normalized distributions, bounds, seed, generator, numpy version, samples.csv sha256) and
 STUDY_DIR/samples.csv (sample_id, offset and applied value of every parameter) are written. --draw-only stops there.
 
-Outcome per sample (precedence): ERROR (refused or not run), OUT_OF_MODEL (any model-scope issue or any issue whose
-status is OUT_OF_MODEL_SCOPE, whatever the run status), UNKNOWN (a selected target without a value), FAIL (a selected target failed), PASS (every selected target
-PASS or WARNING with a value). Counts use all requested samples as denominator; the PASS fraction among evaluable
-samples (PASS + FAIL) is listed separately. The PASS fraction is the fraction of simulated samples, drawn from the
-stated independent distributions around this Project, in which every selected target passed. Target-value
-statistics (count, min, p05, p25, median, p75, p95, max, mean, standard deviation; numpy linear percentiles) use
-the samples that completed in model scope and have a value.
-
-Writes STUDY_DIR/study.json, sampling.json, samples.csv, samples/<id>/{project.json, run/, sample.json} (s0000 =
-nominal), table.csv, summary.json, plots/ (histogram per selected target with its bounds, histogram per parameter
-with its distribution bounds; PNG + SVG; needs matplotlib, see requirements-examples.txt) and report/ (report.md,
-report.json via build_report.py).
-
+Each sample retains execution, quantity evidence and target assessments. Its shorthand is ERROR (not run),
+OUT_OF_MODEL (selected target applicability), UNKNOWN (indeterminate), FAIL (unmet), PASS (all selected targets met),
+or NOT_APPLICABLE (no selected requirements). Counts use every requested sample as denominator; the PASS fraction
+among evaluable samples (PASS + FAIL) is listed separately. These are simulated sample fractions for the stated
+independent distributions. Per-target statistics use finite exact values with applicable dependencies; bounded
+or unavailable values and unrelated diagnostics remain visible in the sample records.
 Stdout: one compact JSON document (counts with denominators, target distributions, samples whose runs carry
 warnings, unsuccessful samples). Exit 0 completed with at least one PASS sample, 1 no PASS sample (or a
 --verify-seed mismatch), 4 refused spec or invalid input.
@@ -301,21 +294,21 @@ def verify_samples(study_dir):
 # --------------------------------------------------------------------------------------------- statistics
 
 def target_distributions(rows, targets, units):
-    """Per target: statistics over samples completed in model scope with a value (count and denominator stated)."""
+    """Statistics over each target's exact applicable values, with count and requested denominator."""
     import numpy as np
 
     out = {}
     total = len(rows)
     for target_id in targets:
-        values = [r.get(f"target:{target_id}") for r in rows if r["outcome"] not in ("ERROR", "OUT_OF_MODEL")]
+        values = [r.get(f"target:{target_id}") for r in rows if r.get(f"target:{target_id}:exact")]
         values = [v for v in values if isinstance(v, (int, float))]
         statuses = {}
         for r in rows:
-            key = r.get(f"target:{target_id}:status") if r["outcome"] not in ("ERROR", "OUT_OF_MODEL") else \
+            key = r.get(f"target:{target_id}:status") if r.get(f"target:{target_id}:exact") else \
                 r["outcome"]
             statuses[key or "NO_VALUE"] = statuses.get(key or "NO_VALUE", 0) + 1
         entry = {"unit": units.get(target_id), "count": len(values), "denominator": total,
-                 "population": "samples completed in model scope with a value", "status_counts": statuses}
+                 "population": "samples with a finite exact target value and applicable dependencies", "status_counts": statuses}
         if values:
             array = np.asarray(values, dtype=float)
             entry.update({"min": float(array.min()), "max": float(array.max()), "mean": float(array.mean()),
@@ -374,7 +367,8 @@ def run_tolerance(spec, study_dir, *, base=None, build=None, base_path=None, spe
         "base_project": {**base_info, "project_hash": checked["project_hash"],
                          "engine_input_hash": checked["engine_input_hash"],
                          "document_sha256": wc.canonical_digest(document)},
-        "engine": wc.engine_identity(), "catalog": wc.catalog_identity(), "environment": wc.environment(),
+        "engine": wc.engine_identity(), "installed_catalog": wc.catalog_identity(),
+        "catalog": wc.run_catalog_identity([]), "environment": wc.environment(),
         "seed": normalized["seed"], "sampling": GENERATOR, "assumptions": list(ASSUMPTIONS),
         "budget": {"max_evaluations": normalized["max_evaluations"], "samples": normalized["samples"] + 1},
         "stop_on": [], "started": wc.utc_now(),
@@ -413,6 +407,7 @@ def run_tolerance(spec, study_dir, *, base=None, build=None, base_path=None, spe
         [{**r, "role": "sample"} for r in rows]
     columns = sweep._columns(all_rows)
     wc.write_csv(study_dir / "table.csv", all_rows, columns)
+    study["catalog"] = wc.run_catalog_identity([nominal_row, *rows])
     study["finished"] = wc.utc_now()
     wc.write_json(study_dir / "study.json", study)
     summary = {
@@ -426,7 +421,7 @@ def run_tolerance(spec, study_dir, *, base=None, build=None, base_path=None, spe
         "selected_targets": targets,
         "nominal": {"sample_id": "s0000", "outcome": nominal["outcome"], "status": nominal["status"],
                     "model_scope_issues": nominal["model_scope_issues"],
-                    "targets": [{k: t.get(k) for k in ("id", "value", "unit", "status")} for t in nominal["targets"]
+                    "targets": [{k: t.get(k) for k in ("id", "value", "unit", "status", "assessment", "quantity_state", "power_upper_bound_W")} for t in nominal["targets"]
                                 if t["id"] in targets], "run_dir": nominal_row["run_dir"]},
         "counts": counts,
         "target_distributions": target_distributions(rows, targets, units),
@@ -436,7 +431,7 @@ def run_tolerance(spec, study_dir, *, base=None, build=None, base_path=None, spe
             "message": "no sample passed every selected target",
             "failed_constraints": {f"outcome {k}": v for k, v in counts["by_outcome"].items() if k != "PASS" and v}},
         "stopped_by": None, "targets": sweep._target_units(rows), "columns": columns, "rows": rows,
-        "identity": {"engine": study["engine"], "catalog_version": study["catalog"]["catalog_version"],
+        "identity": {"engine": study["engine"], **study["catalog"],
                      "base_project_hash": checked["project_hash"]},
         "paths": {"study_dir": study_dir.as_posix(), "study": "study.json", "sampling": "sampling.json",
                   "samples_table": "samples.csv", "table": "table.csv", "summary": "summary.json",
@@ -485,7 +480,7 @@ def plot_tolerance(study_dir, summary):
     total = len(summary["rows"])
     for target_id in summary["selected_targets"]:
         unit = summary["target_distributions"][target_id]["unit"]
-        values = [r.get(f"target:{target_id}") if r["outcome"] not in ("ERROR", "OUT_OF_MODEL") else None
+        values = [r.get(f"target:{target_id}") if r.get(f"target:{target_id}:exact") else None
                   for r in summary["rows"]]
         bounds = None
         for sample_dir in sorted((study_dir / "samples").iterdir()):
@@ -537,7 +532,7 @@ def report_lines(summary):
                      sa.fmt(d.get("p05")), sa.fmt(d.get("p50")), sa.fmt(d.get("p95")), sa.fmt(d.get("max")),
                      sa.fmt(d.get("mean")), sa.fmt(d.get("std")),
                      ", ".join(f"{k} {v}" for k, v in d["status_counts"].items())])
-    lines += ["Target values over samples completed in model scope with a value (numpy linear percentiles):", ""]
+    lines += ["Target values over samples with a finite exact target value and applicable dependencies (numpy linear percentiles):", ""]
     lines += sa.sweep_table(["target", "unit", "count", "min", "p05", "median", "p95", "max", "mean", "std",
                              "per-target status"], rows) + [""]
     check = summary["zero_offset_check"]

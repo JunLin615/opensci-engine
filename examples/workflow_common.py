@@ -15,14 +15,10 @@ What it provides:
   W/mW/uW; anything else raises ``WorkflowError`` (``UNIT_UNKNOWN`` / ``UNIT_INCOMPATIBLE``) before any run;
 * ``check`` (``json_api.check_project``) and ``run_sample``: one in-process run into a sample directory, returned as
   a sample record whatever happens (an Engine refusal at load or at run is recorded, never raised);
-* sample outcome classes, in this precedence: ``ERROR`` (refused or not run), ``OUT_OF_MODEL`` (completed with any
-  model-scope issue or any issue whose status is OUT_OF_MODEL_SCOPE -- a run issue such as a tabulated thin lens
-  used outside its rows, or a target row --, whatever the run status), ``UNKNOWN`` (no target to evaluate, or a
-  selected target has no value or is UNKNOWN), ``FAIL`` (a selected target failed), ``PASS`` (every selected target
-  PASS, or WARNING with a value); the issues behind OUT_OF_MODEL are listed in ``model_scope_issues`` and
-  ``out_of_model_issues`` (one entry per distinct code and location);
-* ``freshness``: whether a saved run is CURRENT for a Project (both hashes and the Engine build agree) or HISTORICAL,
-  with reasons ``PROJECT_CHANGED``, ``ENGINE_CHANGED``, ``RUN_UNVERIFIED``;
+* selected-requirement shorthand: ERROR (no result), OUT_OF_MODEL (selected target applicability),
+  UNKNOWN (indeterminate), FAIL (unmet), PASS (all selected targets met), NOT_APPLICABLE (no selected requirements);
+  full execution, quantity states and target assessments are retained independently;
+* ``freshness`` delegates to the Engine's CURRENT / HISTORICAL / UNDETERMINED decision with its reasons;
 * sha256 / JSON / CSV writers (LF line endings) and bounded-output helpers.
 
 The Engine is imported only inside the functions that need it, so ``--help`` of every script stays fast.
@@ -48,7 +44,7 @@ if __package__:
 else:
     from result_summary import ArgumentParser as _SummaryParser, EXIT_CODES, ERROR_EXIT, summarize_results
 
-OUTCOMES = ("ERROR", "OUT_OF_MODEL", "UNKNOWN", "FAIL", "PASS")
+OUTCOMES = ("ERROR", "OUT_OF_MODEL", "UNKNOWN", "FAIL", "PASS", "NOT_APPLICABLE")
 #: Exit codes of the workflow scripts: the run statuses of result_summary plus the study / edit outcomes.
 WORKFLOW_EXIT_CODES = {**EXIT_CODES, "COMPLETED": 0, "EDITED": 0, "ALREADY_APPLIED": 0, "NO_FEASIBLE": 1}
 
@@ -240,6 +236,14 @@ def read_json(path):
         return json.load(handle)
 
 
+def run_catalog_identity(rows):
+    """Aggregate saved-run catalog provenance, never the installed cache identity."""
+    versions = sorted({row.get("catalog_version") for row in rows if row.get("result_hash")},
+                      key=lambda version: version or "")
+    return {"catalog_version": versions[0] if len(versions) == 1 else None,
+            "catalog_versions": versions}
+
+
 def csv_cell(value):
     if value is None:
         return ""
@@ -365,25 +369,44 @@ def target_bounds(target):
 
 
 def classify(status, model_scope_issues, targets, selected=None, out_of_model_issues=()):
-    """Sample outcome class (module docstring) from a run status, its model-scope issues, the issues whose status is
-    OUT_OF_MODEL_SCOPE (``out_of_model_issues``) and its target rows."""
+    """Selected requirement shorthand; execution and individual quantity evidence remain separate.
+
+    Unrelated scope findings never invalidate a selected target. Assessments are
+    supplied by the Engine after resolving each target's actual dependencies.
+    """
     if status is None:
         return "ERROR"
-    if model_scope_issues or out_of_model_issues or status == "OUT_OF_MODEL_SCOPE":
-        return "OUT_OF_MODEL"
     rows = {t["id"]: t for t in targets}
     chosen = list(rows) if selected is None else list(selected)
     if not chosen:
-        return "UNKNOWN"  # no target was evaluated, so nothing passed
-    statuses = []
-    for target_id in chosen:
-        row = rows.get(target_id)
-        if row is None or row.get("value") is None or row.get("status") not in ("PASS", "WARNING", "FAIL"):
-            return "UNKNOWN"
-        statuses.append(row["status"])
-    if status == "UNKNOWN":
+        return "NOT_APPLICABLE"
+    selected_rows = [rows.get(target_id) for target_id in chosen]
+    if any(row is None for row in selected_rows):
         return "UNKNOWN"
-    return "FAIL" if "FAIL" in statuses else "PASS"
+    if any(row.get("applicability_issue_codes") or row.get("status") == "OUT_OF_MODEL_SCOPE"
+           for row in selected_rows):
+        return "OUT_OF_MODEL"
+    assessments = [row.get("assessment") for row in selected_rows]
+    if "UNMET" in assessments:
+        return "FAIL"
+    if "INDETERMINATE" in assessments or any(value is None for value in assessments):
+        return "UNKNOWN"
+    if all(value == "NOT_APPLICABLE" for value in assessments):
+        return "NOT_APPLICABLE"
+    return "PASS" if all(value == "MET" for value in assessments) else "UNKNOWN"
+
+
+def target_value_is_exact(target):
+    """Whether this target's numeric value can be used as an exact study operand.
+
+    Bounds and dependency-specific applicability stay in the record even when
+    they cannot be ranked or differentiated as exact scalar values.
+    """
+    return (isinstance(target.get("value"), (int, float)) and not isinstance(target.get("value"), bool)
+            and math.isfinite(target["value"]) and not target.get("applicability_issue_codes")
+            and target.get("status") in ("PASS", "WARNING", "FAIL")
+            and target.get("assessment") in ("MET", "UNMET")
+            and target.get("quantity_state") not in ("BOUNDED", "UNKNOWN", "OUT_OF_MODEL_SCOPE"))
 
 
 def error_record(stage, code, problems, *, sample_dir=None, project_file=None, seconds=0.0, selected=None):
@@ -400,7 +423,7 @@ def _empty_record(sample_dir, project_file, selected):
         "project_file": None if project_file is None else Path(project_file).as_posix(),
         "project_file_sha256": None if project_file is None or not Path(project_file).exists()
         else sha256_file(project_file),
-        "run_dir": None, "outcome": "ERROR", "status": None, "engine_status": None, "in_model_scope": None,
+        "run_dir": None, "outcome": "ERROR", "execution": None, "requirements": None, "status": None, "engine_status": None, "in_model_scope": None,
         "model_scope_issues": [], "out_of_model_issues": [], "targets": [],
         "selected_targets": None if selected is None else list(selected),
         "issues": [], "warnings": [], "error": None,
@@ -460,7 +483,9 @@ def sample_from_summary(summary, selected=None):
               for issue in summary.get("issues", [])]
     targets = []
     for row in summary["targets"]:
-        kept = {key: row.get(key) for key in ("id", "metric", "value", "unit", "status", "bounds", "observation_id")}
+        kept = {key: row.get(key) for key in ("id", "metric", "value", "unit", "status", "bounds", "observation_id",
+                                                         "assessment", "quantity_state", "observation_power_state", "power_complete", "power_upper_bound_W",
+                                                         "applicability_issue_codes")}
         if row.get("issue_codes"):
             kept["issue_codes"] = list(row["issue_codes"])
         targets.append(kept)
@@ -483,8 +508,11 @@ def sample_from_summary(summary, selected=None):
                 out_of_model.append({"code": code, "status": "OUT_OF_MODEL_SCOPE", "location": key[1]})
     status = summary["status"]
     return {
-        "outcome": classify(status, scope, targets, selected, out_of_model),
+        "outcome": "ERROR" if (summary.get("outcome") or {}).get("execution", {}).get("outcome") in ("FAILED", "CANCELLED")
+        else classify(status, scope, targets, selected, out_of_model),
         "status": status, "engine_status": summary.get("engine_status"),
+        "execution": (summary.get("outcome") or {}).get("execution"),
+        "requirements": (summary.get("outcome") or {}).get("requirements"),
         "in_model_scope": not scope and not out_of_model and status != "OUT_OF_MODEL_SCOPE",
         "model_scope_issues": scope, "out_of_model_issues": out_of_model, "targets": targets,
         "issues": issues, "warnings": sorted({i["code"] for i in issues if i.get("status") == "WARNING"}),
@@ -510,45 +538,16 @@ def read_saved_run(run_dir, selected=None):
 
 # --------------------------------------------------------------------------------------------- freshness
 
-def _run_hashes(run_dir):
-    record = read_json(Path(run_dir) / "local_validation.json")
-    return {"project_hash": record["project"]["project_hash"]["digest"], "input_hash": record["input_hash"]["digest"],
-            "engine_build_id": record["runtime"]["engine_build_id"]}
-
-
 def freshness(project, run_dir, *, verify=True):
-    """Whether the saved run in ``run_dir`` is CURRENT for ``project`` (a document or a path).
+    """Delegate current/historical identity and integrity checks to the Engine.
 
-    CURRENT iff ``check_project(project)`` gives the run's ``project_hash`` and ``engine_input_hash`` and the run's
-    Engine build is the installed one; otherwise HISTORICAL with reasons ``PROJECT_CHANGED``, ``ENGINE_CHANGED``,
-    ``RUN_UNVERIFIED`` (the run directory fails its own integrity check or cannot be read)."""
-    from opensci_engine.local import verify_run_artifacts
+    ``verify`` is retained for callers; freshness always includes the Engine's
+    integrity check. Different Engine builds alone do not make matching runs historical.
+    """
+    from opensci_engine.local.freshness import run_freshness
 
     document = read_json(project) if isinstance(project, (str, Path)) else project
-    reasons = []
-    out = {"run_dir": Path(run_dir).as_posix()}
-    try:
-        run = _run_hashes(run_dir)
-    except (OSError, KeyError, TypeError, ValueError) as exc:
-        return {**out, "freshness": "HISTORICAL", "reasons": ["RUN_UNVERIFIED"], "problems": [str(exc)]}
-    problems = list(verify_run_artifacts(run_dir)) if verify else []
-    if problems:
-        reasons.append("RUN_UNVERIFIED")
-    checked = check(document)
-    current = {"project_hash": checked.get("project_hash"), "input_hash": checked.get("engine_input_hash"),
-               "engine_build_id": engine_identity()["engine_build_id"]}
-    if not checked.get("ok") or current["project_hash"] != run["project_hash"] or \
-            current["input_hash"] != run["input_hash"]:
-        reasons.append("PROJECT_CHANGED")
-    if current["engine_build_id"] != run["engine_build_id"]:
-        reasons.append("ENGINE_CHANGED")
-    out.update({"freshness": "HISTORICAL" if reasons else "CURRENT", "reasons": reasons, "run": run,
-                "project": current})
-    if problems:
-        out["problems"] = problems[:5]
-    if not checked.get("ok"):
-        out["project_check"] = checked.get("error")
-    return out
+    return {"run_dir": Path(run_dir).as_posix(), **run_freshness(document, run_dir)}
 
 
 # --------------------------------------------------------------------------------------------- CLI output

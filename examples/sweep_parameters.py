@@ -18,7 +18,7 @@ SPEC.json (keys; units as in edit_project.py):
                                                   # all); an id not in the Project is refused (TARGET_UNKNOWN)
     "constraints": [                              # optional, all must hold for a sample to be feasible
       {"outcome": ["PASS"]},
-      {"target": "spot_radius", "status": ["PASS", "WARNING"]},
+      {"target": "spot_radius", "assessment": ["MET"]},
       {"column": "target:spot_radius", "max": {"value": 18, "unit": "um"}}   # min / max, in the column's unit
     ],
     "objective": {"column": "target:spot_radius", "sense": "minimize"},     # or "maximize"
@@ -36,11 +36,13 @@ may use the derived columns listed before it. A target id or column that the spe
 objective, constraint or derived operand) refuses the spec before any run (TARGET_UNKNOWN / COLUMN_UNKNOWN, with the
 known ids and columns).
 
-Outcome per sample (precedence): ERROR (edit, load or run refused, or not run after a stop rule), OUT_OF_MODEL
-(any model-scope issue or any issue whose status is OUT_OF_MODEL_SCOPE, whatever the run status; the codes are in the
-model_scope_issues and out_of_model_issues columns), UNKNOWN, FAIL, PASS. No sample is dropped. A feasible sample is
-in model scope, not ERROR or UNKNOWN, and meets every constraint; the best sample optimizes the objective among feasible ones
-(ties: lowest sample id).
+Each sample retains execution (including PARTIAL), quantity evidence, and target assessments separately.
+The outcome shorthand describes selected requirements: ERROR, OUT_OF_MODEL (a selected target's applicability),
+UNKNOWN (indeterminate), FAIL (unmet), PASS (all met), or NOT_APPLICABLE (no selected requirements).
+No sample is dropped. Feasibility follows the explicit constraints and objective validity. An exact scalar
+objective must have a finite value with applicable dependencies; bounded values remain recorded but are not
+ranked as exact. Unrelated diagnostics do not invalidate an otherwise usable objective. The best feasible
+sample optimizes the stated objective (ties: lowest sample id).
 
 Writes STUDY_DIR/study.json (spec as given and normalized, base project hash, engine / catalog identity,
 environment, budget, timestamps), samples/<id>/project.json, samples/<id>/run/ (run directory),
@@ -160,7 +162,7 @@ def normalize_spec(spec, *, build=None):
                                   not isinstance(objective.get("column"), str)):
         raise wc.WorkflowError("SPEC_INVALID", "objective is {column, sense: minimize|maximize}")
     for rule in spec.get("constraints") or []:
-        if not ({"outcome"} <= set(rule) or {"target", "status"} <= set(rule) or "column" in rule):
+        if not ({"outcome"} <= set(rule) or {"target", "assessment"} <= set(rule) or "column" in rule):
             raise wc.WorkflowError("SPEC_INVALID", f"unsupported constraint {rule!r}")
     stop_on = list(spec.get("stop_on") or [])
     if any(item not in wc.OUTCOMES for item in stop_on):
@@ -235,6 +237,7 @@ def sample_ops(parameters, values):
 def row_from_record(sample_id, values, parameters, record, study_dir):
     row = {"sample_id": sample_id, "outcome": record["outcome"], "status": record["status"],
            "in_model_scope": record["in_model_scope"],
+           "execution": record.get("execution"), "requirements": record.get("requirements"),
            "model_scope_issues": sorted({i.get("code") for i in record["model_scope_issues"]}),
            "out_of_model_issues": sorted({i.get("code") for i in record.get("out_of_model_issues") or []}),
            "warnings": record["warnings"],
@@ -247,6 +250,10 @@ def row_from_record(sample_id, values, parameters, record, study_dir):
         row[f"target:{target['id']}"] = target["value"]
         row[f"target:{target['id']}:status"] = target["status"]
         row[f"target:{target['id']}:unit"] = target["unit"]
+        row[f"target:{target['id']}:assessment"] = target.get("assessment")
+        row[f"target:{target['id']}:quantity_state"] = target.get("quantity_state")
+        row[f"target:{target['id']}:exact"] = wc.target_value_is_exact(target)
+        row[f"target:{target['id']}:applicability_issue_codes"] = target.get("applicability_issue_codes")
     row.update({key: record["identity"].get(key) for key in (
         "project_hash", "input_hash", "result_hash", "engine_build_id", "catalog_version")})
     row["run_dir"] = None if record["run_dir"] is None else wc.relative(record["run_dir"], study_dir)
@@ -256,9 +263,11 @@ def row_from_record(sample_id, values, parameters, record, study_dir):
 
 def _operand(row, item):
     if isinstance(item, (int, float)) and not isinstance(item, bool):
-        return float(item)
+        return float(item) if math.isfinite(item) else None
     value = row.get(item)
-    return float(value) if isinstance(value, (int, float)) and not isinstance(value, bool) else None
+    if isinstance(item, str) and item.startswith("target:") and row.get(f"{item}:exact") is False:
+        return None
+    return float(value) if isinstance(value, (int, float)) and not isinstance(value, bool) and math.isfinite(value) else None
 
 
 def add_derived(row, derived):
@@ -280,7 +289,7 @@ def add_derived(row, derived):
                 value = abs(a)
             elif op == "abs_diff":
                 value = abs(a - b)
-        row[f"derived:{item['name']}"] = value
+        row[f"derived:{item['name']}"] = value if value is not None and math.isfinite(value) else None
         if item.get("unit") is not None:
             row[f"derived:{item['name']}:unit"] = item["unit"]
     return row
@@ -303,20 +312,21 @@ def _bound(row, column, bound):
 
 
 def constraint_failures(row, constraints):
-    """Names of the constraints a row does not meet (empty = feasible: in model scope, not ERROR or UNKNOWN)."""
+    """Names of the explicit constraints a row does not meet; refused samples are always excluded."""
     failed = []
-    if row["outcome"] in ("ERROR", "OUT_OF_MODEL", "UNKNOWN"):
+    if row["outcome"] == "ERROR":
         failed.append(f"outcome {row['outcome']}")
     for rule in constraints:
         if "outcome" in rule:
             if row["outcome"] not in rule["outcome"]:
                 failed.append(f"outcome in {rule['outcome']}")
         elif "target" in rule:
-            if row.get(f"target:{rule['target']}:status") not in rule["status"]:
-                failed.append(f"target {rule['target']} status in {rule['status']}")
+            if row.get(f"target:{rule['target']}:assessment") not in rule["assessment"] or \
+                    row.get(f"target:{rule['target']}:applicability_issue_codes"):
+                failed.append(f"target {rule['target']} assessment in {rule['assessment']}")
         else:
             column = rule["column"]
-            value = row.get(column)
+            value = _operand(row, column)
             low = _bound(row, column, rule.get("min")) if rule.get("min") is not None else None
             high = _bound(row, column, rule.get("max")) if rule.get("max") is not None else None
             if not isinstance(value, (int, float)) or (low is not None and value < low) or \
@@ -345,8 +355,9 @@ def select_best(rows, constraints, objective):
     feasible = []
     for row in rows:
         failures = constraint_failures(row, constraints)
-        if objective is not None and not isinstance(row.get(objective["column"]), (int, float)):
-            failures.append(f"{objective['column']} has no value")
+        row["objective_valid"] = None if objective is None else _operand(row, objective["column"]) is not None
+        if objective is not None and not row["objective_valid"]:
+            failures.append(f"{objective['column']} has no exact usable value")
         row["feasible"] = not failures
         row["constraint_failures"] = failures
         if not failures:
@@ -407,7 +418,8 @@ def run_sweep(spec, study_dir, *, base=None, build=None, base_path=None, overwri
             "project_hash": base_check.get("project_hash"), "engine_input_hash": base_check.get("engine_input_hash"),
             "document_sha256": wc.canonical_digest(base)},
         "build_function": None if build is None else getattr(build, "__qualname__", repr(build)),
-        "engine": wc.engine_identity(), "catalog": wc.catalog_identity(), "environment": wc.environment(),
+        "engine": wc.engine_identity(), "installed_catalog": wc.catalog_identity(),
+        "catalog": wc.run_catalog_identity([]), "environment": wc.environment(),
         "seed": None, "sampling": "deterministic grid", "budget": {"max_evaluations": normalized["max_evaluations"],
                                                                     "samples": normalized["samples"]},
         "stop_on": normalized["stop_on"], "started": started,
@@ -445,6 +457,7 @@ def run_sweep(spec, study_dir, *, base=None, build=None, base_path=None, overwri
     status = "NO_FEASIBLE" if restricted and feasible == 0 else "COMPLETED"
     columns = _columns(rows)
     wc.write_csv(study_dir / "table.csv", rows, columns)
+    study["catalog"] = wc.run_catalog_identity(rows)
     study["finished"] = wc.utc_now()
     wc.write_json(study_dir / "study.json", study)
     summary = {
@@ -455,7 +468,7 @@ def run_sweep(spec, study_dir, *, base=None, build=None, base_path=None, overwri
         "no_feasible": None if status != "NO_FEASIBLE" else _no_feasible(rows),
         "parameters": [{"name": p["name"], "unit": p["unit"], "count": len(p["values"])} for p in parameters],
         "targets": _target_units(rows), "columns": columns, "rows": rows,
-        "identity": {"engine": study["engine"], "catalog_version": study["catalog"]["catalog_version"],
+        "identity": {"engine": study["engine"], **study["catalog"],
                      "base_project_hash": None if base_check is None else base_check.get("project_hash")},
         "paths": {"study_dir": study_dir.as_posix(), "study": "study.json", "table": "table.csv",
                   "summary": "summary.json", "samples": "samples"},

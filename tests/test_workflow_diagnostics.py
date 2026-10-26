@@ -194,7 +194,7 @@ class SweepColumnValidationTests(unittest.TestCase):
         self.assertIn("param:gap", exc.details["known"])
 
     def test_constraint_target_typo(self):
-        exc = self.refused({"constraints": [{"target": "spot_radus", "status": ["PASS"]}]}, "TARGET_UNKNOWN")
+        exc = self.refused({"constraints": [{"target": "spot_radus", "assessment": ["MET"]}]}, "TARGET_UNKNOWN")
         self.assertIn("spot_radius", exc.details["known"])
 
     def test_constraint_column_typo(self):
@@ -333,7 +333,8 @@ class OpArgumentTests(unittest.TestCase):
         with self.assertRaises(ep.EditError) as caught:
             self.apply([{"op": "transform", "selector": {"ids": ["L2"]}, "frame": {"group": "optics"},
                          "translation_mm": [1, 0, 0]}])
-        self.assertEqual(caught.exception.code, "WORKSPACE_OPERATION_REFUSED")
+        self.assertEqual(caught.exception.code, "PROJECT_OP_INVALID")
+        self.assertEqual(caught.exception.details["op_code"], "TRANSFORM_REFUSED")
         self.assertEqual(caught.exception.details["problems"][0]["code"], "FRAME_INVALID")
         self.assertIn("FRAME_INVALID", ep.__doc__)
 
@@ -383,8 +384,8 @@ class ValuelessPlotMarkerTests(unittest.TestCase):
                       if isinstance(r.get("target:spot_radius"), float)]
             self.assertLess(result["no_value_position"], min(valued))
             svg = Path(result["out"]["svg"]).read_text(encoding="utf-8")
-            self.assertIn("no value (1)", svg)
-            self.assertIn("samples without a value", svg)
+            self.assertIn("no exact value (1)", svg)
+            self.assertIn("samples without an exact value", svg)
 
     def test_heatmap_draws_target_bounds(self):
         from examples import plot_results as pr
@@ -482,7 +483,7 @@ def tabulated_lens_project(wavelengths_nm):
 
 class EngineOutOfModelIssueTests(unittest.TestCase):
     """A tabulated thin lens outside its rows is reported only as an Engine issue with status OUT_OF_MODEL_SCOPE; with
-    a failing target the run status is FAIL and model_scope_issues is empty. The sample is still OUT_OF_MODEL."""
+    a failing target the run status is FAIL and model_scope_issues is empty. The 530 nm target remains usable; the separate 450 nm scope issue is retained."""
 
     @classmethod
     def setUpClass(cls):
@@ -499,7 +500,7 @@ class EngineOutOfModelIssueTests(unittest.TestCase):
         self.assertEqual((self.inside["outcome"], self.inside["status"]), ("FAIL", "FAIL"))
         self.assertEqual(self.outside["status"], "FAIL")
         self.assertEqual(self.outside["model_scope_issues"], [])
-        self.assertEqual(self.outside["outcome"], "OUT_OF_MODEL")
+        self.assertEqual(self.outside["outcome"], "FAIL")
         self.assertFalse(self.outside["in_model_scope"])
         self.assertIn("MODEL_WAVELENGTH_OUTSIDE_BAND", [i["code"] for i in self.outside["out_of_model_issues"]])
 
@@ -509,9 +510,9 @@ class EngineOutOfModelIssueTests(unittest.TestCase):
                                                 "changes": {"maximum": 2e-6}}])
         code, out, err = invoke(ep.main, [str(self.dir / "base.json"), "--edits", str(self.dir / "edit.json"),
                                           "--out", str(self.dir / "edited.json"), "--run", str(self.dir / "edited")])
-        self.assertEqual(code, 3, err)
+        self.assertEqual(code, 1, err)
         self.assertEqual((out["status"], out["run"]["status"], out["run"]["outcome"]),
-                         ("OUT_OF_MODEL_SCOPE", "FAIL", "OUT_OF_MODEL"))
+                         ("FAIL", "FAIL", "FAIL"))
         self.assertTrue(out["run"]["out_of_model_issues"])
 
     def test_sweep_compare_and_report_use_the_same_rule(self):
@@ -519,12 +520,12 @@ class EngineOutOfModelIssueTests(unittest.TestCase):
         summary = sp.run_sweep(spec, self.dir / "study",
                                build=lambda p: tabulated_lens_project(sorted({p["short"], 530.0})))
         rows = {r["sample_id"]: r for r in summary["rows"]}
-        self.assertEqual((rows["s0001"]["outcome"], rows["s0002"]["outcome"]), ("FAIL", "OUT_OF_MODEL"))
+        self.assertEqual((rows["s0001"]["outcome"], rows["s0002"]["outcome"]), ("FAIL", "FAIL"))
         self.assertEqual(rows["s0002"]["out_of_model_issues"], ["MODEL_WAVELENGTH_OUTSIDE_BAND"])
-        self.assertEqual(summary["counts"]["by_outcome"]["OUT_OF_MODEL"], 1)
+        self.assertEqual(summary["counts"]["by_outcome"]["FAIL"], 2)
         document = cr.compare([self.dir / "inside" / "run", self.dir / "outside" / "run"])
         runs = {r["label"]: r for r in document["runs"]}
-        self.assertEqual(runs["outside"]["outcome"], "OUT_OF_MODEL")
+        self.assertEqual(runs["outside"]["outcome"], "FAIL")
         self.assertEqual(runs["outside"]["out_of_model_issues"], ["MODEL_WAVELENGTH_OUTSIDE_BAND"])
         report = br.build_report([self.dir / "inside" / "run", self.dir / "outside" / "run"],
                                  out_dir=self.dir / "report")

@@ -11,7 +11,7 @@ comparison as an ERROR entry with missing data). A run directory named "run" is 
 
 What is compared, by ID:
 * targets: value, unit and status per run, the difference to the reference run (first run, or --reference) when
-  both have a value in the same unit; a target absent from a run is listed with "missing": true;
+  both have exact applicable values in the same unit; a target absent from a run is listed with "missing": true;
 * observation planes: received power (W) and number of arriving beams per run, missing planes listed;
 * inputs: every field of each run's project.json, keyed by object ID (pose:<id>.position_mm, source:<id>.<field>,
   binding:<id>.optical_sku / .catalog_version / .optical_model_id, component:<id>.<field>,
@@ -19,15 +19,15 @@ What is compared, by ID:
   project.<field>), plus each run's catalog release and Engine build. Only inputs that differ are listed, with the
   unit of the field name. inputs_compared states the result: the number of differing inputs, or that the Projects
   are identical (equal project hashes), or that the project hashes differ although no field does;
-* outcome class per run (ERROR, OUT_OF_MODEL, UNKNOWN, FAIL, PASS), decided by the study's selected targets for
+* outcome class per run (ERROR, OUT_OF_MODEL, UNKNOWN, FAIL, PASS, NOT_APPLICABLE), decided by the study's selected targets for
   study samples and by all targets for run directories (--targets overrides both; an id in no run is refused),
-  with its model-scope issues, the codes of issues whose status is OUT_OF_MODEL_SCOPE (out_of_model_issues; either
-  list makes the run OUT_OF_MODEL), warnings and target issue codes;
-* freshness, when --project is given: CURRENT or HISTORICAL (reasons PROJECT_CHANGED, ENGINE_CHANGED,
-  RUN_UNVERIFIED) for every run; the outcome of a historical run is labelled e.g. "HISTORICAL PASS".
+  with model-scope findings, warnings, and target issue codes retained independently; only selected-target
+  applicability determines the OUT_OF_MODEL shorthand;
+* freshness, when --project is given: CURRENT, HISTORICAL or UNDETERMINED (Engine reasons, including PHYSICS_CHANGED,
+  TARGETS_CHANGED and RUN_UNVERIFIED) for every run; the outcome of a historical run is labelled e.g. "HISTORICAL PASS".
 
 Writes DIR/compare.json (everything) and DIR/compare.csv (long format: section, id, field, unit, run, value,
-status, delta, reference) when --out is given. Stdout: one compact JSON document (at most eight runs and ten input
+status, assessment, quantity_state, exact, power_complete, power_upper_bound_W, delta, reference) when --out is given. Stdout: one compact JSON document (at most eight runs and ten input
 differences in full; the files hold everything). Exit 0 compared, 4 invalid input.
 """
 
@@ -157,11 +157,15 @@ def load_entry(label, run_dir, record, selected=None):
     summary, fields = wc.read_saved_run(run_dir, selected)
     results = load_run(run_dir, verify=False)
     entry.update({"outcome": fields["outcome"], "status": fields["status"], "targets": fields["targets"],
+                  "execution": fields["execution"], "requirements": fields["requirements"],
                   "model_scope_issues": fields["model_scope_issues"],
                   "out_of_model_issues": fields["out_of_model_issues"], "warnings": fields["warnings"],
                   "identity": fields["identity"], "power_budget": summary.get("power_budget"),
                   "observations": {m["observation_id"]: {"total_power_W": m["total_power_W"],
-                                                         "arrival_count": m["arrival_count"], "status": m["status"]}
+                                                         "arrival_count": m["arrival_count"], "status": m["status"],
+                                                         "quantity_state": m["quantity_state"],
+                                                         "power_complete": m["power_complete"],
+                                                         "power_upper_bound_W": m.get("power_upper_bound_W")}
                                    for m in results.monitors()},
                   "inputs": project_inputs(wc.read_json(Path(run_dir) / "project.json"))})
     entry["inputs"]["run.catalog_version"] = entry["identity"].get("catalog_version")
@@ -209,7 +213,7 @@ def compare(paths, *, labels=None, reference=None, project=None, targets=None):
             else:
                 entry["freshness"] = wc.freshness(project, entry["run_dir"])
             entry["outcome_label"] = entry["outcome"] if entry["freshness"]["freshness"] == "CURRENT" else \
-                f"HISTORICAL {entry['outcome']}"
+                f"{entry['freshness']['freshness']} {entry['outcome']}"
     target_rows = []
     for target_id in _ordered_union([[t["id"] for t in e["targets"]] for e in entries]):
         row = {"id": target_id, "runs": {}}
@@ -221,9 +225,11 @@ def compare(paths, *, labels=None, reference=None, project=None, targets=None):
                 continue
             row.setdefault("metric", target["metric"])
             row.setdefault("unit", target["unit"])
-            cell = {"value": target["value"], "unit": target["unit"], "status": target["status"]}
-            if ref_target is not None and isinstance(target["value"], (int, float)) and \
-                    isinstance(ref_target["value"], (int, float)) and target["unit"] == ref_target["unit"]:
+            cell = {key: target.get(key) for key in ("value", "unit", "status", "assessment", "quantity_state",
+                                                       "applicability_issue_codes", "power_upper_bound_W", "power_complete")}
+            cell["exact"] = wc.target_value_is_exact(target)
+            if ref_target is not None and wc.target_value_is_exact(target) and \
+                    wc.target_value_is_exact(ref_target) and target["unit"] == ref_target["unit"]:
                 cell["delta"] = target["value"] - ref_target["value"]
             row["runs"][entry["label"]] = cell
         target_rows.append(row)
@@ -257,7 +263,7 @@ def compare(paths, *, labels=None, reference=None, project=None, targets=None):
                 "target_issue_codes": {t["id"]: list(t["issue_codes"]) for t in entry["targets"]
                                        if t.get("issue_codes")},
                 "run_dir": entry["run_dir"], "identity": entry["identity"]}
-        for key in ("freshness", "outcome_label", "error", "power_budget"):
+        for key in ("freshness", "outcome_label", "error", "power_budget", "execution", "requirements"):
             if entry.get(key) is not None:
                 item[key] = entry[key]
         runs.append(item)
@@ -276,12 +282,17 @@ def csv_rows(document):
             rows.append({"section": "target", "id": row["id"], "field": row.get("metric"), "unit": row.get("unit"),
                          "run": label, "value": cell.get("value"), "status": cell.get("status") or (
                              "MISSING" if cell.get("missing") else None),
-                         "delta": cell.get("delta"), "reference": document["reference"]})
+                         "delta": cell.get("delta"), "reference": document["reference"],
+                         "assessment": cell.get("assessment"), "quantity_state": cell.get("quantity_state"),
+                         "exact": cell.get("exact"), "power_complete": cell.get("power_complete"),
+                         "power_upper_bound_W": cell.get("power_upper_bound_W")})
     for row in document["observations"]:
         for label, cell in row["runs"].items():
             rows.append({"section": "observation", "id": row["id"], "field": "total_power_W", "unit": "W",
                          "run": label, "value": cell.get("total_power_W"),
-                         "status": "MISSING" if cell.get("missing") else cell.get("status")})
+                         "status": "MISSING" if cell.get("missing") else cell.get("status"),
+                         "quantity_state": cell.get("quantity_state"), "power_complete": cell.get("power_complete"),
+                         "power_upper_bound_W": cell.get("power_upper_bound_W")})
     for diff in document["input_differences"]:
         for label, value in diff["values"].items():
             rows.append({"section": "input", "id": diff["input"], "field": diff["input"].split(".")[-1],
@@ -292,7 +303,7 @@ def csv_rows(document):
     return rows
 
 
-CSV_COLUMNS = ["section", "id", "field", "unit", "run", "value", "status", "delta", "reference"]
+CSV_COLUMNS = ["section", "id", "field", "unit", "run", "value", "status", "assessment", "quantity_state", "exact", "power_complete", "power_upper_bound_W", "delta", "reference"]
 
 
 def write_outputs(document, out_dir):
@@ -308,7 +319,7 @@ def compact(document, paths=None):
     labels = [r["label"] for r in shown]
     return {
         "status": document["status"], "reference": document["reference"], "run_count": len(runs),
-        "runs": [{key: r.get(key) for key in ("label", "outcome", "outcome_label", "status", "model_scope_issues")
+        "runs": [{key: r.get(key) for key in ("label", "outcome", "outcome_label", "status", "model_scope_issues", "execution", "requirements")
                   if r.get(key) is not None}
                  | ({"out_of_model_issues": r["out_of_model_issues"]} if r.get("out_of_model_issues") else {})
                  | ({"warnings": r["warnings"]} if r.get("warnings") else {})
@@ -318,9 +329,8 @@ def compact(document, paths=None):
         "runs_omitted": max(0, len(runs) - MAX_RUNS_SHOWN),
         "targets": [{"id": t["id"], "unit": t.get("unit"),
                      "runs": {label: t["runs"][label] for label in labels}} for t in document["targets"]],
-        "observations_W": [{"id": o["id"], "runs": {label: o["runs"][label].get("total_power_W", "missing")
-                                                    if not o["runs"][label].get("missing") else "missing"
-                                                    for label in labels}} for o in document["observations"]],
+        "observations_W": [{"id": o["id"], "runs": {label: o["runs"][label] for label in labels}}
+                           for o in document["observations"]],
         "inputs_compared": document["inputs_compared"]["statement"],
         "input_differences": document["input_differences"][:MAX_DIFFERENCES_SHOWN],
         "input_differences_omitted": max(0, len(document["input_differences"]) - MAX_DIFFERENCES_SHOWN),

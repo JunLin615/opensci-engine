@@ -37,8 +37,7 @@ Default steps when "steps" is omitted: 0.01 and 0.1 mm for translations, 0.01 an
 Method, per parameter p, target t and step h (f0: nominal value; f+/f-: value at nominal +h / -h):
   central  df/dp = (f+ - f-) / (2h), truncation error O(h^2); second difference (f+ - 2 f0 + f-) / h^2
   forward  (f+ - f0) / h, or backward (f0 - f-) / h, O(h), when only one side is usable (labelled)
-A side is usable when its sample completed in model scope (outcome not ERROR / OUT_OF_MODEL) and the target has a
-value; the nominal must be usable for the one-sided forms and the second difference. The primary estimate is the
+A side is usable when the target has a finite exact value with applicable dependencies; the nominal must be usable for the one-sided forms and the second difference. The primary estimate is the
 smallest step with a central difference (else the smallest usable step); the reported second difference is the one
 of the larger of the two compared steps (round-off grows as 1/h^2). Step consistency compares the primary estimate
 with the next usable step: ratio = D(primary) / D(other), relative difference |D1 - D2| / max(|D1|, |D2|), flagged
@@ -287,14 +286,10 @@ def target_value(record, target_id):
         error = record.get("error") or {}
         codes = sorted(set(problem_codes(error.get("problems"))) - {None, error.get("code")})
         return None, f"ERROR {error.get('code')}" + (f" ({', '.join(codes)})" if codes else "")
-    if outcome == "OUT_OF_MODEL":
-        codes = sorted({i.get("code") for i in [*(record.get("model_scope_issues") or []),
-                                                *(record.get("out_of_model_issues") or [])]} - {None})
-        return None, "OUT_OF_MODEL" + (f" ({', '.join(codes)})" if codes else f" (status {record['status']})")
     row = next((t for t in record.get("targets") or [] if t["id"] == target_id), None)
     if row is None:
         return None, "NO_VALUE (target not in the run)"
-    if row.get("value") is None or row.get("status") not in ("PASS", "WARNING", "FAIL"):
+    if not wc.target_value_is_exact(row):
         codes = ", ".join(row.get("issue_codes") or []) or "no issue code"
         return None, f"NO_VALUE (status {row.get('status')}, {codes})"
     return row["value"], None
@@ -594,7 +589,8 @@ def run_sensitivity(spec, study_dir, *, base=None, build=None, base_path=None, s
         "base_project": {**base_info, "project_hash": checked["project_hash"],
                          "engine_input_hash": checked["engine_input_hash"],
                          "document_sha256": wc.canonical_digest(document)},
-        "engine": wc.engine_identity(), "catalog": wc.catalog_identity(), "environment": wc.environment(),
+        "engine": wc.engine_identity(), "installed_catalog": wc.catalog_identity(),
+        "catalog": wc.run_catalog_identity([]), "environment": wc.environment(),
         "seed": None, "sampling": "deterministic finite-difference plan",
         "budget": {"max_evaluations": normalized["max_evaluations"], "samples": normalized["samples"]},
         "stop_on": [], "started": started,
@@ -616,7 +612,7 @@ def run_sensitivity(spec, study_dir, *, base=None, build=None, base_path=None, s
         row.update({"role": side, "perturbed_parameter": name, "step": step,
                     "step_unit": None if name is None else by_name[name]["unit"]})
         rows.append(row)
-    sweep.select_best(rows, [], None)  # marks feasible = completed in model scope (no constraints)
+    sweep.select_best(rows, [], None)  # no requirement constraints; per-target validity is assessed separately
     nominal = records["s0000"]
     pairs, estimate_rows = [], []
     for parameter in parameters:
@@ -668,6 +664,7 @@ def run_sensitivity(spec, study_dir, *, base=None, build=None, base_path=None, s
     wc.write_csv(study_dir / "sensitivity.csv", estimate_rows, list(estimate_rows[0]) if estimate_rows else [])
     unavailable = [{"parameter": p["parameter"], "target": p["target"]} for p in pairs if p["derivative"] is None]
     status = "INCOMPLETE" if unavailable else "COMPLETED"
+    study["catalog"] = wc.run_catalog_identity(rows)
     study["finished"] = wc.utc_now()
     wc.write_json(study_dir / "study.json", study)
     summary = {
@@ -686,11 +683,11 @@ def run_sensitivity(spec, study_dir, *, base=None, build=None, base_path=None, s
                                  "parameter, in the target unit",
                        "second_order_at_scale": "f'' * scale^2 / 2, in the target unit",
                        "taylor_change_at_scale": "|derivative| * scale + |f''| * scale^2 / 2, in the target unit"},
-                   "usable_side": "sample completed in model scope (not ERROR / OUT_OF_MODEL) with a target value"},
+                   "usable_side": "a finite exact target value with applicable dependencies"},
         "nominal": {"sample_id": "s0000", "outcome": nominal["outcome"], "status": nominal["status"],
                     "model_scope_issues": nominal["model_scope_issues"],
                     "parameters": {p["name"]: {"value": p["nominal"], "unit": p["unit"]} for p in parameters},
-                    "targets": [{k: t.get(k) for k in ("id", "value", "unit", "status")} for t in nominal["targets"]
+                    "targets": [{k: t.get(k) for k in ("id", "value", "unit", "status", "assessment", "quantity_state", "power_upper_bound_W")} for t in nominal["targets"]
                                 if t["id"] in targets],
                     "run_dir": rows[0]["run_dir"]},
         "parameters": [{"name": p["name"], "unit": p["unit"], "nominal": p["nominal"], "steps": p["steps"],
@@ -700,7 +697,7 @@ def run_sensitivity(spec, study_dir, *, base=None, build=None, base_path=None, s
         "counts": sweep.counts(rows), "feasible": sum(1 for r in rows if r["feasible"]),
         "constraints": [], "objective": None, "best": None, "no_feasible": None, "stopped_by": None,
         "targets": sweep._target_units(rows), "columns": columns, "rows": rows,
-        "identity": {"engine": study["engine"], "catalog_version": study["catalog"]["catalog_version"],
+        "identity": {"engine": study["engine"], **study["catalog"],
                      "base_project_hash": checked["project_hash"]},
         "paths": {"study_dir": study_dir.as_posix(), "study": "study.json", "table": "table.csv",
                   "sensitivity_table": "sensitivity.csv", "summary": "summary.json", "samples": "samples"},

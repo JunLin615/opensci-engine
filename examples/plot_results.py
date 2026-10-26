@@ -12,7 +12,7 @@ sweep: one parameter gives a curve of the column against the parameter; two para
 parameter on x). Columns: "target:<id>", "derived:<name>" or "param:<name>" as in sweep_parameters.py. Every
 sample is marked by its outcome (PASS, FAIL, UNKNOWN, OUT_OF_MODEL, ERROR) with its own marker and label; samples
 without a value are never omitted: on a curve they are drawn as hollow markers on a dotted line below the lowest
-value, labelled "samples without a value" (that position carries no value), with their own legend entry per outcome;
+value, labelled "samples without an exact value" (that position carries no value), with their own legend entry per outcome;
 on a heatmap their cell stays empty with the outcome marker. The target's bounds (minimum / maximum, or target value
 +- tolerance) are drawn as a band on a curve and as lines on the heatmap colour bar.
 power: power received by each observation plane and the run's power ledger sinks, in W.
@@ -35,6 +35,7 @@ else:
 
 #: outcome -> (marker, colour, label); colours follow a fixed status palette, markers keep them apart without colour
 STATUS_STYLE = {
+    "NOT_APPLICABLE": ("o", "#3b6fa1", "NOT_APPLICABLE (no selected requirements)"),
     "PASS": ("o", "#0ca30c", "PASS"),
     "FAIL": ("X", "#d03b3b", "FAIL"),
     "UNKNOWN": ("D", "#b07d00", "UNKNOWN (no value or undefined)"),
@@ -142,13 +143,22 @@ def plot_sweep(study_dir, y, *, out_dir=None, name=None):
     return {**info, "bounds": bounds, "out": save(fig, out_dir, stem, text)}
 
 
+def _has_exact_plot_value(row, column):
+    import math
+    value = row.get(column)
+    return (isinstance(value, (int, float)) and not isinstance(value, bool) and math.isfinite(value)
+            and row.get(f"{column}:exact") is not False)
+
+
 def _curve(rows, parameter, y, unit, bounds):
     plt = _pyplot()
     fig, ax = plt.subplots(figsize=(6.4, 4.2))
     x_col = f"param:{parameter['name']}"
-    valued = [(r[x_col], r[y]) for r in rows if isinstance(r.get(y), (int, float))]
+    valued = [(r[x_col], r[y]) for r in rows if _has_exact_plot_value(r, y)]
     if valued:
-        xs, ys = zip(*sorted(valued))
+        ordered = sorted(rows, key=lambda row: row[x_col])
+        xs = [row[x_col] for row in ordered]
+        ys = [row[y] if _has_exact_plot_value(row, y) else float("nan") for row in ordered]
         ax.plot(xs, ys, color=LINE_COLOR, linewidth=1.5, zorder=2, label=_label(y, None))
     _band(ax, bounds)
     values = [v for _x, v in valued]
@@ -161,18 +171,18 @@ def _curve(rows, parameter, y, unit, bounds):
         if not pts:
             continue
         counts[outcome] = len(pts)
-        with_value = [(r[x_col], r[y]) for r in pts if isinstance(r.get(y), (int, float))]
-        without = [r[x_col] for r in pts if not isinstance(r.get(y), (int, float))]
+        with_value = [(r[x_col], r[y]) for r in pts if _has_exact_plot_value(r, y)]
+        without = [r[x_col] for r in pts if not _has_exact_plot_value(r, y)]
         if with_value:
             ax.scatter(*zip(*with_value), marker=marker, s=46, color=color, edgecolors="white", linewidths=0.8,
                        zorder=3, label=f"{label} ({len(pts)})")
         if without:
             ax.scatter(without, [lower] * len(without), marker=marker, s=46, facecolors="none", edgecolors=color,
-                       linewidths=1.2, zorder=3, clip_on=False, label=f"{label}, no value ({len(without)})")
+                       linewidths=1.2, zorder=3, clip_on=False, label=f"{label}, no exact value ({len(without)})")
     missing = len(rows) - len(valued)
     if missing:
         ax.axhline(lower, color="#8a8a8a", linewidth=0.8, linestyle=":", zorder=1)
-        ax.annotate("samples without a value", xy=(0.0, lower), xycoords=("axes fraction", "data"),
+        ax.annotate("samples without an exact value", xy=(0.0, lower), xycoords=("axes fraction", "data"),
                     xytext=(2, 3), textcoords="offset points", fontsize=6.5, color="#555555")
     ax.set_xlabel(_label(x_col, parameter["unit"]))
     ax.set_ylabel(_label(y, unit))
@@ -191,7 +201,7 @@ def _heatmap(rows, parameters, y, unit, bounds):
     ys = sorted({r[f"param:{py['name']}"] for r in rows})
     grid = np.full((len(ys), len(xs)), np.nan)
     for r in rows:
-        if isinstance(r.get(y), (int, float)):
+        if _has_exact_plot_value(r, y):
             grid[ys.index(r[f"param:{py['name']}"]), xs.index(r[f"param:{px['name']}"])] = r[y]
     fig, ax = plt.subplots(figsize=(6.4, 4.8))
     mesh = ax.pcolormesh(np.arange(len(xs) + 1) - 0.5, np.arange(len(ys) + 1) - 0.5, np.ma.masked_invalid(grid),
@@ -217,7 +227,7 @@ def _heatmap(rows, parameters, y, unit, bounds):
     ax.set_xlabel(_label(f"param:{px['name']}", px["unit"]))
     ax.set_ylabel(_label(f"param:{py['name']}", py["unit"]))
     ax.grid(False)
-    ax.set_title(f"{y.split(':', 1)[1]} (empty cell: no value)" + (
+    ax.set_title(f"{y.split(':', 1)[1]} (empty cell: no exact value)" + (
         f"; {', '.join(drawn)} (dashed on the colour bar)" if drawn else ""), fontsize=8)
     ax.legend(fontsize=6.5, loc="upper left", bbox_to_anchor=(0.0, -0.14), ncol=3, frameon=False)
     fig.subplots_adjust(bottom=0.3)
@@ -276,11 +286,26 @@ def plot_power(run_dir, *, out_dir=None, name="power_distribution"):
     plt = _pyplot()
     fig, (left, right) = plt.subplots(1, 2, figsize=(8.0, 3.8), gridspec_kw={"width_ratios": [3, 2]})
     names = [m["observation_id"] for m in monitors]
-    powers = [m["total_power_W"] or 0.0 for m in monitors]
-    left.bar(range(len(names)), powers, color=LINE_COLOR, width=0.6, edgecolor="white")
+    for index, monitor in enumerate(monitors):
+        state, value = monitor["quantity_state"], monitor["total_power_W"]
+        if state in ("KNOWN", "KNOWN_ZERO") and value is not None:
+            left.bar(index, value, color=LINE_COLOR, width=0.6, edgecolor="white")
+        elif state == "BOUNDED" and value is not None:
+            upper = monitor.get("power_upper_bound_W")
+            left.bar(index, value, color="none", hatch="//", edgecolor=LINE_COLOR, width=0.6)
+            if upper is not None:
+                left.errorbar(index, value, yerr=[[0.0], [max(0.0, upper - value)]],
+                              fmt="none", color=LINE_COLOR, capsize=4)
+            left.annotate("bounded" if upper is not None else "lower bound", (index, value),
+                          xytext=(0, 4), textcoords="offset points", ha="center", fontsize=7)
+        else:
+            # Axes coordinates mark unavailable data without placing a false zero on the power axis.
+            left.text(index, 0.02, state or "unavailable", transform=left.get_xaxis_transform(),
+                      ha="center", va="bottom", fontsize=7, rotation=90)
     left.set_xticks(range(len(names)), names, rotation=20)
+    left.set_xlim(-0.5, max(0.5, len(names) - 0.5))
     left.set_ylabel("received power [W]")
-    left.set_title("observation planes")
+    left.set_title("observation planes\nsolid: known; hatched: lower bound", fontsize=9)
     total = budget.get("total_input_W")
     if total:
         left.axhline(total, color="#555555", linestyle="--", linewidth=0.9, label=f"total input {total:.6g} W")
@@ -293,7 +318,9 @@ def plot_power(run_dir, *, out_dir=None, name="power_distribution"):
     text = caption(run_dir / "simulation_result.json", out_dir, engine_build=identity.get("engine_build_id"),
                    catalog_version=identity.get("catalog_version"))
     fig.tight_layout(rect=(0, 0.08, 1, 1))
-    return {"out": save(fig, out_dir, name, text), "observations": dict(zip(names, powers)), "sinks_W": sinks,
+    return {"out": save(fig, out_dir, name, text), "observations": {m["observation_id"]: {key: m.get(key) for key in
+                ("total_power_W", "quantity_state", "power_complete", "power_upper_bound_W")} for m in monitors},
+            "sinks_W": sinks,
             "conserved": budget.get("conserved")}
 
 

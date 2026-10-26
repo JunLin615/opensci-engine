@@ -89,6 +89,7 @@ def study_section(study_dir, out_dir, project=None):
         record = wc.read_json(sample_dir / "sample.json") if (sample_dir / "sample.json").is_file() else {}
         entry = {"sample_id": row["sample_id"], "outcome": row["outcome"], "status": row["status"],
                  "parameters": record.get("parameters"), "targets": record.get("targets", []),
+                 "execution": record.get("execution"), "requirements": record.get("requirements"),
                  "model_scope_issues": record.get("model_scope_issues", []),
                  "out_of_model_issues": record.get("out_of_model_issues", []), "warnings": record.get("warnings", []),
                  "error": record.get("error"), "identity": record.get("identity"),
@@ -101,7 +102,7 @@ def study_section(study_dir, out_dir, project=None):
             entry["freshness"] = wc.freshness(project, sample_dir / "run") if entry["run_dir"] else \
                 {"freshness": "HISTORICAL", "reasons": ["RUN_UNVERIFIED"]}
             if entry["freshness"]["freshness"] != "CURRENT":
-                entry["outcome_label"] = f"HISTORICAL {entry['outcome']}"
+                entry["outcome_label"] = f"{entry['freshness']['freshness']} {entry['outcome']}"
         samples.append(entry)
     best = summary["best"]
     if best is not None:
@@ -199,7 +200,7 @@ def build_report(paths, *, out_dir=None, project=None, plots=None, changes=None,
 
 
 def _target_cells(targets):
-    return "; ".join(f"{t['id']} {_fmt(t.get('value'))} {t.get('unit') or ''} {t.get('status')}".strip()
+    return "; ".join(f"{t['id']} {_fmt(t.get('value'))} {t.get('unit') or ''} {t.get('assessment')} ({t.get('status')}; quantity {t.get('quantity_state') or 'see metric'})".strip()
                      for t in targets) or "-"
 
 
@@ -260,7 +261,7 @@ def render_markdown(report):
         for warning in changes.get("warnings") or []:
             lines.append(f"- {warning['code']}: {warning['message']}")
         lines.append("")
-    lines += ["## Outcomes", ""]
+    lines += ["## Outcomes", "", "Outcome shorthand describes selected requirements. Execution completion, quantity evidence, and individual assessments remain separate in the JSON records.", ""]
     if section["kind"] == "study":
         counts = section["counts"]
         lines += _table(["outcome", "samples"], [[k, v] for k, v in counts["by_outcome"].items()])
@@ -296,8 +297,9 @@ def render_markdown(report):
         for t in section["targets"]:
             for label, cell in t["runs"].items():
                 rows.append([t["id"], label, _fmt(cell.get("value")) if not cell.get("missing") else "missing",
-                             t.get("unit") or "-", cell.get("status") or "-", _fmt(cell.get("delta"))])
-        lines += _table(["target", "run", "value", "unit", "status", f"delta vs {section['reference']}"], rows)
+                             t.get("unit") or "-", cell.get("assessment") or "-", cell.get("quantity_state") or "see metric",
+                             _fmt(cell.get("power_upper_bound_W")), cell.get("status") or "-", _fmt(cell.get("delta"))])
+        lines += _table(["target", "run", "value", "unit", "assessment", "quantity", "power upper bound (W)", "status", f"delta vs {section['reference']}"], rows)
         lines += [""] + _table(["run", "outcome", "status", "model scope issues", "run directory"], [
             [r["label"], r.get("outcome_label", r["outcome"]), r["status"],
              ", ".join([*r["model_scope_issues"], *r.get("out_of_model_issues", [])]) or "-",

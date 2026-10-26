@@ -63,8 +63,8 @@
  "constraints": [
   {
    "target": "transmitted_power",
-   "status": [
-    "PASS"
+   "assessment": [
+    "MET"
    ]
   }
  ],

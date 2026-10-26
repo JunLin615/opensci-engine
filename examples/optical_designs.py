@@ -1,4 +1,4 @@
-"""Parameterized optical designs as OpenSci Projects, with independent closed-form references (opensci-engine 0.8.0).
+"""Parameterized optical designs as OpenSci Projects, with independent closed-form references.
 
 Each builder returns a ``ProjectDocumentV2`` dictionary (``schema: opensci.project``, version 2.0) built from the
 released APIs ``opensci_engine.native_library`` (``build_native_model`` + ``add_to_project``) and
@@ -624,18 +624,17 @@ def design_outcome(run: Any) -> dict[str, Any]:
     ``in_model_scope`` is ``False`` whenever ``model_scope_issues`` is non-empty or the run, the Engine, an Engine
     issue or a target reports ``OUT_OF_MODEL_SCOPE``, whatever ``status`` says (a FAIL target takes precedence over OUT_OF_MODEL_SCOPE
     in ``status``)."""
-    scope = [issue.as_dict() for issue in run.model_scope_issues]
+    from opensci_engine.results import load_run
+
+    compact = load_run(run).targets()
     targets = {}
-    for t in run.result.targets:
-        targets[t.target_id] = {"metric": t.metric, "observation_id": t.observation_id, "value": t.value,
-                                "unit": t.unit, "status": t.status.value, "minimum": t.minimum, "maximum": t.maximum,
-                                "target_value": t.target_value, "tolerance": t.tolerance,
-                                "issue_codes": [str(getattr(c, "value", c)) for c in t.issue_codes]}
-    statuses = {run.status.value, run.result.status.value} | {t["status"] for t in targets.values()} | {
-        i.status.value for i in run.result.issues}
-    return {"status": run.status.value, "engine_status": run.result.status.value,
-            "in_model_scope": not scope and "OUT_OF_MODEL_SCOPE" not in statuses,
-            "model_scope_issues": scope, "issues": sorted({i.code.value for i in run.result.issues}),
+    for row in compact["targets"]:
+        targets[row["target_id"]] = {**row, **row["bounds"]}
+    return {"status": run.status.value, "engine_status": compact["engine_status"],
+            "outcome": compact["outcome"], "in_model_scope": compact["in_model_scope"],
+            "model_scope_issues": compact["model_scope_issues"],
+            "out_of_model_issues": compact["out_of_model_issues"],
+            "issues": sorted({i.code.value for i in run.result.issues}),
             "targets": targets, "catalog_version": run.catalog_version}
 
 

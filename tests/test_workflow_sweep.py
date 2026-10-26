@@ -48,7 +48,7 @@ class MixedOutcomeSweepTests(unittest.TestCase):
                                     "s0005": "FAIL", "s0006": "OUT_OF_MODEL"})
         counts = self.summary["counts"]
         self.assertEqual(counts["requested"], 6)
-        self.assertEqual(counts["by_outcome"], {"ERROR": 2, "OUT_OF_MODEL": 2, "UNKNOWN": 0, "FAIL": 1, "PASS": 1})
+        self.assertEqual(counts["by_outcome"], {"ERROR": 2, "OUT_OF_MODEL": 2, "UNKNOWN": 0, "FAIL": 1, "PASS": 1, "NOT_APPLICABLE": 0})
         self.assertEqual((counts["pass_fraction"]["numerator"], counts["pass_fraction"]["denominator"]), (1, 6))
         self.assertEqual(counts["pass_fraction_among_evaluable"]["denominator"], 2)
 
@@ -87,6 +87,9 @@ class MixedOutcomeSweepTests(unittest.TestCase):
         self.assertEqual(study["base_project"]["project_hash"], wc.check(self.base)["project_hash"])
         self.assertEqual(study["budget"], {"max_evaluations": 6, "samples": 6})
         self.assertIn("finished", study)
+        self.assertIsNone(study["catalog"]["catalog_version"])
+        self.assertIsNone(self.summary["identity"]["catalog_version"])
+        self.assertIn("installed_catalog", study)
         with open(self.dir / "study" / "table.csv", encoding="utf-8", newline="") as handle:
             rows = list(csv.DictReader(handle))
         self.assertEqual([r["outcome"] for r in rows], [self.rows[f"s000{i}"]["outcome"] for i in range(1, 7)])

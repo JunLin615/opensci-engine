@@ -38,6 +38,21 @@ def invoke(workflow):
 
 
 class ResultSummaryTests(unittest.TestCase):
+    def test_failed_and_cancelled_execution_override_unassessed_requirements(self):
+        from examples import workflow_common as wc
+        results = results_from_engine(engine_result())
+        for state in ("FAILED", "CANCELLED"):
+            with self.subTest(state=state):
+                native = results.targets()
+                native["outcome"] = {"execution": {"outcome": state}, "requirements": {}}
+                with patch.object(RunResults, "targets", return_value=native):
+                    summary = summarize_results(results)
+                self.assertEqual(summary["requirement_outcome"], "ERROR")
+                self.assertEqual(wc.sample_from_summary(summary)["outcome"], "ERROR")
+                code, stdout, stderr = invoke(lambda: summary)
+                self.assertEqual((code, stderr), (4, ""))
+                self.assertEqual(json.loads(stdout)["outcome"]["execution"]["outcome"], state)
+
     def test_all_scientific_statuses_produce_json_and_matching_exit_codes(self):
         for status, expected in (
             ("PASS", 0), ("WARNING", 0), ("NOT_APPLICABLE", 0),
@@ -47,7 +62,8 @@ class ResultSummaryTests(unittest.TestCase):
                 results = results_from_engine(engine_result(status))
                 code, stdout, stderr = invoke(lambda: summarize_results(results))
                 summary = json.loads(stdout)
-                self.assertEqual((code, stderr), (expected, ""))
+                self.assertEqual((code, stderr), (0, ""))  # no requirements in these synthetic records
+                self.assertEqual(summary["requirement_outcome"], "NOT_APPLICABLE")
                 self.assertEqual(summary["status"], status)
                 self.assertEqual(summary["engine_status"], status)
                 self.assertIsNone(summary["validation_status"])
@@ -116,7 +132,7 @@ class ResultSummaryTests(unittest.TestCase):
         self.assertEqual(compact, detail)
 
     def test_local_validation_scope_and_element_models_survive(self):
-        scope = [{"code": "CATALOG_SCOPE", "message": "Select a supported model"}]
+        scope = [{"instance_id": "Lens", "code": "CATALOG_SCOPE", "message": "Select a supported model"}]
         models = [{"instance_id": "Lens", "fidelity": "IDEAL_THIN_ELEMENT",
                    "approximations": ["SUBSTRATE_NOT_MODELLED"]}]
         results = RunResults(engine_result(), manifest={
@@ -125,7 +141,7 @@ class ResultSummaryTests(unittest.TestCase):
         })
         code, stdout, stderr = invoke(lambda: summarize_results(results))
         summary = json.loads(stdout)
-        self.assertEqual((code, stderr), (3, ""))
+        self.assertEqual((code, stderr), (0, ""))  # unrelated scope, no target requirements
         self.assertEqual(summary["status"], "OUT_OF_MODEL_SCOPE")
         self.assertEqual(summary["engine_status"], "PASS")
         self.assertEqual(summary["validation_status"], "OUT_OF_MODEL_SCOPE")
@@ -163,7 +179,7 @@ class ResultSummaryTests(unittest.TestCase):
     def test_workflow_logging_is_separate_from_summary(self):
         def workflow():
             print("Simulation diagnostic")
-            return {"status": "PASS", "message": "光束"}
+            return {"status": "PASS", "requirement_outcome": "PASS", "message": "光束"}
 
         code, stdout, stderr = invoke(workflow)
         self.assertEqual(code, 0)

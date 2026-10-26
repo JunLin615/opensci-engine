@@ -4,7 +4,7 @@ Run from the repository root: python -m unittest tests.test_interop -v
 
 The reference formulas, input parsing and network handling need only numpy (and
 scipy for the diffraction reference); third-party solvers are never imported here.
-Checks that run the Engine need opensci-engine 0.8.0 or newer and are skipped
+Checks that run the Engine need opensci-engine 0.9.0 or newer and are skipped
 otherwise, as is any check whose optional dependency is missing.
 """
 
@@ -24,7 +24,7 @@ HAS_SCIPY = HAS_NUMPY and find_spec("scipy") is not None
 from examples.interop import common  # noqa: E402  (stdlib only)
 
 
-def engine_080():
+def engine_supported():
     installed = common.engine_version()
     return installed is not None and common.version_tuple(installed) >= common.MINIMUM_ENGINE
 
@@ -37,12 +37,13 @@ class CommonTests(unittest.TestCase):
         self.assertLess(common.version_tuple("0.6.1"), common.MINIMUM_ENGINE)
 
     def test_require_engine_refuses_older_or_missing_engines(self):
-        for installed in ("0.6.1", "0.7.0", None):
+        for installed in ("0.6.1", "0.7.0", "0.8.0", None):
             with self.subTest(installed=installed), patch.object(common, "engine_version", return_value=installed):
-                with self.assertRaisesRegex(RuntimeError, "requires opensci-engine 0.8.0"):
+                with self.assertRaisesRegex(RuntimeError, "requires opensci-engine 0.9.0"):
                     common.require_engine()
-        with patch.object(common, "engine_version", return_value="0.8.0"):
-            self.assertEqual(common.require_engine(), "0.8.0")
+        with patch.object(common, "engine_version", return_value="0.9.0"):
+            self.assertEqual(common.require_engine(), "0.9.0")
+
 
     def test_decimal_text_is_a_plain_canonical_decimal(self):
         self.assertEqual(common.decimal_text(3.0), "3")
@@ -67,6 +68,68 @@ class CommonTests(unittest.TestCase):
             for got, want in zip(rotate(local), expected):
                 self.assertAlmostEqual(got, want, places=12)
 
+
+@unittest.skipUnless(engine_supported(), "opensci-engine 0.9 is required")
+class OptimizationOutcomeTests(unittest.TestCase):
+    def test_refused_sample_is_logged_and_counts_toward_budget(self):
+        from examples.interop.optimization.optimize_expander import EngineObjective, INFEASIBLE_PENALTY_RAD
+        with tempfile.TemporaryDirectory() as tmp:
+            objective = EngineObjective(Path(tmp) / "eval.jsonl", max_evaluations=1)
+            with patch.object(objective, "_run", side_effect=ValueError("invalid design")):
+                self.assertEqual(objective(200), INFEASIBLE_PENALTY_RAD)
+            row = json.loads(objective.log_path.read_text())
+            with self.assertRaisesRegex(ValueError, "evaluation budget"):
+                objective(200)
+        self.assertFalse(row["objective_valid"])
+        self.assertEqual(row["run_status"], "ERROR")
+        self.assertEqual(row["error"]["message"], "invalid design")
+        self.assertIsNone(row["identity"])
+
+    def test_existing_evaluations_are_preserved(self):
+        from examples.interop.optimization.optimize_expander import EngineObjective
+        with tempfile.TemporaryDirectory() as tmp:
+            path = Path(tmp) / "eval.jsonl"
+            path.write_text("existing evidence", encoding="utf-8")
+            with self.assertRaises(FileExistsError):
+                EngineObjective(path)
+            self.assertEqual(path.read_text(), "existing evidence")
+
+    def test_unmet_objective_stays_available_for_sensitivity(self):
+        from examples.interop.optimization.optimize_expander import EngineObjective, INFEASIBLE_PENALTY_RAD
+        with tempfile.TemporaryDirectory() as tmp:
+            objective = EngineObjective(Path(tmp) / "eval.jsonl", max_divergence_rad=0)
+            self.assertEqual(objective(200), INFEASIBLE_PENALTY_RAD)
+            self.assertLess(objective(200, stage="tolerance"), 0.001)
+            rows = [json.loads(line) for line in objective.log_path.read_text().splitlines()]
+        self.assertTrue(all(r["objective_valid"] for r in rows))
+        self.assertTrue(all(r["assessment"] == "UNMET" and not r["requirement_feasible"] for r in rows))
+        self.assertTrue(all(r["identity"]["result_hash"] for r in rows))
+
+    def test_budget_limited_sample_keeps_failure_evidence(self):
+        from examples.interop.optimization.optimize_expander import EngineObjective, INFEASIBLE_PENALTY_RAD
+        with tempfile.TemporaryDirectory() as tmp:
+            objective = EngineObjective(Path(tmp) / "eval.jsonl", compute_budget={"max_trace_steps": 1})
+            self.assertEqual(objective(200), INFEASIBLE_PENALTY_RAD)
+            row = json.loads(objective.log_path.read_text())
+        self.assertFalse(row["objective_valid"])
+        self.assertEqual(row["assessment"], "INDETERMINATE")
+        self.assertEqual(row["execution"]["outcome"], "PARTIAL")
+        self.assertIn("max_trace_steps", row["execution"]["budgets"]["exhausted"])
+
+    def test_unrelated_scope_issue_does_not_invalidate_selected_objective(self):
+        from examples.interop.optimization import optimize_expander as oe
+        from opensci_engine.local import load_project, run_optical_project
+        from opensci_engine.results import load_run
+        results = load_run(run_optical_project(load_project(oe.base_project())))
+        original = results.describe()
+        original["status"]["validation_status"] = "OUT_OF_MODEL_SCOPE"
+        with tempfile.TemporaryDirectory() as tmp:
+            objective = oe.EngineObjective(Path(tmp) / "eval.jsonl")
+            with patch.object(type(results), "describe", return_value=original), patch.object(objective, "_load_run", return_value=results):
+                self.assertLess(objective(200), 0.001)
+            row = json.loads(objective.log_path.read_text())
+        self.assertTrue(row["objective_valid"])
+        self.assertTrue(row["requirement_feasible"])
 
 @unittest.skipUnless(HAS_SCIPY, "numpy and scipy are needed for the diffraction reference")
 class DiffractionReferenceTests(unittest.TestCase):
@@ -343,7 +406,7 @@ class MetasurfaceFitTests(unittest.TestCase):
         self.assertAlmostEqual(self.fit.aperture_fraction(30.0, 50.0), 1 - math.exp(-2 * 2500 / 900), places=15)
 
 
-@unittest.skipUnless(HAS_NUMPY and engine_080(), "needs opensci-engine 0.8.0 or newer")
+@unittest.skipUnless(HAS_NUMPY and engine_supported(), "needs opensci-engine 0.8.0 or newer")
 class EngineInteropTests(unittest.TestCase):
     def test_hom_layout_exports_a_four_mode_lossless_network(self):
         from opensci_engine.local import json_api

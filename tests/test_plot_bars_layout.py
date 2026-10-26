@@ -26,7 +26,12 @@ class PlotBarsLayoutTests(unittest.TestCase):
         finally:
             pr.save = original
         fig = captured[0]
-        renderer = fig.canvas.get_renderer()
+        # A saved/closed figure can have the base canvas after an SVG export.
+        # Render the final layout explicitly before checking its label bounds.
+        from matplotlib.backends.backend_agg import FigureCanvasAgg
+        canvas = FigureCanvasAgg(fig)
+        canvas.draw()
+        renderer = canvas.get_renderer()
         for label in fig.axes[0].get_yticklabels():
             self.assertGreaterEqual(label.get_window_extent(renderer).x0, 0.0)
 

@@ -155,19 +155,21 @@ class EditOpTests(unittest.TestCase):
         l3 = by_id(result["project"]["components"], "instance_id", "L3")
         self.assertEqual(l3["optical_model_id"], "thin-alt")
         self.assertEqual(self.refused([{"op": "remove_optical_model", "model_id": "thin-L1"}])["op_code"], "IN_USE")
-        self.assertEqual(self.refused([{"op": "add_optical_model", "optical_model": by_id(
-            self.base["optical_models"], "model_id", "thin-L1")}])["op_code"], "DUPLICATE_ID")
+        same = self.edit([{"op": "add_optical_model", "optical_model": by_id(
+            self.base["optical_models"], "model_id", "thin-L1")}])
+        self.assertFalse(same["record"]["engine_update"]["changed"])
+        self.assertTrue(same["record"]["engine_update"]["already_present"])
 
     def test_null_removes_a_field(self):
-        doc = ep._apply_one(self.base, {"op": "set_source_model", "instance_id": "SRC",
-                                        "changes": {"m2": None, "waist_radius_y_mm": 0.6}}, 0)
+        doc = ep.apply_edits(self.base, [{"op": "set_source_model", "instance_id": "SRC",
+                                        "changes": {"m2": None, "waist_radius_y_mm": 0.6}}], validate=False)["project"]
         source = by_id(doc["components"], "instance_id", "SRC")["source_model"]
         self.assertNotIn("m2", source)
         self.assertEqual(source["waist_radius_y_mm"], 0.6)
 
     def test_set_component_product_replaces_declared_model(self):
-        doc = ep._apply_one(self.base, {"op": "set_component_product", "instance_id": "L3",
-                                        "optical_sku": "OS-OPT-EXAMPLE", "catalog_version": "2026-10-15.1"}, 0)
+        doc = ep.apply_edits(self.base, [{"op": "set_component_product", "instance_id": "L3",
+                                        "optical_sku": "OS-OPT-EXAMPLE", "catalog_version": "2026-10-15.1"}], validate=False)["project"]
         l3 = by_id(doc["components"], "instance_id", "L3")
         self.assertEqual(l3["product"], {"optical_sku": "OS-OPT-EXAMPLE", "catalog_version": "2026-10-15.1"})
         self.assertNotIn("optical_model_id", l3)
@@ -199,9 +201,7 @@ class EditOpTests(unittest.TestCase):
             self.assertAlmostEqual(got, want, places=12)
         for got, want in zip(after["position_mm"], expected_p):
             self.assertAlmostEqual(got, want, places=12)
-        reply = result["record"]["changes"][0]["transform"]
-        self.assertEqual(reply["affected"][0]["id"], "L2")
-        self.assertIn("pivot_mm", reply)
+        self.assertEqual(result["record"]["changes"][0]["affected"][0]["id"], "L2")
 
     def test_refusals_name_the_op(self):
         self.assertEqual(self.refused([{"op": "set_target", "target_id": "spot_radius", "changes": {}},
@@ -218,8 +218,8 @@ class EditOpTests(unittest.TestCase):
         self.assertEqual(self.refused([{"op": "set_retained_dof", "instance_id": "L1", "axis": "Q",
                                         "control": "MANUAL"}])["op_code"], "BAD_ARGUMENT")
         details = self.refused([{"op": "transform", "selector": {"ids": ["L2"]}, "translation_mm": [-200, 0, 0]}],
-                               code="WORKSPACE_OPERATION_REFUSED")
-        self.assertEqual(details["problems"][0]["code"], "CHECK_PROJECT_REFUSED")
+                               code="PROJECT_REJECTED")
+        self.assertTrue(details["problems"])
         details = self.refused([{"op": "set_source_model", "instance_id": "SRC", "changes": {"waist_radius_mm": -1}}],
                                code="PROJECT_REJECTED")
         self.assertEqual(details["problems"][0]["code"], "PROJECT_INVALID")

@@ -1,6 +1,6 @@
 """Shared helpers for the external-tool (interop) examples.
 
-The interop examples require opensci-engine 0.8.0 or newer. Each topic keeps its
+The interop examples require opensci-engine 0.9.0 or newer. Each topic keeps its
 own third-party requirements file; nothing here imports a third-party solver.
 """
 
@@ -15,10 +15,11 @@ from pathlib import Path
 import platform
 import sys
 
-MINIMUM_ENGINE = (0, 8, 0)
+MINIMUM_ENGINE = (0, 9, 0)
 # Outcome words of these scripts. They describe a comparison with an external or independent reference (or a
 # completed production step), never an OpenSci run status.
-EXIT_CODES = {"WITHIN_TOLERANCE": 0, "COMPLETED": 0, "OUT_OF_TOLERANCE": 1, "UNEXPECTED_RESULT": 1}
+EXIT_CODES = {"WITHIN_TOLERANCE": 0, "COMPLETED": 0, "OUT_OF_TOLERANCE": 1, "UNEXPECTED_RESULT": 1,
+              "NO_FEASIBLE_RESULT": 2, "INCOMPLETE_SAMPLE_SET": 2}
 ERROR_EXIT = 4
 
 

@@ -77,7 +77,7 @@ class CompareTests(unittest.TestCase):
         runs = {r["label"]: r for r in self.doc["runs"]}
         self.assertEqual(runs["a"]["outcome"], "PASS")
         self.assertEqual(runs["a"]["freshness"]["freshness"], "HISTORICAL")
-        self.assertEqual(runs["a"]["freshness"]["reasons"], ["PROJECT_CHANGED"])
+        self.assertEqual(runs["a"]["freshness"]["reasons"], ["TARGETS_CHANGED"])
         self.assertEqual(runs["a"]["outcome_label"], "HISTORICAL PASS")
         same = wc.freshness(self.dir / "base.json", self.dir / "a" / "run")
         self.assertEqual((same["freshness"], same["reasons"]), ("CURRENT", []))
@@ -98,7 +98,7 @@ class CompareTests(unittest.TestCase):
                                            str(self.dir / "cmp")])
         self.assertEqual(code, 0)
         self.assertEqual(out["runs"][0]["outcome_label"], "HISTORICAL PASS")
-        self.assertEqual(out["observations_W"][-1]["runs"]["a"], "missing")
+        self.assertEqual(out["observations_W"][-1]["runs"]["a"], {"missing": True})
         text = (self.dir / "cmp" / "compare.csv").read_text(encoding="utf-8")
         self.assertIn("target,far_radius,beam_radius_mm,mm,a,,MISSING", text)
         self.assertEqual(wc.read_json(self.dir / "cmp" / "compare.json")["reference"], "a")
@@ -134,7 +134,7 @@ class PlotAndReportTests(unittest.TestCase):
         result = self.pr.plot_sweep(self.dir / "study", "target:spot_radius")
         svg = Path(result["out"]["svg"]).read_text(encoding="utf-8")
         for text in ("spot_radius [mm]", "f3 [mm]", "PASS (2)", "FAIL (1)", "target maximum 0.02",
-                     "engine 0.8", "catalog none (catalog-free run)", "data: ../summary.json (sha256 "):
+                     "engine " + wc.engine_identity()["engine_version"], "catalog none (catalog-free run)", "data: ../summary.json (sha256 "):
             self.assertIn(text, svg)
         self.assertTrue(Path(result["out"]["png"]).stat().st_size > 1000)
         self.assertEqual(result["by_outcome"], {"PASS": 2, "FAIL": 1})
@@ -157,6 +157,29 @@ class PlotAndReportTests(unittest.TestCase):
         power = self.pr.plot_power(self.dir / "study" / "samples" / "s0001" / "run", out_dir=self.dir / "plots")
         self.assertTrue(power["conserved"])
         self.assertIn("received power [W]", Path(power["out"]["svg"]).read_text(encoding="utf-8"))
+
+    def test_power_plot_preserves_unknown_and_bound_states(self):
+        from unittest.mock import Mock, patch
+        monitors = [
+            {"observation_id": "known", "total_power_W": 1.0, "quantity_state": "KNOWN", "power_complete": True},
+            {"observation_id": "bounded", "total_power_W": 0.3, "quantity_state": "BOUNDED",
+             "power_complete": False, "power_upper_bound_W": 0.8},
+            {"observation_id": "unknown", "total_power_W": None, "quantity_state": "UNKNOWN",
+             "power_complete": False},
+        ]
+        results = Mock()
+        results.monitors.return_value = monitors
+        results.identity.return_value = {}
+        results.power_budget.return_value = {}
+        source = self.dir / "study" / "samples" / "s0001" / "run"
+        with patch("opensci_engine.results.load_run", return_value=results):
+            power = self.pr.plot_power(source, out_dir=self.dir / "mixed_power")
+        self.assertIsNone(power["observations"]["unknown"]["total_power_W"])
+        self.assertEqual(power["observations"]["bounded"]["power_upper_bound_W"], 0.8)
+        svg = Path(power["out"]["svg"]).read_text(encoding="utf-8")
+        self.assertIn("UNKNOWN", svg)
+        self.assertIn("hatched: lower bound", svg)
+        self.assertIn("bounded", svg)
 
     def test_report_links_resolve_and_hashes_match(self):
         self.pr.plot_sweep(self.dir / "study", "target:spot_radius", out_dir=self.dir / "study" / "plots")

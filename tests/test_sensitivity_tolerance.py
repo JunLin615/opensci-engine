@@ -223,12 +223,12 @@ class SensitivityVisibilityTests(unittest.TestCase):
     def test_one_sided_labels(self):
         wavelength = pair(self.summary, "wavelength", "spot_radius")
         self.assertEqual([e["method"] for e in wavelength["estimates"]], ["central", "backward"])
-        self.assertIn("OUT_OF_MODEL (MODEL_WAVELENGTH_OUTSIDE_BAND)", wavelength["estimates"][1]["unusable"][0])
+        self.assertIn("MODEL_WAVELENGTH_OUTSIDE_BAND", wavelength["estimates"][1]["unusable"][0])
         self.assertEqual(wavelength["method"], "central")
         self.assertIn("METHOD_DIFFERS", wavelength["flags"])
         shift = pair(self.summary, "L2_axial", "spot_radius")
         self.assertEqual(shift["estimates"][1]["method"], "forward")
-        self.assertIn("ERROR WORKSPACE_OPERATION_REFUSED", shift["estimates"][1]["unusable"][0])
+        self.assertIn("ERROR RUN_REFUSED", shift["estimates"][1]["unusable"][0])
         self.assertIn("OPTICAL_BODIES_OVERLAP", shift["estimates"][1]["unusable"][0])
 
     def test_files_keep_every_sample(self):
@@ -256,6 +256,9 @@ class SensitivityVisibilityTests(unittest.TestCase):
         study_json = wc.read_json(study / "study.json")
         self.assertEqual(study_json["engine"], wc.engine_identity())
         self.assertIn("catalog", study_json)
+        self.assertIsNone(study_json["catalog"]["catalog_version"])
+        self.assertIsNone(self.summary["identity"]["catalog_version"])
+        self.assertIn("installed_catalog", study_json)
 
 
 class SensitivityRefusalTests(unittest.TestCase):

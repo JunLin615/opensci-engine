@@ -1,4 +1,4 @@
-"""OpenSci side of the quantum example (requires opensci-engine 0.8.0).
+"""OpenSci side of the quantum example (requires opensci-engine 0.9.0).
 
 Builds small catalog-free Projects from native components (a thin 50:50 plate
 splitter, flat mirrors, uncoated windows of a declared N-BK7 Sellmeier glass) and
@@ -159,7 +159,7 @@ def run_example(out_dir):
     out_dir = Path(out_dir)
     layouts = out_dir / "layouts"
     layouts.mkdir(parents=True, exist_ok=True)
-    manifest = {"requires": "opensci-engine>=0.8.0", "engine_version": installed, "cases": {}}
+    manifest = {"requires": "opensci-engine>=0.9.0", "engine_version": installed, "cases": {}}
     for name, (layout, meta) in cases().items():
         project_path = write_json(layouts / f"{name}.project.json", layout.document)
         network_path = layouts / f"{name}.network.json"

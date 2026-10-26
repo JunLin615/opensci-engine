@@ -1,4 +1,4 @@
-"""OpenSci side of the diffraction example (requires opensci-engine 0.8.0).
+"""OpenSci side of the diffraction example (requires opensci-engine 0.9.0).
 
 A 532 nm TEM00 beam (1 mm waist radius at the source, 1 mW) passes a declared
 circular APERTURE_STOP 100 mm downstream and a declared IDEAL_THIN_LENS
@@ -122,8 +122,12 @@ def gaussian_at_stop(results, document):
 
 def engine_focus(results):
     statuses = results.describe()["status"]
-    arrivals = results.monitor("focus")["arrivals"]
+    monitor = results.monitor("focus")
+    arrivals = monitor["arrivals"]
     focus = {"status": statuses.get("validation_status") or statuses["engine_status"],
+             "execution": results.targets()["outcome"]["execution"],
+             "quantity_state": monitor["quantity_state"], "power_complete": monitor["power_complete"],
+             "total_power_W": monitor["total_power_W"], "power_upper_bound_W": monitor.get("power_upper_bound_W"),
              "issues": sorted({issue.code for issue in results.result.issues}),
              "model_scope_issues": statuses.get("model_scope_issues", []), "arrived": bool(arrivals)}
     if not arrivals:
@@ -153,7 +157,7 @@ def run_case(stop_radius_mm, out_dir):
     results = load_run(run_dir)
     beam, surface, engine_handoff = gaussian_at_stop(results, document)
     handoff = {
-        "schema": HANDOFF_SCHEMA, "requires": "opensci-engine>=0.8.0",
+        "schema": HANDOFF_SCHEMA, "requires": "opensci-engine>=0.9.0",
         "identity": run_identity(results), "run_directory": str(run_dir),
         "field_convention": engine_handoff["conventions"]["tem00_field"],
         "beam_at_stop": beam,

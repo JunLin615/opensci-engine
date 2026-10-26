@@ -14,7 +14,8 @@ and computes the back-focal-plane irradiance with:
 * an independent Hankel-integral reference (``hankel_reference.py``).
 
 It then compares the Engine's paraxial Gaussian focal values from the handoff with
-the reference. Requires the handoff of an opensci-engine 0.8.0 run.
+the reference. Reads the documented diffraction handoff schema. Diffractio results
+use a ``_diffractio`` filename suffix so they preserve the primary comparison.
 
 Usage: python examples/interop/diffraction/external_focus.py run-interop-diffraction
 """
@@ -304,21 +305,24 @@ def plot(reports, path):
 
 def run_example(directory):
     directory = Path(directory)
+    packages = environment("numpy", "scipy", "LightPipes", "prysm", "poppy", "diffractio", "matplotlib")
+    suffix = "_diffractio" if packages["packages"].get("diffractio") else ""
+    report_name = f"external_report{suffix}.json"
     handoffs = sorted(directory.glob("*/handoff.json"))
     if not handoffs:
         raise ValueError(f"no */handoff.json under {directory}; run opensci_handoff.py first")
     reports = []
     for path in handoffs:
         report = analyze_case(path)
-        write_json(path.parent / "external_report.json", report)
+        write_json(path.parent / report_name, report)
         reports.append(report)
     reports.sort(key=lambda r: -r["stop_radius_mm"])
-    figure = plot(reports, directory / "focus_profiles.png")
+    figure = plot(reports, directory / f"focus_profiles{suffix}.png")
     summary = {
         "example": "interop/diffraction (external side)",
         "outcome": ("WITHIN_TOLERANCE" if all(r["comparison_status"] == "WITHIN_TOLERANCE" for r in reports)
                     else "OUT_OF_TOLERANCE"),
-        "environment": environment("numpy", "scipy", "LightPipes", "prysm", "poppy", "diffractio", "matplotlib"),
+        "environment": packages,
         "cases": [{
             "stop_radius_mm": r["stop_radius_mm"], "comparison_status": r["comparison_status"],
             "engine_status": r["engine"]["status"],
@@ -329,11 +333,11 @@ def run_example(directory):
             "convergence_peak_rel_spread": r["convergence"]["peak_rel_spread"],
             "cross_check_profile_err": {k: v.get("profile_max_abs_err") for k, v in r["cross_checks"].items()},
             "cross_check_peak_rel_err": {k: v["peak_rel_err"] for k, v in r["cross_checks"].items() if "peak_rel_err" in v},
-            "report": str(Path(r["handoff"]).parent / "external_report.json"),
+            "report": str(Path(r["handoff"]).parent / report_name),
         } for r in reports],
         "figure": figure,
     }
-    write_json(directory / "external_summary.json", summary)
+    write_json(directory / f"external_summary{suffix}.json", summary)
     return summary
 
 

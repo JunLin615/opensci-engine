@@ -40,8 +40,8 @@
  "constraints": [
   {
    "target": "expanded_waist",
-   "status": [
-    "PASS"
+   "assessment": [
+    "MET"
    ]
   }
  ],

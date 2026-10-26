@@ -29,9 +29,9 @@ Output directory layout:
                                     plots/<target>.png / .svg, closed_form.csv / .json, report/report.md / .json
   report/report.md, report.json     nominal run, inputs, closed-form check and the study index with links
 
-Outcome classes per sample (workflow_common): ERROR, OUT_OF_MODEL (any model-scope issue or any issue whose status
-is OUT_OF_MODEL_SCOPE, whatever the run status), UNKNOWN, FAIL, PASS (WARNING targets with a value count as PASS; their
-warning codes are listed).
+Outcome classes per sample (workflow_common): ERROR, OUT_OF_MODEL (selected target applicability),
+UNKNOWN (indeterminate), FAIL (unmet), PASS (all selected targets met), NOT_APPLICABLE (no selected requirements); their
+warning codes are listed.
 """
 
 from __future__ import annotations
@@ -55,7 +55,7 @@ else:
     import build_report as br
 
 #: exit code of a workflow = outcome class of its nominal run
-EXIT_CODES = {"PASS": 0, "FAIL": 1, "UNKNOWN": 2, "OUT_OF_MODEL": 3, "ERROR": 4, "DESCRIBED": 0}
+EXIT_CODES = {"PASS": 0, "FAIL": 1, "UNKNOWN": 2, "OUT_OF_MODEL": 3, "ERROR": 4, "NOT_APPLICABLE": 0, "DESCRIBED": 0}
 SWEEP_UNITS = ("nm", "um", "µm", "mm", "m", "deg", "rad", "mrad", "urad", "W", "mW", "uW", "1", "")
 MAX_NOTABLE = 8
 _VALUE = re.compile(r"^\s*(?P<number>[-+]?(?:\d+\.?\d*|\.\d+)(?:[eE][-+]?\d+)?)\s*(?P<unit>[A-Za-zµ]*)\s*$")
@@ -460,7 +460,8 @@ def run_workflow(config, inputs, studies, out_dir, *, max_evaluations, max_plots
 
     totals = closed_form_totals(all_rows)
     nominal = {"outcome": record["outcome"], "status": record["status"],
-               "targets": [{k: t.get(k) for k in ("id", "value", "unit", "status")} for t in record["targets"]],
+               "execution": record.get("execution"), "requirements": record.get("requirements"),
+               "targets": [{k: t.get(k) for k in ("id", "value", "unit", "status", "assessment", "quantity_state", "power_upper_bound_W")} for t in record["targets"]],
                "model_scope_issues": sorted({i.get("code") for i in record["model_scope_issues"]}),
                "out_of_model_issues": sorted({i.get("code") for i in record.get("out_of_model_issues") or []}),
                "warnings": record["warnings"], "error": record["error"],
@@ -469,7 +470,9 @@ def run_workflow(config, inputs, studies, out_dir, *, max_evaluations, max_plots
     summary = {"status": record["outcome"], "workflow": config["workflow"], "design": config["design"],
                "inputs": inputs, "nominal": nominal, "closed_form": totals,
                "closed_form_reference": config["reference_method"], "studies": study_summaries,
-               "evaluations": evaluations, "engine": wc.engine_identity(), "catalog": wc.catalog_identity(),
+               "evaluations": evaluations, "engine": wc.engine_identity(),
+               "catalog": {"catalog_version": nominal["identity"].get("catalog_version")},
+               "installed_catalog": wc.catalog_identity(),
                "environment": wc.environment(), "provenance": config["info"]["provenance"],
                "compact_analysis": bool(config.get("compact_analysis"))}
     extra = config.get("after_studies")
@@ -566,6 +569,7 @@ def compact(summary):
     out = {"status": summary["status"], "workflow": summary["workflow"], "design": summary["design"],
            "inputs": _short(summary["inputs"]),
            "nominal": {"outcome": nominal["outcome"], "status": nominal["status"],
+                       "execution": nominal.get("execution"), "requirements": nominal.get("requirements"),
                        "targets": _short(nominal["targets"]), "model_scope_issues": nominal["model_scope_issues"],
                        "warnings": nominal["warnings"]},
            "closed_form": {"reference": summary["closed_form_reference"], "compared": cf["compared"],

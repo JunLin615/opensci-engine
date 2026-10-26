@@ -112,6 +112,9 @@ class BeamExpansionFocusTests(unittest.TestCase):
         self.assertLess(stdout_bytes(out), MAX_STDOUT_BYTES)
         full = wc.read_json(self.dir / "wf" / "workflow.json")
         self.assertEqual(full["provenance"][0]["case_id"], "SEED-2-2")
+        self.assertIsNone(out["catalog_version"])
+        self.assertIsNone(full["catalog"]["catalog_version"])
+        self.assertIn("installed_catalog", full)
 
     def test_unmet_and_diagnostic_outcomes_are_visible(self):
         gap = study(self.out, "gap_error_mm")
@@ -255,7 +258,7 @@ class PolarizationControlTests(unittest.TestCase):
         self.assertEqual((code, out["status"]), (3, "OUT_OF_MODEL"))
         code, out, _err = invoke(pc.main, ["--out", str(self.dir / "qwp"), "--no-studies", "--retardance-waves",
                                            "0.25", "--hwp-angle-deg", "45"])
-        self.assertEqual((code, out["status"]), (2, "UNKNOWN"))  # circular light: azimuth undefined
+        self.assertEqual((code, out["status"]), (1, "FAIL"))  # azimuth indeterminate; another selected requirement is unmet
 
 
 class AlignmentAnalysisTests(unittest.TestCase):
@@ -279,7 +282,7 @@ class AlignmentAnalysisTests(unittest.TestCase):
         self.assertEqual((miss["outcome"], miss["targets"]), ("FAIL", {"far_position_u": "FAIL"}))
         self.assertAlmostEqual(miss["analysis"]["pointing_u_mrad"], 0.5, delta=1e-9)
         lost = notable(tilt, 60.0)
-        self.assertEqual(lost["outcome"], "UNKNOWN")
+        self.assertEqual(lost["outcome"], "FAIL")  # unmet captured-power requirement, position remains indeterminate
         self.assertIn("OBSERVATION_NOT_REACHED", lost["codes"])
         self.assertIsNone(lost["analysis"]["far_u_mm"])
         data = wc.read_json(self.dir / "wf" / "studies" / "mirror_tilt_local_y_mrad" / "closed_form.json")
@@ -339,6 +342,10 @@ class SpecFileTests(unittest.TestCase):
         self.assertTrue(set(edit_and_sweep) <= set(names), names)
         for name in names:  # sensitivity_*/tolerance_* specs are validated by their own tests
             spec = wc.read_json(SPECS / name)
+            if name.startswith("compute_budget_"):
+                self.assertEqual(set(spec), {"ops"})
+                self.assertEqual(spec["ops"][0]["op"], "set_compute_budget")
+                continue
             self.assertIsInstance(spec.get("description"), str, name)
             self.assertGreater(len(spec["description"]), 40, name)
         base = D.polarization_control(azimuth_target_deg=45.0)
@@ -382,7 +389,7 @@ class PolarizationSpecDemoTests(unittest.TestCase):
         code, out, err = self.sweep
         self.assertEqual(code, 0, err)
         self.assertEqual(out["counts"]["by_outcome"], {"ERROR": 0, "OUT_OF_MODEL": 9, "UNKNOWN": 0, "FAIL": 6,
-                                                       "PASS": 3})
+                                                       "PASS": 3, "NOT_APPLICABLE": 0})
         self.assertEqual(out["best"]["parameters"]["hwp_turn"]["value"], 0)
         rows = wc.read_json(self.dir / "sweep" / "summary.json")["rows"]
         for row in rows:

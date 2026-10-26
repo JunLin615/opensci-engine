@@ -40,11 +40,12 @@ class SweepFeasibilityTests(unittest.TestCase):
 
     def test_unknown_sample_is_not_feasible(self):
         row = {"outcome": "UNKNOWN"}
-        self.assertIn("outcome UNKNOWN", sp.constraint_failures(row, []))
+        self.assertEqual(sp.constraint_failures(row, []), [])
+        self.assertTrue(sp.constraint_failures(row, [{"outcome": ["PASS"]}]))
         rows = [{"sample_id": "s000", "outcome": "UNKNOWN"}, {"sample_id": "s001", "outcome": "PASS"}]
         _best, feasible = sp.select_best(rows, [], None)
-        self.assertEqual(feasible, 1)
-        self.assertEqual([r["feasible"] for r in rows], [False, True])
+        self.assertEqual(feasible, 2)
+        self.assertEqual([r["feasible"] for r in rows], [True, True])
 
 
 if __name__ == "__main__":

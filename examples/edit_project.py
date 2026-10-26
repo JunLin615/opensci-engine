@@ -16,6 +16,7 @@ vocabulary, applied in order to a copy of BASE; ``changes`` objects are merged a
   set_component_model    {instance_id, optical_model_id, custom_part_key?, description?}
   set_retained_dofs      {instance_id, retained_dofs: [{axis, control}]}   set_retained_dof {instance_id, axis, control|null}
   set_design_intent      {design_intent: LAB_ASSEMBLY|OPTICAL_SYSTEM|null}
+  set_compute_budget     {compute_budget: {max_paths, max_trace_steps, max_interactions_per_path, max_interference_pairs}|null}
   add_component / remove_component, add_observation / remove_observation, add_target / remove_target
   add_optical_model / update_optical_model / remove_optical_model, add_model_material / update_model_material /
   remove_model_material, add_model_coating / remove_model_coating
@@ -48,8 +49,8 @@ current editable values with units and frames, the supported operations, retaine
 and the model / catalog wavelength bands from public data (advisory: the Engine run decides validity).
 
 Output: one JSON document on stdout. Exit 0 edited / already applied / described. With --run, status and exit
-follow the run's outcome class: 0 PASS/WARNING, 1 FAIL, 2 UNKNOWN, 3 OUT_OF_MODEL_SCOPE (any model-scope issue or
-any issue whose status is OUT_OF_MODEL_SCOPE, whatever the run status); run.status keeps the Engine's run status,
+follow the selected requirements: 0 PASS/NOT_APPLICABLE, 1 FAIL, 2 UNKNOWN, 3 OUT_OF_MODEL_SCOPE when a selected
+target is outside its applicable model; run.status keeps the Engine's aggregate status,
 and a run the Engine refuses gives RUN_REFUSED (exit 4). Exit 4 also for a refused edit or invalid input (JSON
 error on stderr).
 """
@@ -65,18 +66,7 @@ if __package__:
 else:
     import workflow_common as wc
 
-OP_NAMES = (
-    "set_component_pose", "set_source_model", "set_retained_dofs", "set_retained_dof", "set_component_product",
-    "add_component", "remove_component", "set_observation_pose", "set_observation", "add_observation",
-    "remove_observation", "set_target", "add_target", "remove_target", "set_design_intent", "add_optical_model",
-    "update_optical_model", "remove_optical_model", "add_model_material", "update_model_material",
-    "remove_model_material", "add_model_coating", "remove_model_coating", "set_component_model", "transform",
-)
-DOF_AXES = ("Tx", "Ty", "Tz", "Rx", "Ry", "Rz")
-DESIGN_INTENTS = ("LAB_ASSEMBLY", "OPTICAL_SYSTEM")
 TARGET_VALUE_KEYS = ("minimum", "maximum", "target_value", "tolerance_abs")
-AIR = "AIR"
-_ABSENT = object()  # an op argument that is not given (an explicit null removes; an absent argument is refused)
 RECORD_KIND = "opensci-example.project-edit"
 
 
@@ -102,9 +92,11 @@ def normalize_op(op, index, document):
     """The op with every quantity converted to its schema unit (D3); raises EditError for unknown units."""
     if not isinstance(op, dict):
         raise _op_error("BAD_ARGUMENT", "each op must be an object", index)
+    from opensci_engine.local.project_ops import PROJECT_OPS
+
     name = op.get("op")
-    if name not in OP_NAMES:
-        raise _op_error("UNKNOWN_OP", f"unknown op {name!r}; known: {', '.join(OP_NAMES)}", index)
+    if name not in PROJECT_OPS:
+        raise _op_error("UNKNOWN_OP", f"unknown op {name!r}; known: {', '.join(PROJECT_OPS)}", index)
     try:
         if name in ("set_target", "add_target"):
             if name == "set_target":
@@ -135,302 +127,11 @@ def normalize_op(op, index, document):
         raise
 
 
-# --------------------------------------------------------------------------------------------- op semantics
-
-def _merge(target, changes, index):
-    if not isinstance(changes, dict):
-        raise _op_error("BAD_ARGUMENT", "changes must be an object", index)
-    out = dict(target)
-    for key, value in changes.items():
-        if value is None:
-            out.pop(key, None)
-        else:
-            out[key] = copy.deepcopy(value)
-    return out
-
-
-def _vector(value, length, name, index):
-    if not isinstance(value, list) or len(value) != length or not all(
-            isinstance(v, (int, float)) and not isinstance(v, bool) and v == v and abs(v) != float("inf")
-            for v in value):
-        raise _op_error("BAD_ARGUMENT", f"{name} must be an array of {length} finite numbers", index)
-    return list(value)
-
-
-def _find(items, key, ident, what, index):
-    for at, item in enumerate(items or []):
-        if item.get(key) == ident:
-            return at
-    raise _op_error("NOT_FOUND", f"{what} {ident!r} does not exist", index)
-
-
-def _set_pose(holder, key, op, index):
-    if "position_mm" not in op and "quaternion_wxyz" not in op:
-        raise _op_error("BAD_ARGUMENT", "give position_mm and/or quaternion_wxyz", index)
-    pose = dict(holder.get(key) or {})
-    if "position_mm" in op:
-        pose["position_mm"] = _vector(op["position_mm"], 3, "position_mm", index)
-    if "quaternion_wxyz" in op:
-        pose["quaternion_wxyz"] = _vector(op["quaternion_wxyz"], 4, "quaternion_wxyz", index)
-    return {**holder, key: pose}
-
-
-def _axis(axis, index):
-    if axis not in DOF_AXES:
-        raise _op_error("BAD_ARGUMENT", f"axis must be one of {', '.join(DOF_AXES)}", index)
-    return axis
-
-
-def _sorted_dofs(dofs):
-    return sorted(dofs, key=lambda d: DOF_AXES.index(d["axis"]))
-
-
-def _with_library(doc):
-    for key in ("optical_models", "model_materials", "model_coatings"):
-        if isinstance(doc.get(key), list) and not doc[key]:
-            del doc[key]
-    return doc
-
-
-def _materials_of(model):
-    out = set()
-    if not isinstance(model, dict):
-        return out
-    if model.get("model_kind") == "SURFACE_SEQUENCE":
-        out.update(m for m in model.get("media") or [] if isinstance(m, str))
-    if model.get("model_kind") == "SURFACE_SET":
-        for surface in model.get("surfaces") or []:
-            for key in ("medium_front", "medium_back"):
-                if isinstance((surface or {}).get(key), str):
-                    out.add(surface[key])
-        if isinstance((model.get("body") or {}).get("medium"), str):
-            out.add(model["body"]["medium"])
-    out.discard(AIR)
-    return out
-
-
-def _coatings_of(model):
-    if not isinstance(model, dict):
-        return set()
-    return {s.get("coating_id") for s in model.get("surfaces") or [] if isinstance((s or {}).get("coating_id"), str)}
-
-
-def _members_of(model):
-    if not isinstance(model, dict) or model.get("model_kind") != "COMPOUND":
-        return []
-    return [m.get("model_id") for m in model.get("members") or [] if isinstance((m or {}).get("model_id"), str)]
-
-
-def _merge_by_id(current, incoming, key):
-    merged = [copy.deepcopy(item) for item in current or []]
-    conflicts = []
-    for item in incoming or []:
-        existing = next((m for m in merged if m.get(key) == item.get(key)), None)
-        if existing is None:
-            merged.append(copy.deepcopy(item))
-        elif wc.canonical_json(existing) != wc.canonical_json(item):
-            conflicts.append(item.get(key))
-    return merged, conflicts
-
-
-def _material_users(doc, material_id):
-    return [m["model_id"] for m in doc.get("optical_models") or [] if material_id in _materials_of(m.get("model"))]
-
-
-def _coating_users(doc, coating_id):
-    return [m["model_id"] for m in doc.get("optical_models") or [] if coating_id in _coatings_of(m.get("model"))]
-
-
-def _apply_one(doc, op, index):
-    """One field op (Designer semantics); returns a new document. ``transform`` is handled by ``_transform``."""
-    doc = copy.deepcopy(doc)
-    name = op["op"]
-    comps = doc.setdefault("components", [])
-    obs = doc.setdefault("observations", [])
-    targets = doc.setdefault("targets", [])
-
-    def component(ident):
-        return _find(comps, "instance_id", ident, "component", index)
-
-    if name == "set_component_pose":
-        at = component(op.get("instance_id"))
-        comps[at] = _set_pose(comps[at], "nominal_pose", op, index)
-    elif name == "set_source_model":
-        at = component(op.get("instance_id"))
-        if not comps[at].get("source_model"):
-            raise _op_error("BAD_ARGUMENT", f"component {op.get('instance_id')!r} has no source_model", index)
-        comps[at]["source_model"] = _merge(comps[at]["source_model"], op.get("changes"), index)
-    elif name == "set_retained_dofs":
-        at = component(op.get("instance_id"))
-        if not isinstance(op.get("retained_dofs"), list):
-            raise _op_error("BAD_ARGUMENT", "retained_dofs must be an array", index)
-        dofs = [{**copy.deepcopy(d), "axis": _axis((d or {}).get("axis"), index)} for d in op["retained_dofs"]]
-        comps[at]["retained_dofs"] = _sorted_dofs(dofs)
-    elif name == "set_retained_dof":
-        at = component(op.get("instance_id"))
-        axis = _axis(op.get("axis"), index)
-        control = op.get("control", _ABSENT)
-        if control not in (None, "MANUAL", "NUMERICAL"):
-            raise _op_error("BAD_ARGUMENT", "control must be MANUAL, NUMERICAL or null", index)
-        others = [d for d in comps[at].get("retained_dofs") or [] if d.get("axis") != axis]
-        comps[at]["retained_dofs"] = _sorted_dofs(others if control is None else [*others, {"axis": axis,
-                                                                                             "control": control}])
-    elif name == "set_component_product":
-        at = component(op.get("instance_id"))
-        product = {**(comps[at].get("product") or {}), "optical_sku": op.get("optical_sku")}
-        if "catalog_version" in op:
-            if op["catalog_version"] is None:
-                product.pop("catalog_version", None)
-            else:
-                product["catalog_version"] = op["catalog_version"]
-        comps[at]["product"] = product
-        if "optical_model_id" in comps[at]:
-            comps[at].pop("optical_model_id")
-            comps[at].pop("custom_part", None)
-    elif name == "set_component_model":
-        at = component(op.get("instance_id"))
-        model_id = op.get("optical_model_id")
-        if not isinstance(model_id, str) or not any(m.get("model_id") == model_id for m in
-                                                    doc.get("optical_models") or []):
-            raise _op_error("NOT_FOUND", f"optical model {model_id!r} is not declared in optical_models", index)
-        current = comps[at]
-        part = current.get("custom_part") or {"custom_part_key": f"own-{current['instance_id']}"[:64],
-                                              "description": model_id}
-        part = {**part}
-        if "custom_part_key" in op:
-            part["custom_part_key"] = op["custom_part_key"]
-        if "description" in op:
-            part["description"] = op["description"]
-        current = {**current, "optical_model_id": model_id, "custom_part": part}
-        current.pop("product", None)
-        comps[at] = current
-    elif name == "set_design_intent":
-        intent = op.get("design_intent", _ABSENT)
-        if intent is not None and intent not in DESIGN_INTENTS:
-            raise _op_error("BAD_ARGUMENT", f"design_intent must be one of {', '.join(DESIGN_INTENTS)} or null", index)
-        if intent is None:
-            doc.pop("design_intent", None)
-        else:
-            doc["design_intent"] = intent
-    elif name == "add_optical_model":
-        model = op.get("optical_model")
-        if not isinstance(model, dict) or not isinstance(model.get("model_id"), str) or not isinstance(
-                model.get("model"), dict):
-            raise _op_error("BAD_ARGUMENT", "optical_model {model_id, model} is required", index)
-        if any(m.get("model_id") == model["model_id"] for m in doc.get("optical_models") or []):
-            raise _op_error("DUPLICATE_ID", f"optical model {model['model_id']!r} already exists", index)
-        materials, bad_m = _merge_by_id(doc.get("model_materials"), op.get("model_materials"), "material_id")
-        coatings, bad_c = _merge_by_id(doc.get("model_coatings"), op.get("model_coatings"), "coating_id")
-        if bad_m or bad_c:
-            named = [f"material {m}" for m in bad_m] + [f"coating {c}" for c in bad_c]
-            raise _op_error("DUPLICATE_ID", f"{', '.join(named)} already declared with other data", index)
-        doc["optical_models"] = [*(doc.get("optical_models") or []), copy.deepcopy(model)]
-        doc["model_materials"], doc["model_coatings"] = materials, coatings
-        _with_library(doc)
-    elif name == "update_optical_model":
-        models = doc.get("optical_models") or []
-        at = _find(models, "model_id", op.get("model_id"), "optical model", index)
-        if isinstance(op.get("changes"), dict) and "model_id" in op["changes"]:
-            raise _op_error("BAD_ARGUMENT", "a model keeps its model_id (add a new model to use another id)", index)
-        models[at] = _merge(models[at], op.get("changes"), index)
-    elif name == "remove_optical_model":
-        models = doc.get("optical_models") or []
-        model_id = op.get("model_id")
-        _find(models, "model_id", model_id, "optical model", index)
-        users = [f"component {c['instance_id']}" for c in comps if c.get("optical_model_id") == model_id]
-        users += [f"unit {m['model_id']}" for m in models if model_id in _members_of(m.get("model"))]
-        if users:
-            raise _op_error("IN_USE", f"optical model {model_id!r} is used by {', '.join(users)}", index)
-        before = copy.deepcopy(doc)
-        doc["optical_models"] = [m for m in models if m.get("model_id") != model_id]
-        doc["model_materials"] = [m for m in doc.get("model_materials") or [] if _material_users(
-            doc, m["material_id"]) or model_id not in _material_users(before, m["material_id"])]
-        doc["model_coatings"] = [c for c in doc.get("model_coatings") or [] if _coating_users(
-            doc, c["coating_id"]) or model_id not in _coating_users(before, c["coating_id"])]
-        _with_library(doc)
-    elif name == "add_model_material":
-        material = op.get("material")
-        if not isinstance(material, dict) or not isinstance(material.get("material_id"), str):
-            raise _op_error("BAD_ARGUMENT", "material.material_id is required", index)
-        if any(m.get("material_id") == material["material_id"] for m in doc.get("model_materials") or []):
-            raise _op_error("DUPLICATE_ID", f"material {material['material_id']!r} already exists", index)
-        doc["model_materials"] = [*(doc.get("model_materials") or []), copy.deepcopy(material)]
-    elif name == "update_model_material":
-        materials = doc.get("model_materials") or []
-        at = _find(materials, "material_id", op.get("material_id"), "material", index)
-        if isinstance(op.get("changes"), dict) and "material_id" in op["changes"]:
-            raise _op_error("BAD_ARGUMENT", "a material keeps its material_id", index)
-        materials[at] = _merge(materials[at], op.get("changes"), index)
-    elif name == "remove_model_material":
-        _find(doc.get("model_materials"), "material_id", op.get("material_id"), "material", index)
-        users = _material_users(doc, op["material_id"])
-        if users:
-            raise _op_error("IN_USE", f"material {op['material_id']!r} is used by model {', '.join(users)}", index)
-        doc["model_materials"] = [m for m in doc["model_materials"] if m.get("material_id") != op["material_id"]]
-        _with_library(doc)
-    elif name == "add_model_coating":
-        coating = op.get("coating")
-        if not isinstance(coating, dict) or not isinstance(coating.get("coating_id"), str):
-            raise _op_error("BAD_ARGUMENT", "coating.coating_id is required", index)
-        if any(c.get("coating_id") == coating["coating_id"] for c in doc.get("model_coatings") or []):
-            raise _op_error("DUPLICATE_ID", f"coating {coating['coating_id']!r} already exists", index)
-        doc["model_coatings"] = [*(doc.get("model_coatings") or []), copy.deepcopy(coating)]
-    elif name == "remove_model_coating":
-        _find(doc.get("model_coatings"), "coating_id", op.get("coating_id"), "coating", index)
-        users = _coating_users(doc, op["coating_id"])
-        if users:
-            raise _op_error("IN_USE", f"coating {op['coating_id']!r} is used by model {', '.join(users)}", index)
-        doc["model_coatings"] = [c for c in doc["model_coatings"] if c.get("coating_id") != op["coating_id"]]
-        _with_library(doc)
-    elif name in ("add_component", "add_observation", "add_target"):
-        key, items, what = {"add_component": ("instance_id", comps, "component"),
-                            "add_observation": ("observation_id", obs, "observation"),
-                            "add_target": ("target_id", targets, "target")}[name]
-        item = op.get(what)
-        if not isinstance(item, dict) or not isinstance(item.get(key), str):
-            raise _op_error("BAD_ARGUMENT", f"{what}.{key} is required", index)
-        if any(existing.get(key) == item[key] for existing in items):
-            raise _op_error("DUPLICATE_ID", f"{what} {item[key]!r} already exists", index)
-        items.append(copy.deepcopy(item))
-    elif name in ("remove_component", "remove_observation", "remove_target"):
-        key, items, what = {"remove_component": ("instance_id", comps, "component"),
-                            "remove_observation": ("observation_id", obs, "observation"),
-                            "remove_target": ("target_id", targets, "target")}[name]
-        at = _find(items, key, op.get(key), what, index)
-        del items[at]
-    elif name == "set_observation_pose":
-        at = _find(obs, "observation_id", op.get("observation_id"), "observation", index)
-        obs[at] = _set_pose(obs[at], "pose", op, index)
-    elif name == "set_observation":
-        at = _find(obs, "observation_id", op.get("observation_id"), "observation", index)
-        obs[at] = _merge(obs[at], op.get("changes"), index)
-    elif name == "set_target":
-        at = _find(targets, "target_id", op.get("target_id"), "target", index)
-        targets[at] = _merge(targets[at], op.get("changes"), index)
-    return doc
-
-
-def _transform(doc, op, index):
-    """Rigid move through the Engine's composition transform on the bare Project; returns (document, reply)."""
-    from opensci_engine.local import json_api
-
-    request = {key: value for key, value in op.items() if key != "op"}
-    if "selector" not in request:
-        raise _op_error("BAD_ARGUMENT", "transform needs a selector, e.g. {\"ids\": [\"L2\"]}", index)
-    reply = json_api.workspace_transform(copy.deepcopy(doc), request)
-    if not reply.get("ok"):
-        raise EditError("WORKSPACE_OPERATION_REFUSED", f"op {index}: the Engine refused the transform",
-                        op_index=index, op_code="TRANSFORM_REFUSED", problems=reply["error"].get("problems", []))
-    result = {key: value for key, value in reply["result"].items() if key not in ("op_id", "kind")}
-    return reply["workspace"]["project"], result
-
-
-# --------------------------------------------------------------------------------------------- change record
+# Engine operations own edit semantics; the adapter below records display differences.
 
 _COLLECTIONS = (("components", "instance_id", "component"), ("observations", "observation_id", "observation"),
                 ("targets", "target_id", "target"), ("optical_models", "model_id", "optical_model"),
-                ("model_materials", "material_id", "model_material"), ("model_coatings", "coating_id",
-                                                                         "model_coating"))
+                ("model_materials", "material_id", "model_material"), ("model_coatings", "coating_id", "model_coating"))
 
 
 def _flatten(value, prefix=""):
@@ -470,19 +171,6 @@ def _affected(before, after):
     return out
 
 
-def _unit_warnings(document, target_ids):
-    units = wc.target_metric_units()
-    warnings = []
-    for target in document.get("targets") or []:
-        if target.get("target_id") in target_ids and target.get("metric") in units and \
-                target.get("unit") != units[target["metric"]]:
-            warnings.append({"code": "TARGET_UNIT_MISMATCH", "target_id": target["target_id"],
-                             "message": f"target unit {target.get('unit')!r} differs from metric "
-                                        f"{target['metric']} unit {units[target['metric']]!r}; the run reports "
-                                        "this target UNKNOWN"})
-    return warnings
-
-
 def ops_digest(normalized_ops):
     """sha256 of the normalized operations with every number as a float: the same edit written in other units (1 mm,
     1000 um) or as 1 / 1.0 has the same digest."""
@@ -497,46 +185,45 @@ def normalize_ops(document, ops):
     return list(ops), [normalize_op(op, index, document) for index, op in enumerate(ops)]
 
 
-def apply_edits(document, ops, *, validate=True):
-    """Apply ``ops`` to a copy of ``document`` atomically; ``document`` itself is never modified.
+def apply_edits(document, ops, *, validate=True, expected_project_hash=None):
+    """Normalize explicit units, delegate semantic edits to the Engine, and record the change.
 
-    Returns ``{"project": <edited Project>, "record": <change record>}``. With ``validate`` (default) the result is
-    checked with ``json_api.check_project`` and ``project`` is the Engine's normalized document; the record then holds
-    the base / output project and Engine input hashes. Raises ``EditError`` naming the failing op (``op_index``)."""
+    The Engine applies the whole batch before validation. A refused operation or final
+    check leaves the original document and files unchanged.
+    """
+    from opensci_engine.local.project_ops import (
+        ProjectOpError, ProjectUpdateError, apply_project_ops, update_project,
+    )
+
     base = copy.deepcopy(document)
     given, normalized = normalize_ops(base, ops)
-    current = copy.deepcopy(base)
-    changes = []
-    for index, op in enumerate(normalized):
-        before = current
-        entry = {"op_index": index, "op": op["op"]}
-        if op["op"] == "transform":
-            current, reply = _transform(current, op, index)
-            entry["transform"] = reply
-        else:
-            current = _apply_one(current, op, index)
-        entry["affected"] = _affected(before, current)
-        changes.append(entry)
-    record = {"kind": RECORD_KIND, "ops": given, "normalized_ops": normalized, "ops_digest": ops_digest(normalized),
-              "changes": changes, "warnings": []}
-    if not validate:
+    changes, current = [], base
+    try:
+        for index, op in enumerate(normalized):
+            before = current
+            current = apply_project_ops(current, [op])
+            changes.append({"op_index": index, "op": op["op"], "affected": _affected(before, current)})
+        updated = update_project(base, normalized, expected_project_hash=expected_project_hash) if validate else None
+    except (ProjectOpError, ProjectUpdateError) as exc:
+        details = exc.as_dict()
+        code, message = details.pop("code"), details.pop("message")
+        if isinstance(exc, ProjectOpError):
+            details["op_index"] = index
+        raise EditError(code, message, **details) from None
+    record = {"kind": RECORD_KIND, "ops": given, "normalized_ops": normalized,
+              "ops_digest": ops_digest(normalized), "changes": changes, "warnings": []}
+    if updated is None:
         return {"project": current, "record": record}
-    base_check = wc.check(base)
-    checked = wc.check(current)
-    if not checked.get("ok"):
-        problems = checked["error"].get("problems", [])
-        first = "; ".join(f"{p.get('code')}: {p.get('message')}" for p in problems[:2])
-        raise EditError("PROJECT_REJECTED", f"opensci-engine refused the edited Project ({first}); nothing was "
-                        "written", problems=problems)
-    touched = {a["id"] for c in changes for a in c["affected"] if a["kind"] == "target"}
-    record["warnings"] = _unit_warnings(checked["project"], touched)
-    record["base"] = {"project_hash": base_check.get("project_hash"), "document_sha256": wc.canonical_digest(base),
+    checked, base_check = updated.check, wc.check(base)
+    record["warnings"] = updated.warnings
+    record["engine_update"] = {k: v for k, v in updated.as_dict().items() if k != "project"}
+    record["base"] = {"project_hash": updated.base_project_hash, "document_sha256": wc.canonical_digest(base),
                       "engine_input_hash": base_check.get("engine_input_hash"),
                       "check": "accepted" if base_check.get("ok") else "refused"}
-    record["result"] = {"project_hash": checked["project_hash"], "engine_input_hash": checked["engine_input_hash"],
+    record["result"] = {"project_hash": updated.project_hash, "engine_input_hash": checked["engine_input_hash"],
                         "catalog_version": checked.get("catalog_version")}
     record["engine"] = wc.engine_identity()
-    return {"project": checked["project"], "record": record}
+    return {"project": updated.project, "record": record}
 
 
 def base_hash(document):
@@ -557,12 +244,18 @@ def edit_file(base_path, ops, out_path, *, changes_path=None, overwrite=False, e
     changes_path = Path(changes_path) if changes_path else out_path.with_name(out_path.stem + ".changes.json")
     if out_path.resolve() == base_path.resolve():
         raise EditError("BAD_ARGUMENT", "--out must differ from the base file (the base is never modified)")
+    if changes_path.resolve() in (base_path.resolve(), out_path.resolve()):
+        raise EditError("BAD_ARGUMENT", "the change record must differ from both the base and output Project files")
     document = wc.read_json(base_path)
     base_check = wc.check(document)
     current_base = base_check.get("project_hash")
-    if expect_base_hash is not None and expect_base_hash != current_base:
-        raise EditError("BASE_CHANGED", "the base Project no longer has the expected hash",
-                        expected_hash=expect_base_hash, current_hash=current_base)
+    try:
+        edited = apply_edits(document, ops, expected_project_hash=expect_base_hash)
+    except EditError as exc:
+        if exc.code == "PROJECT_CHANGED":
+            raise EditError("BASE_CHANGED", str(exc), expected_hash=expect_base_hash,
+                            current_hash=exc.details.get("project_hash")) from None
+        raise
     _given, normalized = normalize_ops(document, ops)
     key = (current_base or wc.canonical_digest(document), ops_digest(normalized))
     if out_path.exists() and not overwrite:
@@ -585,7 +278,6 @@ def edit_file(base_path, ops, out_path, *, changes_path=None, overwrite=False, e
         return {"status": "ALREADY_APPLIED", "already_applied": True, "out": out_path.as_posix(),
                 "changes": changes_path.as_posix(), "project_hash": record["result"]["project_hash"],
                 "base_project_hash": key[0], "ops_digest": key[1]}
-    edited = apply_edits(document, ops)
     text = wc.json_text(edited["project"])
     record = edited["record"]
     record["base"]["file"] = base_path.as_posix()
@@ -754,14 +446,13 @@ def main(argv=None):
 
 
 def outcome_status(run):
-    """Exit status of an edit-and-run from the run's outcome class: any model-scope issue or any issue whose status is
-    OUT_OF_MODEL_SCOPE gives OUT_OF_MODEL_SCOPE (exit 3) whatever the run status; otherwise the run status."""
+    """Exit status of the selected requirements; execution evidence is kept separately."""
     outcome = run.get("outcome")
     if outcome == "OUT_OF_MODEL":
         return "OUT_OF_MODEL_SCOPE"
     if outcome in ("UNKNOWN", "FAIL"):
         return outcome
-    return run["status"]
+    return outcome or run["status"]
 
 
 def run_edited(project_path, run_dir):
@@ -782,6 +473,7 @@ def run_edited(project_path, run_dir):
     summary, fields = wc.read_saved_run(run_dir)
     return {"status": summary["status"], "outcome": fields["outcome"], "reused": reused,
             "run_dir": run_dir.as_posix(), "targets": fields["targets"],
+            "execution": fields["execution"], "requirements": fields["requirements"],
             "model_scope_issues": fields["model_scope_issues"], "out_of_model_issues": fields["out_of_model_issues"],
             "warnings": fields["warnings"], "identity": fields["identity"]}
 

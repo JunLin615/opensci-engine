@@ -1,4 +1,4 @@
-"""Step 4: use the fitted metalens model in OpenSci and check it (requires opensci-engine 0.8.0).
+"""Step 4: use the fitted metalens model in OpenSci and check it (requires opensci-engine 0.9.0).
 
 The step-3 ``TABULATED_THIN_LENS`` model is declared in a catalog-free Project and
 traced with the same Gaussian input as the external calculation (waist at the
@@ -112,7 +112,9 @@ def run(document):
 
     results = load_run(run_optical_project(load_project(document)))
     statuses = results.describe()["status"]
+    compact = results.targets()
     outcome = {"status": statuses.get("validation_status") or statuses["engine_status"],
+               "execution": compact["outcome"]["execution"], "targets": compact["targets"],
                "engine_status": statuses["engine_status"],
                "issues": sorted({issue.code for issue in results.result.issues}),
                "model_scope_issues": [i.get("code") if isinstance(i, dict) else str(i)
@@ -129,6 +131,10 @@ def run(document):
             entry.update({"waist_axial_um": (waist[0] - LENS_X_MM) * 1000, "waist_lateral_um": (waist[2] - HEIGHT_MM) * 1000,
                           "waist_radius_um": gaussian["waist_radius_x_mm"] * 1000})
         outcome["beams"].append(entry)
+    outcome["selected_quantities_available"] = (bool(outcome["beams"])
+        and all(b["gaussian_valid"] for b in outcome["beams"])
+        and all(t["value"] is not None and not t["applicability_issue_codes"]
+                and t["status"] in ("PASS", "WARNING", "FAIL") for t in compact["targets"]))
     return outcome
 
 
@@ -162,6 +168,8 @@ def within(errors, bounds):
 def field_entry(outcome, row, max_angle):
     beam = outcome["beams"][0] if outcome["beams"] else {}
     entry = {"tilt_deg": row["tilt_deg"], "wavelength_nm": row["wavelength_nm"], "set": row.get("set"),
+             "execution": outcome["execution"], "targets": outcome["targets"],
+             "selected_quantities_available": outcome["selected_quantities_available"],
              "inside_model_domain": row["tilt_deg"] <= max_angle, "status": outcome["status"],
              "issues": outcome["issues"], "model_scope_issues": outcome["model_scope_issues"],
              "target_issue_codes": outcome["target_issue_codes"],
@@ -197,6 +205,7 @@ def run_example(directory, mode):
         outcome = run(project(model, mode, wavelengths_nm=[lam], waist_um=waist))
         f_um, transmittance = interpolate(rows, lam)
         entry = {"role": role, "status": outcome["status"], "issues": outcome["issues"], "identity": outcome["identity"]}
+        entry.update({key: outcome[key] for key in ("execution", "targets", "selected_quantities_available")})
         entry.update(compare(outcome["beams"][0], row, model, waist, clear_um, f_um, transmittance))
         entry["within_stated_errors"] = within(entry["engine_vs_external"], bounds)
         return entry
@@ -225,7 +234,7 @@ def run_example(directory, mode):
     for entry in beyond:
         name = f"{entry['tilt_deg']:g}deg"
         counter[name] = {k: entry[k] for k in ("status", "issues", "model_scope_issues", "target_issue_codes", "engine",
-                                                "external")}
+                                                "external", "targets", "execution")}
         if mode == "tabulated":
             counter[name].update(expected="OUT_OF_MODEL_SCOPE", expected_code="MODEL_FIELD_ANGLE_EXCEEDED")
         else:
@@ -239,6 +248,7 @@ def run_example(directory, mode):
         multi = run(project(model, mode, wavelengths_nm=list(all_lines), waist_um=waist_um))
         lines = {round(b["wavelength_nm"]): b for b in multi["beams"]}
         multi_line = {"status": multi["status"], "issues": multi["issues"], "identity": multi["identity"], "lines": {}}
+        multi_line.update({key: multi[key] for key in ("execution", "targets", "selected_quantities_available")})
         for lam in all_lines:
             f_um, transmittance = interpolate(rows, lam)
             multi_line["lines"][f"{lam}nm"] = compare(lines[lam], external[(lam, 0.0, waist_um)], model, waist_um,
@@ -247,6 +257,8 @@ def run_example(directory, mode):
         codes = set(outcome["issues"]) | set(outcome.get("target_issue_codes", [])) | set(outcome["model_scope_issues"])
         outcome["as_expected"] = ((outcome["status"] == outcome["expected"] and outcome["expected_code"] in codes)
                                   if outcome["expected"].isupper() else None)
+        if outcome["as_expected"] is not None:
+            outcome["as_expected"] = outcome["as_expected"] and all(t["assessment"] == "INDETERMINATE" for t in outcome["targets"])
 
     test_field = [f for f in field.values() if f["set"] == "test"]
     calibration_field = [f for f in field.values() if f["set"] != "test" and f["inside_model_domain"]]
@@ -257,9 +269,9 @@ def run_example(directory, mode):
                                 "tolerance": MODEL_AGREEMENT_REL},
         "test_cases_outside_stated_errors": {"value": sum(1 for c in test_cases if not c["within_stated_errors"])
                                              + sum(1 for f in test_field if not within_field(f, bounds)), "tolerance": 0},
-        "in_domain_runs_not_pass_or_warning": {"value": sum(1 for c in in_domain if c["status"] not in ("PASS", "WARNING"))
-                                               + (1 if multi_line and multi_line["status"] not in ("PASS", "WARNING") else 0),
-                                               "tolerance": 0},
+        "in_domain_selected_quantities_unavailable": {
+            "value": sum(not c["selected_quantities_available"] for c in in_domain)
+                     + int(bool(multi_line) and not multi_line["selected_quantities_available"]), "tolerance": 0},
         "counterexamples_not_as_expected": {"value": sum(1 for c in counter.values() if c["as_expected"] is False),
                                             "tolerance": 0},
     }
@@ -282,6 +294,8 @@ def run_example(directory, mode):
             "test_field_angles": [{"tilt_deg": f["tilt_deg"], "wavelength_nm": f["wavelength_nm"], "status": f["status"],
                                    **(f.get("engine_vs_external") or {})} for f in test_field],
             "counterexamples": {k: {"status": v["status"], "expected": v["expected"], "as_expected": v["as_expected"],
+                                    "target_assessments": {t["target_id"]: t["assessment"] for t in v["targets"]},
+                                    "expected_assessment": "INDETERMINATE" if v["expected"].isupper() else None,
                                     "issues": v["issues"] + v["model_scope_issues"],
                                     "target_issue_codes": v.get("target_issue_codes", [])} for k, v in counter.items()},
             "report": str(directory / f"step4_report_{mode}.json")}
