@@ -25,18 +25,52 @@ opensci-engine project verify run
 
 `output` is the observation-plane identifier in the beam-expander example. Use `results describe` to discover the planes available in your own run.
 
-## Interpret the status
+## Interpret the result
 
-| Status | Meaning | Design action |
+The following compact controls describe the 0.9.0 candidate. Published-package
+validation is pending; see [version matching](installation.md#match-the-examples-to-the-installed-version).
+
+Known candidate limitation: a tabulated lens can report `MET` outside its declared
+wavelength or angle domain even while a model-scope issue is present. That `MET`
+assessment does not establish validity outside the declared domain. Inspect the scope
+diagnostics and keep the calculation within that domain; see the
+[preview validation report](../release-preview-validation.md) for the affected cases.
+
+```bash
+opensci-engine results targets run
+opensci-engine results freshness run --project project.json
+```
+
+Read these dimensions separately:
+
+| Dimension | What to inspect | Meaning |
 | --- | --- | --- |
-| `PASS` | Evaluated targets are met | Inspect the values and continue the design |
-| `WARNING` | Results include reported issues | Read the issue list and its context |
-| `FAIL` | A requirement or validation check failed | Inspect the failing target or issue and revise the project |
-| `UNKNOWN` | Available information does not determine the result | Supply the missing input or inspect the metric's requirements |
-| `OUT_OF_MODEL_SCOPE` | A requested calculation is outside the selected model's domain | Read the affected model and parameter information |
-| `NOT_APPLICABLE` | A check does not apply to this configuration | Continue with the relevant checks |
+| Computation | `outcome.execution`: completion, termination and budgets | Whether the requested computation completed, and which limits were exhausted |
+| Quantity | The metric's value, unit, validity, bounds and applicability issues | A usable point value, an interval, an unavailable quantity or a quantity outside its model |
+| Customer requirement | Each target's `assessment` and `outcome.requirements` | `MET`, `UNMET`, `INDETERMINATE` or `NOT_APPLICABLE`; no targets means no requirement was assessed |
+| Freshness | `CURRENT`, `HISTORICAL` or `UNDETERMINED`, with reason codes | Whether the saved run corresponds to the supplied Project |
+| Commercial result | The response to configuration or order commands | What can be purchased or ordered under that operation's conditions |
 
-For scripting, design-command exit codes are `0` for PASS/WARNING/NOT_APPLICABLE, `1` for FAIL, `2` for UNKNOWN, and `3` for OUT_OF_MODEL_SCOPE. File and usage errors have separate codes in the CLI reference.
+An aggregate `PASS` does not answer all five questions. A completed run can have an
+unmet optional target and still contain useful quantities. Read applicability on the
+quantity or target you use: an unrelated scope issue does not invalidate every
+quantity. Keep a bounded value as an interval, and preserve an indeterminate target
+when its interval cannot determine the requested comparison.
+
+A physical or computation-budget edit is reported as `PHYSICS_CHANGED`; a target-only
+edit as `TARGETS_CHANGED`. Preserve the original run and its hashes. Changing targets
+does not turn an old target assessment into a new one. Another engine build can leave a
+run `CURRENT` when both Project and lowered input match; inspect `engine_build_matches`
+when reproducing the calculation. See [comparison recipes](../workflow-recipes.md#compare-and-freshness).
+
+`project verify` checks recorded artifact hashes and consistency. It does not compare
+the calculation with an independent optical solution or an experiment. The analytical
+references in the worked examples provide separate checks with stated assumptions.
+
+The read command `results targets` exits 0 when it answers, including an unmet target.
+`results freshness` uses 0 for `CURRENT`, 1 for `HISTORICAL` and 2 for `UNDETERMINED`.
+Read structured assessments to decide a scientific task's result; command completion
+alone is insufficient.
 
 ## Compact summaries from the examples
 
@@ -58,19 +92,26 @@ python examples/result_summary.py run-example
 python examples/result_summary.py run-example --details
 ```
 
-The helper verifies the saved run before summarizing it through the public results API. This command expects the native local-run artifacts produced by the beam-expander example or `opensci-engine project run`; the ideal-lens output is a low-level result bundle. The reusable Python functions in [result_summary.py](../../examples/result_summary.py) are `summarize_results(results, *, artifacts=None, details=False)` and `summarize_run(directory, *, details=False)`. Both return a dictionary suitable for JSON output.
+The helper checks saved artifact integrity before summarizing the run through the public results API. It preserves execution, requirement and quantity information alongside the legacy status fields. This command expects the native local-run artifacts produced by the beam-expander example or `opensci-engine project run`; the ideal-lens output is a low-level result bundle. The reusable Python functions in [result_summary.py](../../examples/result_summary.py) are `summarize_results(results, *, artifacts=None, details=False)` and `summarize_run(directory, *, details=False)`. Both return a dictionary suitable for JSON output.
 
-The example scripts and saved-run summary command use these exit codes:
+The example scripts and saved-run summary command use `requirement_outcome` for exit
+behavior. The raw aggregate `status` remains in the record alongside
+`outcome.execution` and `outcome.requirements`. These are the helper exit codes:
+
+Exit `0` describes the selected requirements, not execution completeness. For example,
+a budget-limited run with no targets can retain `execution.outcome: PARTIAL`, aggregate
+`status: UNKNOWN` and `requirement_outcome: NOT_APPLICABLE` while exiting `0`.
+Inspect execution and quantity validity before using its values.
 
 | Exit code | Reported result |
 | --- | --- |
-| `0` | `PASS`, `WARNING`, or `NOT_APPLICABLE` |
-| `1` | `FAIL` |
-| `2` | `UNKNOWN` |
-| `3` | `OUT_OF_MODEL_SCOPE` |
+| `0` | selected requirements met or not applicable |
+| `1` | Selected requirement unmet |
+| `2` | Selected requirement indeterminate |
+| `3` | Selected quantity outside its model |
 | `4` | Input, artifact-integrity, runtime, or command-usage error |
 
-Design outcomes, including a non-passing result, still produce a JSON summary and preserve complete data. Exit code `4` produces a JSON error on standard error and leaves standard output empty. These example error codes are separate from the engine CLI's file and usage error codes.
+Design outcomes, including a non-passing result, still produce a JSON summary and preserve complete data. Input or runtime exceptions produce a JSON error on standard error, leave standard output empty, and exit `4`. A saved run with failed or cancelled execution instead retains its JSON result summary on standard output and also exits `4`. These example error codes are separate from the engine CLI's file and usage error codes.
 
 The ideal-lens target can be changed with `--maximum-radius-mm` (default `0.05`). These commands exercise the default target, a stricter target intended to fail, and invalid input:
 
@@ -117,6 +158,6 @@ Path("arrivals.csv").write_bytes(results.export("arrivals", "csv"))
 
 ## Units and conventions
 
-The API uses millimetres for length, nanometres for vacuum wavelength, degrees for angles, and watts for power. Gaussian beam size `w` is the **1/e² intensity radius**. Coordinates are right-handed; an element's local `+z` is its optical axis. Export column names and metric descriptors identify the relevant units.
+The API uses millimetres for length, nanometres for vacuum wavelength, degrees for angles, and watts for power. Gaussian beam size `w` is the **1/e² intensity radius**. Coordinates are right-handed; a transmissive element's local `+z` is its optical axis, while a reflector's local `+z` is the coated-face outward normal. Export column names and metric descriptors identify the relevant units.
 
 Next: [Continue from design to hardware](hardware.md).

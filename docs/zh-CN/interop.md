@@ -2,9 +2,11 @@
 
 [用户指南](README.md) · [English](../en/interop.md) · 简体中文
 
-OpenSci 计算光路、高斯光束、偏振、功率以及设计的线性光学网络。优化器、衍射程序、量子光学模拟器和电磁求解器在你自己的 Python 环境中运行，读取 OpenSci 导出的数据。下面四个示例都已实际运行，并与独立参考进行了比较；版本、输入、输出和偏差见[验证记录](../interop-validation.md)。
+OpenSci 计算光路、高斯光束、偏振、功率以及设计的线性光学网络。优化器、衍射程序、量子光学模拟器和电磁求解器在你自己的 Python 环境中运行，读取 OpenSci 导出的数据。下面四个示例保留了 0.8.0 历史运行及独立参考比较；版本、输入、输出和偏差见[验证记录](../interop-validation.md)。
 
-**这些示例需要 opensci-engine 0.8.0 或更高版本。** 它们用到带逐路径群延迟的线性光学网络、原生元件和 `TABULATED_THIN_LENS` 模型类型。运行引擎的脚本会检查已安装版本，引擎版本过旧时给出明确提示并停止；外部侧脚本只读取导出文件，不导入引擎。
+更新后的引擎调用脚本需要 0.9.0 候选版本，公开软件包验证尚待完成。
+[版本匹配说明](installation.md#让示例与安装版本一致)提供保留的 0.8.0 快照。
+下文数值比较描述该历史快照，另行标明的新结果除外。 它们用到带逐路径群延迟的线性光学网络、原生元件和 `TABULATED_THIN_LENS` 模型类型。运行引擎的脚本会检查已安装版本，引擎版本过旧时给出明确提示并停止；外部侧脚本只读取导出文件，不导入引擎。
 
 | 专题 | OpenSci 提供 | 外部工具计算 | 示例 |
 | --- | --- | --- | --- |
@@ -26,7 +28,7 @@ python -m venv .venv-optimization
 .venv-optimization/bin/python -m pip install -r examples/interop/optimization/requirements-optimization.txt
 ```
 
-Windows 上使用 `.venv-optimization\Scripts\python`。每个依赖文件的第一项都是 `opensci-engine>=0.8.0`，pip 会从 PyPI 安装它。依赖文件固定了第三方软件包的已验证版本；这些软件包都不是 `opensci-engine` 本身的依赖。
+Windows 上使用 `.venv-optimization\Scripts\python`。更新后的依赖文件要求候选引擎系列；请在发布后执行 PyPI 安装命令，或使用保留快照及其已验证版本。依赖文件固定了第三方软件包的历史测试版本；这些软件包都不是 `opensci-engine` 本身的依赖。
 
 每个脚本在 stdout 输出一个 JSON 摘要。其中的 `outcome` 是 OpenSci 与外部工具或独立参考的比较结果，不是 OpenSci 运行状态：所有比较都在给定容差内时为 `WITHIN_TOLERANCE`（退出码 0），有比较超出容差时为 `OUT_OF_TOLERANCE`（退出码 1），只生成数据的步骤为 `COMPLETED`（退出码 0），出错时退出码为 4（stderr 上给出 JSON 错误）。OpenSci 自身的状态（`PASS`、`WARNING`、`OUT_OF_MODEL_SCOPE` 等）单独列在 `engine_status` 中。
 
@@ -40,7 +42,21 @@ python examples/interop/optimization/optimize_expander.py --out run-interop-opti
 
 每次评估都复制 Project，按 `instance_id` 设置 `L2` 的位置，在内存中运行引擎，并从运行结果中读取目标指标 `divergence_half_angle_x_rad`。SciPy（`minimize_scalar`，有界）和 Optuna（TPE，种子 1，60 次试验）搜索透镜间距；随后 SALib 针对两片透镜 ±0.5 mm 的均匀装调误差和光源束腰 ±5 % 的误差，估计发散角的一阶和总 Sobol 指数。独立的 ABCD 计算（只用 numpy）给出参考最优解，以及每个被评估设计的参考值。
 
-`--out` 目录中的输出：`evaluations.jsonl`（每次引擎运行一行，包含输入、指标值、状态以及 `project_hash`、`input_hash`、`result_hash`、`engine_build_id`）、`project-baseline.json` 和 `report.json`。验证运行中，SciPy 用 9 次评估达到参考最优间距（200.0573 mm），误差 6e-14 mm；每个引擎结果与 ABCD 参考的相对差为 2e-14；引擎与参考的 Sobol 指数相差 1e-14。优化器决定取值，OpenSci 计算每个设计；状态为 `OUT_OF_MODEL_SCOPE` 或 `UNKNOWN` 的运行应作为评估失败处理，而不是当作数值。
+`--out` 目录中的输出：`evaluations.jsonl`（每次引擎运行一行，包含输入、指标值、状态以及 `project_hash`、`input_hash`、`result_hash`、`engine_build_id`）、`project-baseline.json` 和 `report.json`。0.8.0 历史运行中，SciPy 用 9 次评估达到参考最优间距（200.0573 mm），误差 6e-14 mm；每个引擎结果与 ABCD 参考的相对差为 2e-14；引擎与参考的 Sobol 指数相差 1e-14。优化器决定取值，OpenSci 计算每个设计。更新后的工作流程将目标函数有效性与要求可行性分开：
+所选发散角必须是可用的精确点值，且 `collimated` 要求的判定为 `MET`，才能成为可行最优解。
+无关的模型范围问题不会使该目标函数失效。每次评估都保留在 `evaluations.jsonl`，包括无效、
+部分完成、未满足和无法判定的情况。没有可行最优解时报告 `NO_FEASIBLE_RESULT`（退出码 2）。
+
+用 `--max-divergence-rad` 设置客户要求，`--max-evaluations` 限制总评估次数，
+`--max-trace-steps` / `--max-interactions-per-path` 限制每个设计的引擎工作量。
+例如，在相同搜索条件下收紧发散角要求：
+
+```bash
+python examples/interop/optimization/optimize_expander.py --out run-optimization-strict --max-divergence-rad 1e-9
+```
+
+SALib 分析使用所有有效目标函数值，包括未满足要求的样本；采样集不完整时会拒绝分析，
+不会丢弃评估后报告改变了含义的 Sobol 指数。保留采样日志，以便解释分母与缺失结果。
 
 ## 声明光阑后的衍射
 
@@ -67,7 +83,10 @@ LightPipes 以绝对单位在六种网格和窗口上传播（收敛研究）；
 
 所有情况下引擎的透过功率都等于 `1 − exp(−2a²/w²)`。引擎的焦面辐照度是近轴高斯量：光阑足够大时准确；出现 `GAUSSIAN_TRUNCATION` 警告后只有功率可靠，焦面辐照度需要像这里这样做衍射计算。prysm 和 POPPY 与参考剖面相差 4e-7；两者对同一采样场做的是同一种离散傅里叶变换，因此合起来只算一项采样交叉校验，而不是两个独立参考。Diffractio 的绝对峰值相差 3e-5。
 
-Diffractio 1.0.0 要求 numpy < 2，不能与 opensci-engine 共用环境。在第二个环境中安装 `requirements-diffractio.txt`，再在其中运行同一个 `external_focus.py`：它只读取 handoff 文件。脚本还会写出 `focus_profiles.png`（每种情况的引擎高斯结果与衍射参考）。
+Diffractio 1.0.0 要求 numpy < 2，不能与 opensci-engine 共用环境。在第二个环境中安装 `requirements-diffractio.txt`，再在其中运行同一个 `external_focus.py`：它只读取 handoff 文件。主环境中的脚本写出 `focus_profiles.png`（每种情况的引擎高斯结果与衍射参考）。
+
+单独的 Diffractio 环境会写入 `external_report_diffractio.json`、
+`external_summary_diffractio.json` 和 `focus_profiles_diffractio.png`，保留主环境的报告和图像。
 
 ## 基于网络导出的量子光子学
 
@@ -92,6 +111,10 @@ Perceval（SLOS）用噪声标签模拟部分可区分光子；Piquasso 把同�
 上游自述的许可证：Perceval（`perceval-quandela`）为 MIT；其必需依赖 `exqalibur` 在软件包元数据中声明 CC BY-NC-ND 4.0；Piquasso 为 Apache-2.0。Piquasso 8.0.1 与 numba 0.68 重新加载自身编译缓存时可能失败；脚本为每次运行指定新的 `NUMBA_CACHE_DIR`。
 
 ## 超表面透镜作为虚拟聚焦元件
+
+当前 0.9.0 候选版本的表格透镜路线中，四个超出模型范围的目标判定与范围错误不一致，
+因此步骤 4 返回退出码 1。范围内的数值对照和收敛检查通过。具体案例见
+[预览版本检查记录](../release-preview-validation.md)；下方数值表记录的是较早的 0.8.0 运行。
 
 一个 TiO2 纳米柱超透镜（532 nm 时 f = 200 µm，口径 100 µm）先用外部工具表征，再转为 OpenSci 的 `TABULATED_THIN_LENS` 模型：
 

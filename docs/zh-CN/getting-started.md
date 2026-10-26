@@ -74,13 +74,22 @@ opensci-engine export arrivals run --format csv --out arrivals.csv
 opensci-engine schema project
 ```
 
-编辑 `project.json`，调整元件位置、光源参数或设计目标，然后将下一次运行保存到新的目录：
+0.9.0 候选版本提供语义编辑与精简结果读取，公开软件包验证尚待完成；请阅读
+[版本匹配说明](installation.md#让示例与安装版本一致)。将[编辑步骤](../workflow-recipes.md#edit-a-project-by-id)
+中的操作保存为 `edits.json`，然后保留原始 Project，运行修改后的设计：
 
 ```bash
-opensci-engine project run project.json --out-dir run-revised
+python examples/edit_project.py project.json --edits edits.json --out revised.json
+opensci-engine project check revised.json
+opensci-engine project run revised.json --out-dir run-revised
+opensci-engine results targets run-revised
+opensci-engine results freshness run --project revised.json
 ```
 
-保留原始运行结果，比较目标数值与光束数据。典型迭代流程为：**定义目标 → 仿真 → 分析结果 → 调整几何参数 → 再次仿真**。
+工具使用引擎执行语义验证，并保存重试记录。最后一条命令说明旧运行与修改后 Project 的关系。
+分别读取执行情况、科学量有效性和可选目标判定。未配置目标的运行仍可计算有用的科学量。
+保留每次运行以便比较；通过[预算示例](../workflow-recipes.md#computation-budgets)了解限额
+如何影响完成情况与可用结果。
 
 ## 与自己的 Agent 协作
 

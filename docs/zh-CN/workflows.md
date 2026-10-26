@@ -9,16 +9,35 @@
 
 ## 准备工作
 
-将引擎和绘图依赖安装到同一个虚拟环境中，之后所有命令都在仓库根目录运行：
+已验证的 PyPI 基线仍为 **0.8.0**。更新后的工具需要 0.9.0 候选版本，公开软件包验证尚待完成。请先阅读
+[版本匹配说明](installation.md#让示例与安装版本一致)。在安装了候选软件包的独立环境中，
+从仓库根目录运行命令；绘图另需安装 `requirements-examples.txt`。
+
+第 1–3 节使用目录元件，需要 `opensci-engine catalog sync`；第 4、5 节使用无需目录的理想元件。
+下文引用的数值是 **0.8.0 历史参考结果**，涉及目录时采用 `2026-10-15.1`。
+原始验证文档保留这些记录；每次新运行应读取其实际标识与目标判定。
+引擎或目录改变时，目录内容和结果标识可能不同。
+
+### 修改、检查、运行并读取精简结果
 
 ```bash
-python -m pip install "opensci-engine[protected]==0.8.0" -r requirements-examples.txt
-opensci-engine catalog sync
+python examples/beam_expansion_focus.py --out run-controls --no-studies
+opensci-engine project check run-controls/nominal/project.json
+opensci-engine results targets run-controls/nominal/run
+opensci-engine results freshness run-controls/nominal/run --project run-controls/nominal/project.json
 ```
 
-第 1–3 节使用光学目录中的元件；第 4、5 节使用无需目录的理想元件。下文引用的数值由
-opensci-engine 0.8.0 和目录版本 2026-10-15.1 计算得到。引擎运行是确定性的，相同输入会得到
-相同的数值和结果哈希。
+`project check` 验证 Project 并生成引擎输入，但不运行仿真；`results targets`
+读取执行情况、可选要求、目标判定及适用性问题，不重复计算；`results freshness`
+将保存的标识与当前 Project 比较。[原生编辑步骤](../workflow-recipes.md#native-project-controls)
+包含原子拒绝、预期哈希及响应中断后的重试方法。
+
+### 选择计算限额
+
+研究的 `max_evaluations` 限制设计数量，各 Project 的 `compute_budget` 限制单次设计内的工作量。
+[预算示例](../workflow-recipes.md#computation-budgets)先将三透镜设计限制为每路径一次相互作用，
+再将上限提高到八次。受限运行仍保存文件，并报告部分完成及受影响目标无法判定。
+修改预算会使旧结果成为历史结果。选择更大的限额前应检查这些信息，并保留两次运行以便比较。
 
 ## 1. 调整设计
 
@@ -109,7 +128,7 @@ python examples/compare_runs.py run-tutorial/base run-tutorial/swapped-run run-t
 
 目标和观测平面按标识对齐：`output_beam_radius` 在初始运行中显示为缺失。输入差异包括 L2 的
 位置（152.841 mm → 153.381 mm）、L2 的产品以及新增的目标。每次运行都会给出相对最终项目的
-时效状态：最终运行为 `CURRENT`，另外两次为 `HISTORICAL`（`PROJECT_CHANGED`），因此初始运行的
+时效状态：最终运行为 `CURRENT`，另外两次为 `HISTORICAL`（具体修改原因由引擎给出），因此初始运行的
 通过显示为 `HISTORICAL PASS`：它属于先前的设计。
 
 为扫描生成一份报告，附上图和更换透镜的修改记录：
@@ -241,11 +260,19 @@ python examples/alignment_analysis.py --out run-tutorial/alignment-synthetic --n
 
 ## 解读结果
 
-每个样本和运行归入一个结果类别，按以下顺序判定：`ERROR`（被拒绝或未运行）、`OUT_OF_MODEL`
-（存在任何模型适用范围问题，或任何状态为 `OUT_OF_MODEL_SCOPE` 的问题，无论目标判定如何）、
-`UNKNOWN`（所选目标没有数值）、`FAIL`、`PASS`。所有计数都注明分母：通过比例以全部请求的样本为分母，
-可评估样本（PASS + FAIL）中的比例单独给出。以当前项目为基准的比较或报告会把较早的结果标记为 `HISTORICAL`。规格文件的详细格式见
-[工作流程说明（英文）](../workflow-recipes.md)和各脚本的 `--help`。
+分别读取执行情况、科学量有效性、所选目标判定和结果时效。
+`MET`、`UNMET`、`INDETERMINATE`、`NOT_APPLICABLE` 是引擎目标判定；工作流程的
+`PASS`、`FAIL`、`UNKNOWN`、`OUT_OF_MODEL`、`NOT_APPLICABLE` 分类用于所选要求的后续处理。
+模型范围问题影响依赖该模型的量，无关量超出范围不会使其他可用结果全部失效。
+
+所有请求的样本都保留，包括无效、部分完成及无法判定的样本。目标函数的有效性与要求的可行性是
+不同字段。精确目标函数和有限差分使用有效点值，有界量保留其区间。没有可行样本时扫描会明确报告，
+不会挑出无效的最优解。通过比例以全部请求样本为分母；可评估样本中的比例使用单独分母。
+公差通过比例仅描述给定分布下的仿真样本结果。
+
+比较工具使用引擎的时效判断。物理或预算修改对应 `PHYSICS_CHANGED`，目标修改对应
+`TARGETS_CHANGED`。历史结果保留标识与原始判定。详见[结果解读](results.md)及
+[工作流程步骤](../workflow-recipes.md)。
 
 ## 基准来源
 

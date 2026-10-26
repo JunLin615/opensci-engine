@@ -29,7 +29,12 @@ The `protected` extra from the [installation guide](installation.md) supports op
 
 ## Get a configuration
 
-Use a run with a `PASS` Local Validation:
+Use the saved run for the design you want to purchase. The service evaluates purchase
+eligibility from the submitted design and its commercial requirements. Scientific
+target assessments remain separate: a met target does not establish orderability,
+and an unmet optional target is not a helper-side purchase veto.
+
+The command requests a configuration; it does not create or pay for an order:
 
 ```bash
 opensci-engine resolve run

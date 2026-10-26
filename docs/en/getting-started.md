@@ -74,13 +74,25 @@ opensci-engine export arrivals run --format csv --out arrivals.csv
 opensci-engine schema project
 ```
 
-Edit `project.json` to change component positions, source parameters, or design targets, then write the next run to a new directory:
+The candidate release 0.9.0 adds semantic edits and compact reads. Its published-package
+validation is pending; see [version matching](installation.md#match-the-examples-to-the-installed-version).
+Save the edits from the [editing recipe](../workflow-recipes.md#edit-a-project-by-id)
+as `edits.json`, then preserve the original Project while running the revised design:
 
 ```bash
-opensci-engine project run project.json --out-dir run-revised
+python examples/edit_project.py project.json --edits edits.json --out revised.json
+opensci-engine project check revised.json
+opensci-engine project run revised.json --out-dir run-revised
+opensci-engine results targets run-revised
+opensci-engine results freshness run --project revised.json
 ```
 
-Keep the original run to compare target values and beam data. A typical design loop is **define targets → simulate → inspect results → adjust geometry → simulate again**.
+The helper delegates semantic validation to the engine and saves a retry record.
+The final command identifies how the old run differs from the revised Project.
+Inspect execution, quantity validity and optional target assessments separately.
+A target-free run can still calculate useful quantities. Keep each run for comparison;
+use the [budget example](../workflow-recipes.md#computation-budgets) to explore how limits
+affect completion and available results.
 
 ## Working with your agent
 

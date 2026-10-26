@@ -2,7 +2,9 @@
 
 [Agent guide](../AGENT_GUIDE.md). These instructions are English-only; customer
 walkthroughs remain available in [English](en/getting-started.md) and
-[Simplified Chinese](zh-CN/getting-started.md). Use the published **0.8.0** baseline.
+[Simplified Chinese](zh-CN/getting-started.md). The recipes in this checkout require
+candidate 0.9.0; publication validation is pending. For the verified published
+**0.8.0** baseline, use the matching [snapshot](en/installation.md).
 The same edits by ID, with unit conversion, a change record and retry safety, are
 available without writing Python through `examples/edit_project.py`
 ([workflow recipes](workflow-recipes.md#edit-a-project-by-id)).

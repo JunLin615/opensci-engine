@@ -2,14 +2,14 @@
 
 [外部工具指南](interop.md) · [English](../en/interop-prompts.md) · 简体中文
 
-以下模板供人阅读和改写：复制一个模板到你自己的编程 Agent，替换尖括号中的内容。实际交给 Agent 时可以使用中文，也可以使用[英文版](../en/interop-prompts.md)。每个模板都要求 Agent 在你的环境中、用你已安装的工具完成计算，并把 OpenSci 结果与外部结果分开报告。这些模板对应的示例需要 **opensci-engine 0.8.0** 或更高版本。
+以下模板供人阅读和改写：复制一个模板到你自己的编程 Agent，替换尖括号中的内容。实际交给 Agent 时可以使用中文，也可以使用[英文版](../en/interop-prompts.md)。每个模板都要求 Agent 在你的环境中、用你已安装的工具完成计算，并把 OpenSci 结果与外部结果分开报告。更新后的示例需要 0.9.0 候选版本；公开软件包验证完成前，请遵循[版本匹配说明](installation.md#让示例与安装版本一致)。
 
 模板只涉及仿真和分析。下单、发送反馈、把设计上传到商业云服务，都由你另行明确决定；模板中不包含这些操作。
 
 ## 优化与容差（SciPy、Optuna、SALib）
 
 ```text
-在当前 Python 环境中，将 OpenSci Engine（opensci-engine 0.8.0 或更高版本）与 SciPy、Optuna 或 SALib 联用。
+在当前 Python 环境中，将 OpenSci Engine（配套示例要求的版本）与 SciPy、Optuna 或 SALib 联用。
 我的设计：<Project 文件或描述>。目标：<指标，例如 output 平面的输出发散半角，单位 rad>；
 变量：<元件 id 和字段，以及范围和单位>；需要分析的容差：<字段及 ± 范围>。
 
@@ -19,8 +19,9 @@
    OpenSci 计算每个设计，优化器决定下一组取值。Project 中的 retained_dofs 是设计意图，不是优化变量。
 3. 检查已安装版本，并确认 Project 能运行一次。只询问会改变计算结果的缺失信息（范围、约束、波长、所需精度）。
 4. 执行循环：复制 Project、按 id 修改、运行、从运行结果中读取指标，并记录每次评估的
-   project_hash、input_hash、result_hash 和 engine_build_id。状态为 OUT_OF_MODEL_SCOPE、UNKNOWN
-   或高斯状态无效的运行按评估失败处理，不当作数值使用。有独立校验（如近轴 ABCD）时与之比较最优解。
+   project_hash、input_hash、result_hash 和 engine_build_id。将所选目标函数有效性与要求可行性分开。
+   保留无效、部分完成、未满足和无法判定的评估；仅用有效精确点值排序，没有可行结果时明确报告。
+   根据目标函数的实际模型依赖判断适用性。与近轴 ABCD 等独立参考比较。
 5. 分开报告：OpenSci 运行（状态、问题、身份）与优化器结果（方法、设置、随机种子、评估次数、最优值、
    带置信区间的敏感度指数）。以文件形式给出评估日志和图。
 6. 如果缺少工具或输入不足，说明实际完成的最后一步以及下一步需要什么。不得报告没有算出的数值。
@@ -29,7 +30,7 @@
 ## 衍射与成像（prysm、POPPY、LightPipes 或 Diffractio）
 
 ```text
-在我的环境中，将 OpenSci Engine（opensci-engine 0.8.0 或更高版本）与 <prysm / POPPY / LightPipes / Diffractio> 联用。
+在我的环境中，将 OpenSci Engine（配套示例要求的版本）与 <prysm / POPPY / LightPipes / Diffractio> 联用。
 光路：<Project 文件或描述：光源、光阑或孔径、透镜、观察面>。
 问题：<例如焦面峰值辐照度，以及 50 um 半径内的环围功率>。
 
@@ -49,7 +50,7 @@
 ## 量子光子学（Perceval，Piquasso 作交叉校验）
 
 ```text
-在我的环境中，将 OpenSci Engine（opensci-engine 0.8.0 或更高版本）与 Perceval 联用；若已安装 Piquasso，
+在我的环境中，将 OpenSci Engine（配套示例要求的版本）与 Perceval 联用；若已安装 Piquasso，
 用它做独立交叉校验。光路：<Project 文件或描述>。量子输入：每个光源的光子数 <...>、偏振模式 <H/V>、
 波包 <形状、均方根时长、零延迟不可区分度>、探测器 <类型、效率、暗计数概率、对应的观察面>。
 
@@ -69,7 +70,7 @@
 ## 超表面响应转为虚拟聚焦元件（grcwa、meent、DFlat 或 metabox）
 
 ```text
-在我的环境中，将 OpenSci Engine（opensci-engine 0.8.0 或更高版本）与 <grcwa / meent / DFlat / metabox> 联用，
+在我的环境中，将 OpenSci Engine（配套示例要求的版本）与 <grcwa / meent / DFlat / metabox> 联用，
 把超表面透镜的响应转为 OpenSci 的 TABULATED_THIN_LENS 模型并用于我的光路。
 超表面：<材料、晶格、柱体族、设计波长、焦距、口径>。使用范围：<波长、入射光束尺寸、视场角、偏振>。
 

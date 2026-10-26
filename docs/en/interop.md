@@ -5,11 +5,14 @@
 OpenSci computes ray paths, Gaussian beams, polarization, power and a linear optical
 network of your design. Optimizers, diffraction codes, quantum-optics simulators and
 electromagnetic solvers run in your own Python environment and read what OpenSci
-exports. The four worked examples below were executed against independent references;
+exports. The four worked examples below retain historical 0.8.0 checks against independent references;
 the [validation record](../interop-validation.md) lists versions, inputs, outputs and
 deviations.
 
-**These examples require opensci-engine 0.8.0 or newer.** They use the linear optical
+The updated engine-running scripts require candidate release 0.9.0. Published-package
+validation is pending; [version matching](installation.md#match-the-examples-to-the-installed-version)
+links the preserved 0.8.0 snapshot. Numerical comparisons below describe that historical
+snapshot unless identified as new results. They use the linear optical
 network with per-path group delays, native components and the `TABULATED_THIN_LENS`
 model kind. The scripts that run the Engine check the installed version and stop with a
 clear message on an older engine; the external-side scripts read only exported files and
@@ -41,8 +44,9 @@ python -m venv .venv-optimization
 .venv-optimization/bin/python -m pip install -r examples/interop/optimization/requirements-optimization.txt
 ```
 
-On Windows use `.venv-optimization\Scripts\python`. Each requirements file starts with
-`opensci-engine>=0.8.0`, which pip installs from PyPI. The files pin the verified
+On Windows use `.venv-optimization\Scripts\python`. The updated requirements files request the candidate engine series; run the PyPI
+installation commands after its publication, or use the preserved snapshot with its
+verified release. The files pin the historically tested
 versions of the third-party packages, which are never dependencies of `opensci-engine`
 itself.
 
@@ -73,12 +77,27 @@ optimum and the reference value of every evaluated design.
 
 Outputs in the `--out` directory: `evaluations.jsonl` (one line per Engine run with its
 inputs, metric value, status and `project_hash`, `input_hash`, `result_hash`,
-`engine_build_id`), `project-baseline.json` and `report.json`. In the validated run
+`engine_build_id`), `project-baseline.json` and `report.json`. In the historical 0.8.0 run
 SciPy reached the reference optimum (200.0573 mm separation) to 6e-14 mm in 9
 evaluations, every Engine value matched the ABCD reference to 2e-14 relative, and the
-Sobol indices of Engine and reference agreed to 1e-14. The optimizer chooses the
-values, OpenSci computes each design; a run whose status is `OUT_OF_MODEL_SCOPE` or
-`UNKNOWN` should be treated as a failed evaluation rather than a number.
+Sobol indices of Engine and reference agreed to 1e-14. The optimizer chooses values and OpenSci computes each design. The updated workflow
+keeps objective validity separate from feasibility: the selected divergence must be
+an exact usable quantity; the `collimated` requirement must have assessment `MET`
+for a feasible optimum. Unrelated scope findings do not invalidate that objective.
+Every evaluation remains in `evaluations.jsonl`, including invalid, partial, unmet and
+indeterminate cases. An absent feasible optimum is `NO_FEASIBLE_RESULT` (exit 2).
+
+Use `--max-divergence-rad` for the customer requirement, `--max-evaluations` for total
+work, and `--max-trace-steps` / `--max-interactions-per-path` for per-design engine work.
+For example, tighten the divergence requirement while retaining the same search:
+
+```bash
+python examples/interop/optimization/optimize_expander.py --out run-optimization-strict --max-divergence-rad 1e-9
+```
+
+SALib analysis uses every valid objective, including unmet targets; an incomplete
+sample set is refused instead of dropping evaluations and reporting altered Sobol
+indices. Preserve the sample log to interpret the denominator and missing results.
 
 ## Diffraction at a declared stop
 
@@ -134,7 +153,11 @@ references. Diffractio's absolute peak agrees to 3e-5.
 Diffractio 1.0.0 requires numpy < 2 and cannot share an environment with
 opensci-engine. Install `requirements-diffractio.txt` in a second environment and run
 the same `external_focus.py` there: it reads only the handoff files. The script also
-writes `focus_profiles.png` (Engine Gaussian and diffraction reference per case).
+writes `focus_profiles.png` in the primary environment (Engine Gaussian and diffraction reference per case).
+
+The separate Diffractio environment writes `external_report_diffractio.json`,
+`external_summary_diffractio.json` and `focus_profiles_diffractio.png`, preserving
+the primary environment's reports and figure.
 
 ## Quantum photonics from the network export
 
@@ -193,6 +216,11 @@ Apache-2.0. Piquasso 8.0.1 with numba 0.68 can fail to reload its own compiled c
 the script gives each run a fresh `NUMBA_CACHE_DIR`.
 
 ## Metasurface lens as a virtual focusing component
+
+The current 0.9.0 candidate's tabulated-lens route reports four inconsistent
+out-of-domain target assessments and exits 1 in step 4. In-domain comparisons and
+convergence checks pass. See the [preview check record](../release-preview-validation.md)
+for the exact cases; the numerical tables below describe the earlier 0.8.0 run.
 
 A TiO2 nanopillar metalens (f = 200 µm at 532 nm, 100 µm diameter) is characterized
 externally and turned into an OpenSci `TABULATED_THIN_LENS` model:

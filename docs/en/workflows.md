@@ -11,18 +11,42 @@ polarization control and alignment.
 
 ## Before you start
 
-Install the engine and the plotting dependency into one virtual environment, then run
-all commands from the repository root:
+The verified PyPI baseline remains **0.8.0**. The updated helpers require candidate release 0.9.0; published-package validation is
+pending. Follow [version matching](installation.md#match-the-examples-to-the-installed-version).
+Run commands from the repository root with the candidate package installed in an
+isolated environment, plus `requirements-examples.txt` for plots.
+
+Sections 1–3 use catalog components and need `opensci-engine catalog sync`; sections
+4 and 5 use catalog-free ideal elements. The quoted numerical examples below are
+**historical 0.8.0 reference results**, using catalog release `2026-10-15.1` where
+applicable. Keep their original records in the linked validation documents; read each
+new run's actual identities and assessments. Catalog contents and result identities
+can differ when the engine or catalog changes.
+
+### Edit, check, run and read compact results
 
 ```bash
-python -m pip install "opensci-engine[protected]==0.8.0" -r requirements-examples.txt
-opensci-engine catalog sync
+python examples/beam_expansion_focus.py --out run-controls --no-studies
+opensci-engine project check run-controls/nominal/project.json
+opensci-engine results targets run-controls/nominal/run
+opensci-engine results freshness run-controls/nominal/run --project run-controls/nominal/project.json
 ```
 
-Sections 1–3 use catalog components; sections 4 and 5 use catalog-free ideal elements.
-The values quoted below were computed with opensci-engine 0.8.0 and catalog release
-2026-10-15.1. Engine runs are deterministic, so the same inputs reproduce the same
-numbers and result hashes.
+`project check` validates and lowers a Project without running it. `results targets`
+returns execution, optional requirements, target assessments and applicability issues
+without repeating computation. `results freshness` compares saved identities with the
+current Project. The [native editing recipe](../workflow-recipes.md#native-project-controls)
+covers atomic refusal, expected hashes and interrupted-response retries.
+
+### Choose computation limits
+
+A study's `max_evaluations` limits the number of designs; each Project's
+`compute_budget` limits work inside one design. The
+[working budget example](../workflow-recipes.md#computation-budgets) limits the three-lens
+workflow to one interaction per path, then raises the limit to eight. The limited run
+retains its artifacts and reports partial execution and indeterminate affected targets.
+Changing the budget makes the old result historical. Inspect those outcomes before
+choosing a larger limit, and preserve both runs for comparison.
 
 ## 1. Adapt a design
 
@@ -122,7 +146,7 @@ python examples/compare_runs.py run-tutorial/base run-tutorial/swapped-run run-t
 Targets and planes are aligned by ID: `output_beam_radius` appears as missing in the base
 run. The input differences are the L2 position (152.841 mm → 153.381 mm), the L2 product
 and the added target. Each run's freshness is stated against the final project: the final
-run is `CURRENT`, the other two are `HISTORICAL` (`PROJECT_CHANGED`), so the base run's
+run is `CURRENT`, the other two are `HISTORICAL` (the engine supplies the change reasons), so the base run's
 pass reads `HISTORICAL PASS`: it belongs to the earlier design.
 
 Assemble a report of the sweep, with its plots and the lens-swap edit:
@@ -181,7 +205,7 @@ fraction 92/100 is the fraction of simulated samples under these distributions.
 third command every offset is zero, and all five samples reproduce the nominal project
 and result hashes exactly.
 
-## 5. Parameterized workflows
+## Parameterized workflows
 
 Each workflow builds its design from your inputs, runs it, runs one-parameter studies,
 compares every study with the nominal run, plots the targets that change, checks the
@@ -280,14 +304,24 @@ python examples/alignment_analysis.py --out run-tutorial/alignment-synthetic --n
 
 ## Read the results
 
-Every sample and run is placed in one outcome class, checked in this order: `ERROR`
-(refused or not run), `OUT_OF_MODEL` (any model-scope issue or any issue whose status is
-`OUT_OF_MODEL_SCOPE`, whatever the target statuses),
-`UNKNOWN` (a selected target without a value), `FAIL`, `PASS`. Counts always state their
-denominator: the pass fraction divides by all requested samples, and the fraction among
-evaluable samples (PASS + FAIL) is shown separately. A comparison or report against the
-current project marks earlier results `HISTORICAL`. Detailed specification formats are in
-the [workflow recipes](../workflow-recipes.md) and in each script's `--help`.
+Separate execution, quantity validity, selected target assessments and freshness.
+`MET`, `UNMET`, `INDETERMINATE` and `NOT_APPLICABLE` are engine assessments; the
+workflow's `PASS`, `FAIL`, `UNKNOWN`, `OUT_OF_MODEL` and `NOT_APPLICABLE` classes route
+the selected requirements. Scope issues affect the quantities that depend on them.
+An unrelated out-of-model quantity does not invalidate every useful result.
+
+Every requested sample remains visible, including invalid, partial and indeterminate
+samples. Objective validity and requirement feasibility are separate fields. Exact
+objectives and finite differences use valid point values; bounded quantities retain
+their intervals. A sweep reports no feasible sample explicitly instead of selecting
+an invalid optimum. Pass fractions divide by all requested samples; the fraction among
+evaluable samples has a separate denominator. A tolerance pass fraction is a simulated
+sample result under the specified distributions.
+
+Comparison delegates freshness to the engine. Physical and budget changes produce
+`PHYSICS_CHANGED`; target edits produce `TARGETS_CHANGED`. Historical results retain
+their identities and original assessments. See [result interpretation](results.md)
+and the [workflow recipes](../workflow-recipes.md).
 
 ## Benchmark provenance
 

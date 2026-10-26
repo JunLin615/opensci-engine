@@ -5,7 +5,9 @@
 Copy one template into your own coding agent and replace the parts in angle
 brackets. Each template asks the agent to work in your environment, with your
 installed tools, and to keep OpenSci results and external results apart. The
-examples behind these templates require **opensci-engine 0.8.0** or newer.
+updated examples require candidate release 0.9.0; follow the
+[version matching instructions](installation.md#match-the-examples-to-the-installed-version)
+until published-package validation is complete.
 
 The templates cover simulation and analysis only. Ordering, sending feedback and
 uploading a design to a commercial cloud service are separate decisions you make
@@ -14,7 +16,7 @@ explicitly; nothing in these templates asks for them.
 ## Optimization and tolerance (SciPy, Optuna, SALib)
 
 ```text
-Use OpenSci Engine (opensci-engine 0.8.0 or newer) with SciPy, Optuna or SALib in this Python
+Use OpenSci Engine (the version required by the companion examples) with SciPy, Optuna or SALib in this Python
 environment. My design: <Project file or description>. Goal: <metric, e.g. output divergence
 half-angle in rad at plane "output">; variables: <component ids and fields, with ranges and units>;
 tolerances to study: <fields and +/- ranges>.
@@ -28,9 +30,10 @@ tolerances to study: <fields and +/- ranges>.
 3. Check the installed versions and that the Project runs once. Ask me only for missing values that
    change the computation (ranges, bounds, wavelength, required accuracy).
 4. Run the loop: copy the Project, edit by id, run, read the metric from the run's results, log every
-   evaluation with project_hash, input_hash, result_hash and engine_build_id. Treat runs with status
-   OUT_OF_MODEL_SCOPE, UNKNOWN or an invalid Gaussian state as failed evaluations, not as values.
-   Where an independent check exists (for example paraxial ABCD), compare the optimum with it.
+   evaluation with project_hash, input_hash, result_hash and engine_build_id. Keep selected-objective
+   validity separate from requirement feasibility. Preserve invalid, partial, unmet and indeterminate
+   evaluations; use only an exact valid objective for ranking, and report no feasible result explicitly.
+   Follow the objective's actual model dependencies. Compare with an independent check such as paraxial ABCD.
 5. Report separately: the OpenSci runs (statuses, issues, identities) and the optimizer's result
    (method, settings, seed, evaluations, best value, sensitivity indices with confidence intervals).
    Show the evaluation log and any plots as files.
@@ -41,7 +44,7 @@ tolerances to study: <fields and +/- ranges>.
 ## Diffraction and imaging (prysm, POPPY, LightPipes or Diffractio)
 
 ```text
-Use OpenSci Engine (opensci-engine 0.8.0 or newer) with <prysm / POPPY / LightPipes / Diffractio> in
+Use OpenSci Engine (the version required by the companion examples) with <prysm / POPPY / LightPipes / Diffractio> in
 my environment. Layout: <Project file or description: source, stop or aperture, lens, observation
 planes>. Question: <e.g. focal-plane peak irradiance and encircled power within 50 um>.
 
@@ -68,7 +71,7 @@ planes>. Question: <e.g. focal-plane peak irradiance and encircled power within 
 ## Quantum photonics (Perceval, with Piquasso as cross-check)
 
 ```text
-Use OpenSci Engine (opensci-engine 0.8.0 or newer) with Perceval in my environment, and Piquasso as an
+Use OpenSci Engine (the version required by the companion examples) with Perceval in my environment, and Piquasso as an
 independent cross-check if it is installed. Layout: <Project file or description>. Quantum inputs:
 photons per source <...>, polarization mode <H/V>, wavepacket <shape, rms duration, zero-delay
 indistinguishability>, detectors <type, efficiency, dark-count probability, which planes>.
@@ -97,7 +100,7 @@ indistinguishability>, detectors <type, efficiency, dark-count probability, whic
 ## Metasurface response to a virtual focusing component (grcwa, meent, DFlat or metabox)
 
 ```text
-Use OpenSci Engine (opensci-engine 0.8.0 or newer) with <grcwa / meent / DFlat / metabox> in my
+Use OpenSci Engine (the version required by the companion examples) with <grcwa / meent / DFlat / metabox> in my
 environment to turn a metasurface lens response into an OpenSci TABULATED_THIN_LENS model and use it
 in my layout. Metasurface: <materials, lattice, pillar family, design wavelength, focal length,
 diameter>. Use range: <wavelengths, input beam size, field angles, polarization>.
