@@ -42,7 +42,7 @@ def read_report(path):
             raise ValueError("Expected optional version string: " + field)
     if not isinstance(report.get("requested_version", "baseline"), str):
         raise ValueError("Expected requested_version string")
-    for field in ("catalog_source", "optional_checks"):
+    for field in ("catalog_source", "optional_checks", "engine_source"):
         if report.get(field) is not None and not isinstance(report[field], dict):
             raise ValueError("Expected optional object: " + field)
     return report
@@ -73,6 +73,8 @@ def observation_marker(report):
 
 
 def needs_issue(report):
+    if (report.get("engine_source") or {}).get("mode") == "local-wheel":
+        return False
     version = observed_version(report)
     return (report["status"] == "FAIL" or bool(failed_checks(report))
             or bool(version and version != report["baseline_version"]))
@@ -118,9 +120,14 @@ def render_summary(report, run_url="", artifact_url=""):
         "| Resolved candidate | " + cell(report.get("candidate_version")) + " |",
         "| Installed engine | " + cell(report.get("installed_version")) + " |",
         "| Python | " + cell(report.get("python_version")) + " |",
+        "| Engine source | " + cell((report.get("engine_source") or {}).get("mode", "pypi")) + " |",
+        "| Engine artifact SHA-256 | " + cell((report.get("engine_source") or {}).get("sha256")) + " |",
         "| Catalog | " + cell(catalog_text(report.get("catalog_source"))) + " |",
         "",
     ]
+    if (report.get("engine_source") or {}).get("mode") == "local-wheel":
+        lines += ["Local-wheel preparation result. Published-package alignment requires a fresh "
+                  "PyPI installation and a new check report.", ""]
     if run_url:
         lines += ["[Actions run](" + run_url + ")", ""]
     if artifact_url:
@@ -165,6 +172,10 @@ def render_summary(report, run_url="", artifact_url=""):
     version = observed_version(report) or report.get("requested_version", "baseline")
     if version != "baseline":
         reproduction += ["--candidate", version]
+    engine = report.get("engine_source") or {}
+    if engine.get("mode") == "local-wheel":
+        reproduction += ["--candidate-wheel", engine.get("filename", "CANDIDATE.whl"),
+                         "--candidate-sha256", engine.get("sha256", "SHA256")]
     source = report.get("catalog_source") or {}
     if source.get("mode") == "file" and source.get("file"):
         reproduction += ["--catalog-file", source["file"]]
@@ -263,6 +274,9 @@ def main(argv=None):
     else:
         print(summary)
     if args.publish:
+        if (report.get("engine_source") or {}).get("mode") == "local-wheel":
+            print("Local-wheel reports are preliminary; publish observations from a PyPI check.", file=sys.stderr)
+            return 1
         token = os.environ.get("GH_TOKEN") or os.environ.get("GITHUB_TOKEN")
         if not token:
             print("Publishing requires GH_TOKEN or GITHUB_TOKEN", file=sys.stderr)

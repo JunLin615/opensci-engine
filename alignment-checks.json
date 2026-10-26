@@ -61,7 +61,7 @@
     },
     {
       "name": "workflow-polarization-out-of-model",
-      "description": "1064 nm lies outside the retarder band: targets read PASS, outcome OUT_OF_MODEL, exit 3",
+      "description": "1064 nm lies outside the retarder band: affected targets are indeterminate, workflow OUT_OF_MODEL, exit 3",
       "argv": ["{python}", "examples/polarization_control.py", "--out", "{runs}/wf-pol-oom", "--no-studies", "--wavelength-nm", "1064"],
       "expected_exit": 3,
       "expected_status": "OUT_OF_MODEL"

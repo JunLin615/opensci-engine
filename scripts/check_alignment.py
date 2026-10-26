@@ -240,7 +240,7 @@ RESERVED = re.compile(
     r"(?:baseline-documentation|check-definitions|release-selection|create-environment|install-engine|"
     r"install-example-dependencies|installed-environment|installed-version-match|installed-package-location|"
     r"installed-packages|dependency-consistency|catalog-file|catalog-import|catalog-sync|catalog-identity|"
-    r"alignment-runner)(?:-.*)?|(?:create-environment|install|installed-environment|installed-packages)-env-.*"
+    r"alignment-runner|candidate-artifact|installed-artifact)(?:-.*)?|(?:create-environment|install|installed-environment|installed-packages)-env-.*"
 )
 
 
@@ -377,7 +377,8 @@ IDENTITY = (
 
 
 class AlignmentCheck:
-    def __init__(self, root, out, candidate=None, *, catalog_file=None, catalog_sha256=None, optional=()):
+    def __init__(self, root, out, candidate=None, *, catalog_file=None, catalog_sha256=None,
+                 candidate_wheel=None, candidate_sha256=None, optional=()):
         self.root = Path(root).resolve()
         self.out = Path(out).resolve()
         # Never overwrite a prior candidate's evidence or environment.
@@ -392,6 +393,8 @@ class AlignmentCheck:
         self.catalog_file = Path(catalog_file).resolve() if catalog_file else None
         self.catalog_sha256 = catalog_sha256
         self.optional = list(optional or ())
+        self.candidate_wheel = Path(candidate_wheel).resolve() if candidate_wheel else None
+        self.candidate_sha256 = candidate_sha256
         if self.catalog_file:
             # An imported release is used as is; runs never contact the catalog service.
             self.env["OPENSCI_CATALOG_CHECK_INTERVAL"] = "0"
@@ -402,6 +405,9 @@ class AlignmentCheck:
             "schema_version": 1, "baseline_version": None,
             "requested_version": candidate or "baseline", "candidate_version": None,
             "installed_version": None, "python_version": None, "status": "FAIL", "checks": [],
+            "engine_source": {"mode": "local-wheel" if self.candidate_wheel else "pypi",
+                              "publication_verified": False,
+                              "index_url": "https://pypi.org/simple"},
             "catalog_source": {"mode": "file" if self.catalog_file else "sync",
                                "file": str(self.catalog_file) if self.catalog_file else None},
             "optional_checks": {"requested": self.optional, "selected": [], "not_selected": []},
@@ -502,6 +508,45 @@ class AlignmentCheck:
         return [python, "-m", "pip", "--isolated", "install", "--no-compile", "--index-url",
                 "https://pypi.org/simple", *arguments]
 
+    def _engine_requirement(self):
+        if self.candidate_wheel:
+            # Recheck for each environment; a changed file cannot silently become
+            # a different artifact in one of the external-tool environments.
+            if sha256_file(self.candidate_wheel) != self.candidate_sha256:
+                raise ValueError("Candidate wheel changed after its identity check")
+            return "opensci-engine[protected] @ " + self.candidate_wheel.as_uri()
+        return f"opensci-engine[protected]=={self.target}"
+
+    def _package_artifact(self, install_report):
+        """Keep the artifact URL and hash pip actually installed, not a latest-page guess."""
+        try:
+            document = json.loads(install_report.read_text(encoding="utf-8"))
+            if document.get("version") != "1":
+                raise ValueError("Unsupported pip installation report version")
+            installs = document["install"]
+            engine = next(item for item in installs
+                          if item["metadata"]["name"].replace("_", "-").lower() == "opensci-engine")
+            download = engine["download_info"]
+            digest = download["archive_info"]["hashes"]["sha256"]
+            if not SHA256.fullmatch(digest):
+                raise ValueError("Invalid installed artifact SHA-256")
+            source = self.report["engine_source"]
+            source.update(url=download["url"], sha256=digest,
+                          filename=Path(urllib.request.url2pathname(download["url"].split("/")[-1])).name)
+            if self.candidate_wheel and digest != self.candidate_sha256:
+                raise ValueError("Installed wheel differs from the requested SHA-256")
+            if not self.candidate_wheel:
+                # The default runner uses the public index; a direct artifact URL
+                # from an unexpected origin is not accepted as PyPI evidence.
+                from urllib.parse import urlparse
+                if urlparse(download["url"]).hostname != "files.pythonhosted.org":
+                    raise ValueError("Installed artifact did not come from PyPI files.pythonhosted.org")
+                source["publication_verified"] = True
+            return self.record("installed-artifact", "package_api", "PASS", [], sha256=digest)
+        except (OSError, ValueError, KeyError, TypeError, StopIteration) as exc:
+            return self.record("installed-artifact", "package_api", "FAIL", [],
+                               error=f"Cannot establish installed artifact identity: {exc}")
+
     def _identity(self, name, python, venv):
         """Return the installed identity, or None after recording why the environment is unusable."""
         identity = self.command(name, "package_api", [python, "-c", IDENTITY])
@@ -532,7 +577,7 @@ class AlignmentCheck:
         result = self.command(f"create-environment-env-{slug}", "setup", [sys.executable, "-m", "venv", str(venv)])
         if result["status"] == "PASS":
             result = self.command(f"install-env-{slug}", "package_api", self._pip_install(
-                python, f"opensci-engine[protected]=={self.target}", "-r", str(self.root / requirements)), timeout=1200)
+                python, self._engine_requirement(), "-r", str(self.root / requirements)), timeout=1200)
         if result["status"] == "PASS":
             info = self._identity(f"installed-environment-env-{slug}", python, venv)
             if info is None:
@@ -651,6 +696,22 @@ class AlignmentCheck:
         except Exception as exc:
             self.record("release-selection", "setup", "FAIL", [], error=f"{type(exc).__name__}: {exc}")
             return
+        if self.candidate_wheel:
+            try:
+                if requested in {"baseline", "latest"}:
+                    raise ValueError("A local candidate wheel requires an exact --candidate version")
+                if self.candidate_wheel.suffix != ".whl" or not self.candidate_wheel.is_file():
+                    raise ValueError("Candidate must be an existing .whl file")
+                if not self.candidate_sha256 or not SHA256.fullmatch(self.candidate_sha256):
+                    raise ValueError("Candidate wheel requires its expected SHA-256")
+                actual = sha256_file(self.candidate_wheel)
+                if actual != self.candidate_sha256:
+                    raise ValueError("Candidate wheel SHA-256 differs from the expected digest")
+                self.report["engine_source"].update(filename=self.candidate_wheel.name, sha256=actual)
+                self.record("candidate-artifact", "setup", "PASS", [], sha256=actual)
+            except (OSError, ValueError) as exc:
+                self.record("candidate-artifact", "setup", "FAIL", [], error=str(exc))
+                return
         blocker = self._default_environment(definitions["default_requirements"])
         default = None if blocker else self.environments[None]
         runs = self.out / "runs"
@@ -700,8 +761,12 @@ class AlignmentCheck:
         row = self.command("create-environment", "setup", [sys.executable, "-m", "venv", str(venv)], timeout=180)
         if row["status"] == "FAIL":
             return row
-        row = self.command("install-engine", "package_api",
-                           self._pip_install(python, f"opensci-engine[protected]=={self.target}"), timeout=600)
+        install_report = self.out / "logs" / "install-engine.json"
+        row = self.command("install-engine", "package_api", self._pip_install(
+            python, self._engine_requirement(), "--report", str(install_report)), timeout=600)
+        if row["status"] == "FAIL":
+            return row
+        row = self._package_artifact(install_report)
         if row["status"] == "FAIL":
             return row
         if requirements:
@@ -725,6 +790,9 @@ class AlignmentCheck:
 def main(argv=None):
     parser = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
     parser.add_argument("--candidate", help="Exact PyPI version or latest; never updates the verified baseline")
+    parser.add_argument("--candidate-wheel", type=Path,
+                        help="Local wheel for preliminary checks; requires an exact --candidate and SHA-256")
+    parser.add_argument("--candidate-sha256", help="Expected SHA-256 of --candidate-wheel")
     parser.add_argument("--out", type=Path, default=Path("run-alignment"), help="New directory for reports, logs and runs")
     parser.add_argument("--catalog-file", type=Path,
                         help="Import this published catalog release instead of a fresh sync; its SHA-256 is verified")
@@ -733,11 +801,16 @@ def main(argv=None):
     parser.add_argument("--optional", action="append", default=[], metavar="NAME[,NAME]|all",
                         help="Also run these optional checks from alignment-checks.json (repeatable)")
     args = parser.parse_args(argv)
+    if args.candidate_wheel or args.candidate_sha256:
+        if (not args.candidate_wheel or not args.candidate or args.candidate == "latest"
+                or not args.candidate_sha256 or not SHA256.fullmatch(args.candidate_sha256)):
+            parser.error("Local wheel checks need --candidate VERSION --candidate-wheel FILE --candidate-sha256 DIGEST")
     if args.catalog_sha256 is not None and (args.catalog_file is None or not SHA256.fullmatch(args.catalog_sha256)):
         parser.error("--catalog-sha256 needs --catalog-file and 64 lower-case hexadecimal characters")
     try:
         report = AlignmentCheck(ROOT, args.out, args.candidate, catalog_file=args.catalog_file,
-                                catalog_sha256=args.catalog_sha256, optional=args.optional).run()
+                                catalog_sha256=args.catalog_sha256, candidate_wheel=args.candidate_wheel,
+                                candidate_sha256=args.candidate_sha256, optional=args.optional).run()
     except OSError as exc:
         parser.exit(1, f"Cannot create a fresh output directory: {exc}\n")
     print(json.dumps({"status": report["status"], "baseline_version": report["baseline_version"],

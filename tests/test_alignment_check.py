@@ -327,6 +327,15 @@ class AlignmentRunnerTests(unittest.TestCase):
                        topic_install_error=None):
         def run(command, **kwargs):
             code, stdout, stderr = 0, "", ""
+            if "--report" in command:
+                install_report = Path(command[command.index("--report") + 1])
+                wheel = next((arg.split(" @ ", 1)[1] for arg in command
+                              if arg.startswith("opensci-engine[protected] @ file:")), None)
+                digest = hashlib.sha256(b"candidate wheel").hexdigest() if wheel else "a" * 64
+                install_report.write_text(json.dumps({"version": "1", "install": [{"metadata": {"name": "opensci-engine"},
+                    "download_info": {"url": wheel if wheel else
+                    "https://files.pythonhosted.org/packages/opensci_engine.whl",
+                    "archive_info": {"hashes": {"sha256": digest}}}}]}), encoding="utf-8")
             if "-c" in command and "engine_version" in command[-1]:
                 stdout = json.dumps({"engine_version": version, "python": "test", "python_version": "3.11.9",
                                      "platform": "test", "executable": command[0], "module_path": str(
@@ -397,7 +406,10 @@ class AlignmentRunnerTests(unittest.TestCase):
         self.assertEqual(originals, {path.name: path.read_bytes() for path in self.root.iterdir()})
         install = next(call for call in commands.call_args_list if "install" in call.args[0])
         self.assertEqual(install.args[0][1:], ["-m", "pip", "--isolated", "install", "--no-compile",
-                                             "--index-url", "https://pypi.org/simple", "opensci-engine[protected]==0.7.0"])
+                                             "--index-url", "https://pypi.org/simple", "opensci-engine[protected]==0.7.0",
+                                             "--report", str(self.out / "logs" / "install-engine.json")])
+        self.assertTrue(report["engine_source"]["publication_verified"])
+        self.assertEqual(report["engine_source"]["sha256"], "a" * 64)
         self.assertTrue(Path(install.args[0][0]).is_relative_to(self.out / ".venv"))
         for call in commands.call_args_list:
             # Compare key sets only, so a failure never writes the environment into logs.
@@ -662,6 +674,65 @@ class AlignmentRunnerTests(unittest.TestCase):
             alignment.main(["--catalog-sha256", "0" * 64, "--out", str(self.out)])
         self.assertEqual(raised.exception.code, 2)
         self.assertFalse(self.out.exists())
+
+    def test_local_wheel_is_explicit_hashed_and_never_publication_evidence(self):
+        wheel = self.root / "opensci_engine-0.7.0-py3-none-any.whl"
+        wheel.write_bytes(b"candidate wheel")
+        digest = alignment.sha256_file(wheel)
+        baseline = (self.root / "engine-baseline.json").read_bytes()
+        runner = alignment.AlignmentCheck(self.root, self.out, "0.7.0", candidate_wheel=wheel,
+                                          candidate_sha256=digest)
+        with patch.object(alignment.subprocess, "run", side_effect=self.fake_processes(version="0.7.0")) as calls:
+            report = runner.run()
+        self.assertEqual(report["status"], "PASS")
+        self.assertEqual(report["engine_source"]["mode"], "local-wheel")
+        self.assertFalse(report["engine_source"]["publication_verified"])
+        self.assertEqual(report["engine_source"]["sha256"], digest)
+        self.assertEqual(baseline, (self.root / "engine-baseline.json").read_bytes())
+        self.assertIn("opensci-engine[protected] @ " + wheel.as_uri(), self.calls(calls, "install")[0].args[0])
+
+    def test_bad_candidate_digest_stops_before_installing(self):
+        wheel = self.root / "opensci_engine-0.7.0-py3-none-any.whl"
+        wheel.write_bytes(b"candidate wheel")
+        for i, (version, digest) in enumerate((("0.7.0", "0" * 64), (None, alignment.sha256_file(wheel)))):
+            with self.subTest(version=version):
+                runner = alignment.AlignmentCheck(self.root, self.out / str(i), version,
+                    candidate_wheel=wheel, candidate_sha256=digest)
+                with patch.object(alignment.subprocess, "run") as commands:
+                    report = runner.run()
+                commands.assert_not_called()
+                self.assertEqual(report["status"], "FAIL")
+                self.assertEqual(report["checks"][-1]["name"], "candidate-artifact")
+
+    def test_local_wheel_cli_requires_all_identity_arguments(self):
+        for extra in (["--candidate-wheel", "test.whl"], ["--candidate-sha256", "0" * 64],
+                      ["--candidate", "latest", "--candidate-wheel", "test.whl", "--candidate-sha256", "0" * 64]):
+            with self.subTest(extra=extra), patch("sys.stderr", io.StringIO()), self.assertRaises(SystemExit) as raised:
+                alignment.main(["--out", str(self.out)] + extra)
+            self.assertEqual(raised.exception.code, 2)
+        self.assertFalse(self.out.exists())
+
+    def test_missing_or_untrusted_pip_artifact_blocks_examples(self):
+        for i, url in enumerate(("https://example.org/engine.whl", None)):
+            runner = alignment.AlignmentCheck(self.root, self.out / str(i))
+            normal = self.fake_processes()
+            def run(command, **kwargs):
+                result = normal(command, **kwargs)
+                if "--report" in command:
+                    path = Path(command[command.index("--report") + 1])
+                    if url is None:
+                        path.unlink()
+                    else:
+                        data = json.loads(path.read_text())
+                        data["install"][0]["download_info"]["url"] = url
+                        path.write_text(json.dumps(data))
+                return result
+            with patch.object(alignment.subprocess, "run", side_effect=run):
+                report = runner.run()
+            rows = self.rows(report)
+            self.assertEqual(rows["installed-artifact"]["status"], "FAIL")
+            self.assertEqual(rows["offline-tests"]["blocked_by"], "installed-artifact")
+            self.assertFalse(report["engine_source"]["publication_verified"])
 
 
 class WorkflowTests(unittest.TestCase):

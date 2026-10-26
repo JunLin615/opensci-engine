@@ -32,6 +32,30 @@ directory must be new, so repeated checks cannot overwrite earlier evidence.
 Candidate checks never write `engine-baseline.json`, `alignment-checks.json` or
 documentation.
 
+### Prepare against a local wheel
+
+Before a release reaches PyPI, use a supplied wheel with its exact version and
+SHA-256. For example, substitute the wheel filename and digest you received:
+
+```bash
+python scripts/check_alignment.py --candidate 0.9.0 \
+  --candidate-wheel opensci_engine-0.9.0-py3-none-any.whl \
+  --candidate-sha256 WHEEL_SHA256 --out run-wheel-preparation
+```
+
+This installs the wheel into fresh environments and checks its hash before each
+installation. `engine_source.mode` is `local-wheel` and
+`engine_source.publication_verified` stays `false`. Its report is preparation
+evidence; the reporting command does not publish it as a release observation.
+Keep wheel files and their generated environments outside tracked files.
+
+When that version is published, rerun with `--candidate VERSION` and a new output
+directory, without `--candidate-wheel`. The default runner and Actions always use
+PyPI. Each PyPI run keeps pip's installation report, including the artifact URL and
+SHA-256, in `logs/install-engine.json`; `engine_source` repeats the engine artifact
+identity. A local-wheel success does not advance the verified baseline.
+The runner reads the supported [pip installation-report format](https://pip.pypa.io/en/stable/reference/installation-report/).
+
 The runner installs `opensci-engine[protected]` and the `default_requirements` of
 `alignment-checks.json` into `OUTPUT/.venv`, strips `PYTHONPATH`/`PYTHONHOME`,
 disables user-site imports, and verifies the imported engine version and that its
@@ -116,7 +140,7 @@ Checks run in list order.
 | `name` | required | Unique lower-case name (`[a-z0-9-]`); also the log file name |
 | `argv` | required | Command; the first item must be `{python}`. Paths are relative to the repository root |
 | `description` | none | One line for maintainers |
-| `expected_exit` | `0` | Exit code that counts as success; a scientific `FAIL` example expects `1` |
+| `expected_exit` | `0` | Exit code that counts as success; a helper reporting an unmet requirement expects `1` |
 | `expected_status` | none | String or list; stdout must be one JSON document whose `status_field` has one of these values |
 | `status_field` | `"status"` | Key read for `expected_status` (`"outcome"` for the external-tool examples) |
 | `json_error` | `false` | Success requires empty stdout and a JSON `error` object on stderr |
@@ -146,7 +170,7 @@ stderr.
 
 | Evidence | Contents |
 | --- | --- |
-| `report.json` | Requested/resolved/installed versions, Python version, catalog source, optional selection; each check's category, status, command, actual/expected exit code, diagnostic, log paths and, when skipped, `blocked_by` |
+| `report.json` | Requested/resolved/installed versions, engine source and artifact SHA-256, Python version, catalog source, optional selection; each check's category, status, command, actual/expected exit code, diagnostic, log paths and, when skipped, `blocked_by` |
 | `environment.json` | Installed engine version/location, Python executable/version and platform |
 | `logs/` | Complete stdout/stderr for installation and every executed command, including installed package lists |
 | `runs/` | Complete successful or non-passing example outputs and the beam comparison report |
@@ -247,9 +271,10 @@ posting issues.
    and SHA-256, evidence), every document the documentation check reports, and the
    affected walkthroughs or expected outputs. Add a dated section to the validation
    record and leave earlier sections unchanged.
-4. Run the baseline check from that revision, inspect the artifacts, then merge.
-   Close the corresponding version-specific observation issues when their work is
-   accepted. Keep the standing issues open.
+4. Run the baseline check from that revision and inspect the final PR-head CI
+   artifacts against the current base. Hand the PR to the maintainer for acceptance
+   and merge. Close version-specific observation issues only after acceptance of
+   their complete scope. Keep the standing issues open.
 
 ### Snapshots
 
