@@ -1,10 +1,12 @@
 # External-tool examples validation
 
 Evidence for the four examples in [examples/interop](../examples/interop/) and the
-[external tools guide](en/interop.md). These examples require **opensci-engine 0.8.0**
+[external tools guide](en/interop.md). These examples require **opensci-engine 0.9.0**
 or newer.
 
-This file holds two records: the [PyPI wheel record of 2026-10-18](#record-2026-10-18-pypi-wheel-opensci-engine-080)
+This file holds three records: the [published PyPI wheel record of
+2026-10-28](#record-2026-10-28-published-pypi-wheel-opensci-engine-090), the
+[PyPI wheel record of 2026-10-18](#record-2026-10-18-pypi-wheel-opensci-engine-080)
 and the [integration-build record of 2026-10-15](#record-2026-10-15-integration-build-historical),
 which keeps the full per-case tables. Each script's `outcome` compares OpenSci with an
 external tool or an independent reference (`WITHIN_TOLERANCE` / `OUT_OF_TOLERANCE`, or
@@ -30,8 +32,45 @@ from declared glass, unitary dilation and the metasurface fitting helpers, inclu
 the refusal without convergence data; they need numpy (and scipy for the diffraction
 reference) and skip cleanly without them. Two further tests run the Engine (network
 export with group delays, `TABULATED_THIN_LENS` scope) and are skipped on engines older
-than 0.8.0. Run outputs are written under `run-interop-*` directories and are not
+than 0.9.0. Run outputs are written under `run-interop-*` directories and are not
 committed.
+
+## Record 2026-10-28: published PyPI wheel opensci-engine 0.9.0
+
+The metasurface route was re-run from scratch on the published 0.9.0 wheel, because the
+engine's target applicability changed for out-of-domain tabulated lenses. Environment:
+Windows 11 (AMD64), CPython 3.14.8, opensci-engine 0.9.0 (wheel SHA-256
+`049d367b3b4f5cc26490b0da7bc6baf189ad4e51efff2d68eb7060d46259f1c4`), numpy 2.5.4,
+scipy 1.18.1, grcwa 0.1.2. All Projects are catalog-free.
+
+| Step | Result |
+| --- | --- |
+| 1, 101 RCWA orders | 855 solves in 177.7 s, max &#124;R + T − 1&#124; 5.8e-13 |
+| 1, 201 RCWA orders | 225 solves in 334.1 s, max &#124;R + T − 1&#124; 8.7e-13 |
+| 2, 101 orders / 1024 samples | 26 cases in 129.5 s |
+| 2, 201 orders / 1024 samples | 11 cases in 51.1 s |
+| 2, 101 orders / 2048 samples | 12 cases in 230.8 s |
+| 3, model fit | `COMPLETED`: external spread 0.50 % focus position, 0.71 % spot radius, 0.015 efficiency; bounds ±1.4 µm, ±8.1 %, ±19 %; `max_field_angle_deg` 2 |
+| 4, tabulated model | `WITHIN_TOLERANCE`: no test case outside the stated errors, no in-domain quantity unavailable, engine vs the model's thin-lens prediction 4.4e-16 (also as one 19-line source 4.4e-16), no counterexample unexpected |
+| 4, per-wavelength ideal model | `WITHIN_TOLERANCE`: engine vs the ideal thin lens 3.8e-7 |
+
+The four out-of-domain counterexamples now report the scope code on the affected
+target's `applicability_issue_codes` and assess that target `INDETERMINATE`:
+
+| Counterexample | Engine status | Target assessment | Scope code |
+| --- | --- | --- | --- |
+| 450 nm source | `OUT_OF_MODEL_SCOPE` | `INDETERMINATE` | `MODEL_WAVELENGTH_OUTSIDE_BAND` |
+| 5° field angle | `OUT_OF_MODEL_SCOPE` | `INDETERMINATE` | `MODEL_FIELD_ANGLE_EXCEEDED` |
+| 8° field angle | `OUT_OF_MODEL_SCOPE` | `INDETERMINATE` | `MODEL_FIELD_ANGLE_EXCEEDED` |
+| 20° field angle | `OUT_OF_MODEL_SCOPE` | `INDETERMINATE` | `MODEL_FIELD_ANGLE_EXCEEDED` |
+| `peak_irradiance_W_per_mm2` target | `OUT_OF_MODEL_SCOPE` | `INDETERMINATE` | `METRIC_NOT_VALIDATED_FOR_ELEMENT` |
+
+The 530 nm reference run, the seven in-domain test cases and the calibration envelope
+match the 2026-10-18 record. The unit-cell library file hash is
+`35cb69a544935b8c78d3564342e48cd6801c15e4fd05b5d11fb7b9b8d28a9aa6`; run under a
+different CPython build it differs in the stored bytes while every derived quantity
+agrees with the earlier record to the printed precision. The other three topics were
+not re-run for this record; their 2026-10-18 results stand.
 
 ## Record 2026-10-18: PyPI wheel opensci-engine 0.8.0
 

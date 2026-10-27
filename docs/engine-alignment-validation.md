@@ -4,6 +4,113 @@ Dated records of alignment checks, newest first. Each record keeps the versions,
 hosts and results observed at the time; later records do not change earlier ones.
 The maintainer procedure is in [engine alignment](engine-alignment.md).
 
+## 2026-10-28: baseline opensci-engine 0.9.0
+
+This record moves the verified baseline from 0.8.0 to the published **0.9.0**
+(build `0.9.0+63613606da77d301`), published 2026-10-27 12:47Z, with catalog release
+`2026-10-15.1`.
+
+PyPI artifacts of that release, recorded under `artifacts` in
+[engine-baseline.json](../engine-baseline.json):
+
+| Artifact | SHA-256 |
+| --- | --- |
+| `opensci_engine-0.9.0-py3-none-any.whl` (1,825,987 B) | `049d367b3b4f5cc26490b0da7bc6baf189ad4e51efff2d68eb7060d46259f1c4` |
+| `opensci_engine-0.9.0.tar.gz` (1,655,620 B) | `bc9de85fa552f2b0f5b69ab1ffb58a8ff491de99d2e43803f0d1bee49bc68393` |
+
+Host: Windows 11 (`Windows-11-10.0.26200-SP0`, AMD64), CPython 3.14.8. A fresh
+virtual environment installed `opensci-engine[protected]==0.9.0` from
+`https://pypi.org/simple`; pip's own installation report names the
+`files.pythonhosted.org` wheel URL and the SHA-256 above, and the imported engine lies
+in that environment's `site-packages`. `pip check` reported no broken requirements.
+The alignment runner below created its own environments the same way and recorded
+`engine_source.publication_verified: true` with the same wheel digest.
+
+### Catalog release used
+
+`catalog sync` from that environment now completes against the live service: the
+manifest at `https://opensci-optics.com/api/v1/catalog` named release `2026-10-15.1`
+(13,452,502 B) and the downloaded release matched SHA-256
+`ce974b614b15b857edb6053709eb57136c339e592ef5116402047a5d8cdf5e87`, which is recorded
+as `verified_environment.catalog_sha256`. The earlier `CATALOG_INTEGRITY_FAILED` and
+truncated-download failures were a transport defect on the service side and no longer
+reproduce. The alignment run used the default fresh sync, not `--catalog-file`, so it
+also establishes that an ordinary client receives the release.
+
+### Offline checks
+
+`python -m unittest discover -s tests` passed in the clean installation: 305 tests,
+7 skipped (the catalog-dependent classes), 97 s. With the catalog prepared,
+`catalog-tests` reruns those classes with `OPENSCI_EXAMPLES_REQUIRE_CATALOG=1` and
+passed with none skipped.
+
+### Default alignment run: complete pass
+
+```bash
+python scripts/check_alignment.py --out run-alignment
+```
+
+| Python | Verification | Status | Catalog |
+| --- | --- | --- | --- |
+| 3.14.8 | clean PyPI install, wheel `049d367b…` | `PASS`, 33 of 33 rows (22 checks plus setup) | fresh sync, active `2026-10-15.1` |
+
+Every row passed; nothing was skipped. The expected non-zero exits were observed:
+`ideal-unmet-target` 1, `ideal-invalid-input` 4, `workflow-polarization-out-of-model`
+3, `workflow-alignment-synthetic` 1 and `spec-be-swap` 1. Representative results:
+
+| Check | Result |
+| --- | --- |
+| `ideal-pass` | `spot_radius` 0.016934085944977664 mm against 0.05 mm |
+| `workflow-expansion` | `expanded_radius` 1.501118304 mm, `spot_radius` 0.016552114 mm, `waist_location` −0.036489675 mm; all closed-form comparisons agreed (max 1.6e-14) |
+| `workflow-polarization-out-of-model` | 1064 nm outside the retarder band: both targets `INDETERMINATE` with `MODEL_WAVELENGTH_OUTSIDE_BAND`, workflow `OUT_OF_MODEL`, exit 3 |
+| `tolerance-polarization` | 20 seeded samples: 14 `PASS`, 6 `OUT_OF_MODEL`; the six retain the scope code and are not counted as target passes |
+| `spec-be-swap` | 100.3 mm L2 candidate: `expanded_waist` 1.44 mm, `FAIL`, exit 1 |
+| `spec-be-sweep` | best L2 shift 0.54 mm, `expanded_waist` 1.99645 mm, 5 of 12 samples `PASS`; matches the published reference numbers |
+| `catalog-candidates` | 471 modeled plano-convex lenses, 40 rows within 95–105 mm, 5 shown |
+
+### Documented tutorial commands
+
+Every command in the README quick start, the installation, catalog, results,
+measurement and workflow guides ran against the installed wheel: `doctor`,
+`capabilities`, `catalog status/list/show/check/sync`, `project example/check/run/verify/
+update-catalog`, `results describe/targets/freshness/monitor/power-budget/rays/metrics/
+columns`, `export arrivals/rays`, `schema project`, `view --write-html/--snapshot`, the
+README Python snippet, the example scripts (`result_summary.py`, `ideal_lens_focus.py`,
+`catalog_candidates.py`, `analyze_measurements.py` with both documented CSVs,
+`edit_project.py`, the three workflow scripts) and the documented expected outcomes:
+`results freshness` returns 0 for `CURRENT` and 1 for `HISTORICAL`, the strict spot
+bound returns `FAIL` with exit 1, an invalid bound exits 4, and both measurement
+examples return `WARNING` with exit 0. The commercial commands refused as documented
+without `OPENSCI_API_URL` (exit 78, `API_URL_MISSING`).
+
+### Behaviour change from the tabulated-lens fix
+
+The published engine now reports a target that depends on light meeting an
+out-of-domain `TABULATED_THIN_LENS` as `INDETERMINATE` with the scope code in
+`applicability_issue_codes`; `--status-contract requirements` exits 2 for such a run.
+The four metasurface step-4 counterexamples are re-recorded below as `INDETERMINATE`
+rather than `MET`. The workflow helpers, sweeps and tolerance studies classify those
+samples `OUT_OF_MODEL` instead of a numeric `FAIL`; the public tests now assert that
+contract (the 530 nm in-domain case is unchanged).
+
+### Optional external-tool checks
+
+```bash
+python scripts/check_alignment.py --optional all --out run-alignment-full
+```
+
+### Baseline update
+
+`engine-baseline.json` now records version 0.9.0, the published wheel and source
+SHA-256 values, CI Python 3.11 and 3.14, the website `https://opensci-optics.com` and
+the retired host, and the verified environment above. The documentation check covers
+README, README.zh-CN, AGENT_GUIDE, both installation guides, both guide indexes, the
+agent recipes, the workflow recipes, both workflow guides and the bug-report template,
+and scans the remaining documents, examples, requirements files and issue templates;
+it reported no problems. The three dated 0.8.0 records (workflow, sensitivity and
+tolerance, release preview) are listed as historical documents and keep their original
+versions.
+
 ## 2026-10-18: baseline opensci-engine 0.8.0
 
 This record moves the verified baseline from 0.6.1 to the published **0.8.0**

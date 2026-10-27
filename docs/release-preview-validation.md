@@ -1,11 +1,40 @@
 # Workflow release preview checks
 
+## Published 0.9.0 recheck (2026-10-28)
+
+The release previewed here was published as PyPI `opensci-engine` **0.9.0** on
+2026-10-27 12:47Z (build `0.9.0+63613606da77d301`, wheel SHA-256
+`049d367b3b4f5cc26490b0da7bc6baf189ad4e51efff2d68eb7060d46259f1c4`, source package
+`bc9de85fa552f2b0f5b69ab1ffb58a8ff491de99d2e43803f0d1bee49bc68393`). It is now the
+verified baseline in [engine-baseline.json](../engine-baseline.json); the 0.9.0
+alignment record is in [alignment validation](engine-alignment-validation.md).
+
+Rechecked on the published wheel in a clean environment (Windows 11 AMD64, CPython
+3.14.8): the installed wheel hash equals the digest above, `catalog sync` reaches the
+live service and receives release `2026-10-15.1` with the published SHA-256, the
+default alignment run passes every row, and 305 offline tests pass. Two candidate
+findings changed status:
+
+- **Catalog transport:** `catalog sync` now completes from an ordinary client; the
+  `CATALOG_INTEGRITY_FAILED` and truncated download recorded below were a service
+  transport defect and no longer reproduce.
+- **Tabulated-lens target assessments:** the four out-of-domain counterexamples now
+  assess their target `INDETERMINATE` with the scope code in
+  `applicability_issue_codes`, so step 4 reports `WITHIN_TOLERANCE` instead of
+  `OUT_OF_TOLERANCE`. The re-run is recorded in
+  [external-tool validation](interop-validation.md#record-2026-10-28-published-pypi-wheel-opensci-engine-090).
+
+The workflow, measurement and external-tool observations below were made on the
+candidate build identified in the next section; they are kept as that record. The
+optimization, diffraction and quantum external comparisons were not repeated on the
+published wheel for this record.
+
+## 2026-10-27 candidate record
+
 Recorded 2026-10-27. These checks use a locally built **0.9.0 candidate**, build
 `0.9.0+06608b92cc9c5dca`. Its wheel SHA-256 is
-`4ad4f4692b8c66ae9f3cc510dfa5f7e2b58fd214556b21b9f418a7826c05cf98`.
-The [verified PyPI baseline](../engine-baseline.json) remains 0.8.0. The preview
-requires a fresh installation of the published release and successful alignment
-checks before it becomes the verified baseline.
+`4ad4f4692b8c66ae9f3cc510dfa5f7e2b58fd214556b21b9f418a7826c05cf98`. The candidate
+build is not the published artifact and is superseded by the release above.
 
 Environment: Windows 11 AMD64, CPython 3.12.6, numpy 2.5.4, scipy 1.18.1.
 External tools: Optuna 5.0.0, SALib 1.6.0, LightPipes 2.1.5, prysm 0.21.1,
