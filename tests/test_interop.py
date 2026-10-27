@@ -406,7 +406,7 @@ class MetasurfaceFitTests(unittest.TestCase):
         self.assertAlmostEqual(self.fit.aperture_fraction(30.0, 50.0), 1 - math.exp(-2 * 2500 / 900), places=15)
 
 
-@unittest.skipUnless(HAS_NUMPY and engine_supported(), "needs opensci-engine 0.8.0 or newer")
+@unittest.skipUnless(HAS_NUMPY and engine_supported(), "needs opensci-engine 0.9.0 or newer")
 class EngineInteropTests(unittest.TestCase):
     def test_hom_layout_exports_a_four_mode_lossless_network(self):
         from opensci_engine.local import json_api

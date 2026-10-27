@@ -482,8 +482,10 @@ def tabulated_lens_project(wavelengths_nm):
 
 
 class EngineOutOfModelIssueTests(unittest.TestCase):
-    """A tabulated thin lens outside its rows is reported only as an Engine issue with status OUT_OF_MODEL_SCOPE; with
-    a failing target the run status is FAIL and model_scope_issues is empty. The 530 nm target remains usable; the separate 450 nm scope issue is retained."""
+    """A tabulated thin lens outside its rows is a model-scope issue (MODEL_WAVELENGTH_OUTSIDE_BAND). The target that
+    depends on the lens keeps its value and bounds but is assessed INDETERMINATE with the scope code in
+    applicability_issue_codes, so the sample outcome is OUT_OF_MODEL while the run status stays FAIL for the unmet
+    numeric bound. The 530 nm reference run stays inside the model."""
 
     @classmethod
     def setUpClass(cls):
@@ -499,10 +501,15 @@ class EngineOutOfModelIssueTests(unittest.TestCase):
     def test_run_sample_classifies_out_of_model(self):
         self.assertEqual((self.inside["outcome"], self.inside["status"]), ("FAIL", "FAIL"))
         self.assertEqual(self.outside["status"], "FAIL")
-        self.assertEqual(self.outside["model_scope_issues"], [])
-        self.assertEqual(self.outside["outcome"], "FAIL")
+        self.assertEqual([issue["code"] for issue in self.outside["model_scope_issues"]],
+                         ["MODEL_WAVELENGTH_OUTSIDE_BAND"])
+        self.assertEqual(self.outside["outcome"], "OUT_OF_MODEL")
         self.assertFalse(self.outside["in_model_scope"])
         self.assertIn("MODEL_WAVELENGTH_OUTSIDE_BAND", [i["code"] for i in self.outside["out_of_model_issues"]])
+        target = self.outside["targets"][0]
+        self.assertEqual((target["assessment"], target["applicability_issue_codes"]),
+                         ("INDETERMINATE", ["MODEL_WAVELENGTH_OUTSIDE_BAND"]))
+        self.assertEqual(target["value"], self.inside["targets"][0]["value"])
 
     def test_edit_run_exits_3(self):
         wc.write_json(self.dir / "base.json", tabulated_lens_project([450.0, 530.0]))
@@ -510,9 +517,11 @@ class EngineOutOfModelIssueTests(unittest.TestCase):
                                                 "changes": {"maximum": 2e-6}}])
         code, out, err = invoke(ep.main, [str(self.dir / "base.json"), "--edits", str(self.dir / "edit.json"),
                                           "--out", str(self.dir / "edited.json"), "--run", str(self.dir / "edited")])
-        self.assertEqual(code, 1, err)
+        self.assertEqual(code, 3, err)
         self.assertEqual((out["status"], out["run"]["status"], out["run"]["outcome"]),
-                         ("FAIL", "FAIL", "FAIL"))
+                         ("OUT_OF_MODEL_SCOPE", "FAIL", "OUT_OF_MODEL"))
+        self.assertEqual([issue["code"] for issue in out["run"]["model_scope_issues"]],
+                         ["MODEL_WAVELENGTH_OUTSIDE_BAND"])
         self.assertTrue(out["run"]["out_of_model_issues"])
 
     def test_sweep_compare_and_report_use_the_same_rule(self):
@@ -520,16 +529,17 @@ class EngineOutOfModelIssueTests(unittest.TestCase):
         summary = sp.run_sweep(spec, self.dir / "study",
                                build=lambda p: tabulated_lens_project(sorted({p["short"], 530.0})))
         rows = {r["sample_id"]: r for r in summary["rows"]}
-        self.assertEqual((rows["s0001"]["outcome"], rows["s0002"]["outcome"]), ("FAIL", "FAIL"))
+        self.assertEqual((rows["s0001"]["outcome"], rows["s0002"]["outcome"]), ("FAIL", "OUT_OF_MODEL"))
         self.assertEqual(rows["s0002"]["out_of_model_issues"], ["MODEL_WAVELENGTH_OUTSIDE_BAND"])
-        self.assertEqual(summary["counts"]["by_outcome"]["FAIL"], 2)
+        self.assertEqual(summary["counts"]["by_outcome"]["FAIL"], 1)
+        self.assertEqual(summary["counts"]["by_outcome"]["OUT_OF_MODEL"], 1)
         document = cr.compare([self.dir / "inside" / "run", self.dir / "outside" / "run"])
         runs = {r["label"]: r for r in document["runs"]}
-        self.assertEqual(runs["outside"]["outcome"], "FAIL")
+        self.assertEqual(runs["outside"]["outcome"], "OUT_OF_MODEL")
         self.assertEqual(runs["outside"]["out_of_model_issues"], ["MODEL_WAVELENGTH_OUTSIDE_BAND"])
         report = br.build_report([self.dir / "inside" / "run", self.dir / "outside" / "run"],
                                  out_dir=self.dir / "report")
-        self.assertEqual(report["diagnostics"]["model_scope_issues"], {"MODEL_WAVELENGTH_OUTSIDE_BAND": 1})
+        self.assertEqual(report["diagnostics"]["model_scope_issues"], {"MODEL_WAVELENGTH_OUTSIDE_BAND": 2})
 
     def test_design_outcome_agrees(self):
         result = designs.design_outcome(designs.run_design(tabulated_lens_project([450.0, 530.0])))
