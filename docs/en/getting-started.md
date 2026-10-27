@@ -74,8 +74,9 @@ opensci-engine export arrivals run --format csv --out arrivals.csv
 opensci-engine schema project
 ```
 
-The candidate release 0.9.0 adds semantic edits and compact reads. Its published-package
-validation is pending; see [version matching](installation.md#match-the-examples-to-the-installed-version).
+OpenSci Engine 0.9.0 adds semantic edits and compact reads; see
+[version matching](installation.md#match-the-examples-to-the-installed-version) for the
+matching installation.
 Save the edits from the [editing recipe](../workflow-recipes.md#edit-a-project-by-id)
 as `edits.json`, then preserve the original Project while running the revised design:
 

@@ -27,13 +27,14 @@ opensci-engine project verify run
 
 ## 理解结果
 
-以下精简控制接口对应 0.9.0 候选版本。公开软件包验证尚待完成；请先阅读
-[版本匹配说明](installation.md#让示例与安装版本一致)。
+以下精简控制接口对应 0.9.0；请按
+[版本匹配说明](installation.md#让示例与安装版本一致)安装匹配的软件包。
 
-候选版本已知限制：表格透镜在声明的波长或角度适用范围之外，可能一边报告模型适用范围问题，
-一边仍将相关目标判为 `MET`。这个 `MET` 判定不能说明声明范围外的计算有效。
-请检查适用范围诊断，并将计算保持在该范围内；具体案例见
-[预览验证报告](../release-preview-validation.md)。
+当某个科学量超出元件模型声明的波长、角度或光束范围时，依赖它的目标判定为 `INDETERMINATE`，
+并在 `applicability_issue_codes` 中给出适用范围问题代码。该科学量仍保留数值、单位和上下界：
+数值可读，但判定明确表示它不能说明声明范围外的结果有效。需要 `MET` 或 `UNMET` 判定时，
+请将计算保持在适用范围内；具体案例见
+[超表面验证记录](../interop-validation.md)。
 
 ```bash
 opensci-engine results targets run

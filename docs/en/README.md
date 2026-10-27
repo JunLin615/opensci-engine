@@ -25,6 +25,6 @@ Start with a working optical design, then explore its results and adapt it to yo
 
 Install the package into your Python environment before running these scripts. `uv tool install` provides an isolated CLI; use the [pip installation](installation.md) for Python imports.
 
-The verified PyPI baseline remains **opensci-engine 0.8.0**. This revision prepares 0.9.0 workflows; see [version matching](installation.md#match-the-examples-to-the-installed-version) before running them. Commands expose their options through `--help`; Python APIs are documented in the installed package and the [PyPI reference](https://pypi.org/project/opensci-engine/).
+These guides and examples use **opensci-engine 0.9.0**; see [version matching](installation.md#match-the-examples-to-the-installed-version) for the matching installation. Commands expose their options through `--help`; Python APIs are documented in the installed package and the [PyPI reference](https://pypi.org/project/opensci-engine/).
 
 [OpenSci website](https://opensci-optics.com/) · [Package releases](https://pypi.org/project/opensci-engine/#history) · [Ask a question](https://github.com/JunLin615/opensci-engine/issues/new/choose)

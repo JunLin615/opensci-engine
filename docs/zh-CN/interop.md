@@ -2,11 +2,11 @@
 
 [用户指南](README.md) · [English](../en/interop.md) · 简体中文
 
-OpenSci 计算光路、高斯光束、偏振、功率以及设计的线性光学网络。优化器、衍射程序、量子光学模拟器和电磁求解器在你自己的 Python 环境中运行，读取 OpenSci 导出的数据。下面四个示例保留了 0.8.0 历史运行及独立参考比较；版本、输入、输出和偏差见[验证记录](../interop-validation.md)。
+OpenSci 计算光路、高斯光束、偏振、功率以及设计的线性光学网络。优化器、衍射程序、量子光学模拟器和电磁求解器在你自己的 Python 环境中运行，读取 OpenSci 导出的数据。下面四个示例都有独立参考比较的验证记录；版本、输入、输出和偏差见[验证记录](../interop-validation.md)。
 
-更新后的引擎调用脚本需要 0.9.0 候选版本，公开软件包验证尚待完成。
-[版本匹配说明](installation.md#让示例与安装版本一致)提供保留的 0.8.0 快照。
-下文数值比较描述该历史快照，另行标明的新结果除外。 它们用到带逐路径群延迟的线性光学网络、原生元件和 `TABULATED_THIN_LENS` 模型类型。运行引擎的脚本会检查已安装版本，引擎版本过旧时给出明确提示并停止；外部侧脚本只读取导出文件，不导入引擎。
+更新后的引擎调用脚本使用 opensci-engine **0.9.0**，匹配的安装方式见
+[版本匹配说明](installation.md#让示例与安装版本一致)。
+下文数值比较描述已经记录的验证运行，另行标明的新结果除外。 它们用到带逐路径群延迟的线性光学网络、原生元件和 `TABULATED_THIN_LENS` 模型类型。运行引擎的脚本会检查已安装版本，引擎版本过旧时给出明确提示并停止；外部侧脚本只读取导出文件，不导入引擎。
 
 | 专题 | OpenSci 提供 | 外部工具计算 | 示例 |
 | --- | --- | --- | --- |
@@ -28,7 +28,7 @@ python -m venv .venv-optimization
 .venv-optimization/bin/python -m pip install -r examples/interop/optimization/requirements-optimization.txt
 ```
 
-Windows 上使用 `.venv-optimization\Scripts\python`。更新后的依赖文件要求候选引擎系列；请在发布后执行 PyPI 安装命令，或使用保留快照及其已验证版本。依赖文件固定了第三方软件包的历史测试版本；这些软件包都不是 `opensci-engine` 本身的依赖。
+Windows 上使用 `.venv-optimization\Scripts\python`。依赖文件要求 opensci-engine 0.9.0 或更高版本，并固定第三方软件包的已验证版本；这些软件包都不是 `opensci-engine` 本身的依赖。
 
 每个脚本在 stdout 输出一个 JSON 摘要。其中的 `outcome` 是 OpenSci 与外部工具或独立参考的比较结果，不是 OpenSci 运行状态：所有比较都在给定容差内时为 `WITHIN_TOLERANCE`（退出码 0），有比较超出容差时为 `OUT_OF_TOLERANCE`（退出码 1），只生成数据的步骤为 `COMPLETED`（退出码 0），出错时退出码为 4（stderr 上给出 JSON 错误）。OpenSci 自身的状态（`PASS`、`WARNING`、`OUT_OF_MODEL_SCOPE` 等）单独列在 `engine_status` 中。
 
@@ -112,9 +112,9 @@ Perceval（SLOS）用噪声标签模拟部分可区分光子；Piquasso 把同�
 
 ## 超表面透镜作为虚拟聚焦元件
 
-当前 0.9.0 候选版本的表格透镜路线中，四个超出模型范围的目标判定与范围错误不一致，
-因此步骤 4 返回退出码 1。范围内的数值对照和收敛检查通过。具体案例见
-[预览版本检查记录](../release-preview-validation.md)；下方数值表记录的是较早的 0.8.0 运行。
+步骤 4 在 0.9.0 上通过：范围内的数值对照和收敛检查满足容差，四个超出模型范围的反例
+（450 nm 波长、5°、8°、20° 视场角）分别返回对应的适用范围代码，其目标判定为
+`INDETERMINATE`。具体案例见[验证记录](../interop-validation.md)；下方数值表记录的是本轮验证运行。
 
 一个 TiO2 纳米柱超透镜（532 nm 时 f = 200 µm，口径 100 µm）先用外部工具表征，再转为 OpenSci 的 `TABULATED_THIN_LENS` 模型：
 
@@ -143,17 +143,17 @@ python examples/interop/metasurface/step4_engine_check.py run-interop-metasurfac
 3. **模型**：每个表格波长一行（由高斯聚焦公式得到等效薄透镜焦距；透过率 = 聚焦效率 / 通光孔径内的高斯功率），光焦度和透过率随波长线性插值。各支持指标的误差上限 = 标定组上的最大偏差 + 标定情形的外部数值分散（RCWA 级次 101/201、传播网格 1024/2048 采样，来自收敛命令）。为确定视场角有效域，第 3 步在 OpenSci 中以各标定角度运行模型，把引擎焦点与外部焦点比较；不超出误差上限所能达到的最大角度作为 `max_field_angle_deg`。已验证的最大入射光束半径（30 µm）作为 `max_beam_radius_mm`；`LINEAR_X` 为已验证偏振；证据中记录工具版本和单元库的 SHA-256。结果为 `metalens_model.json`。
 4. **OpenSci 检查**：在无目录 Project 中声明该模型。引擎必须复现模型自身的薄透镜预测，在测试组上保持在声明误差内，并拒绝各反例。标定组的偏差只作为包络报告：它们决定了误差上限，因此不能用来检验上限。
 
-在 PyPI 0.8.0 wheel 上的验证运行结果（外部数值分散：焦点位置 0.50 %，光斑半径 0.71 %，效率 0.015）：
+在已发布的 PyPI 0.9.0 wheel 上的验证运行结果（外部数值分散：焦点位置 0.50 %，光斑半径 0.71 %，效率 0.015）：
 
 | 量 | 标定组（决定上限） | 测试组（检验上限） | 模型声明误差 |
 | --- | --- | --- | --- |
 | 焦点位置 | ≤ 0.30 µm | ≤ 0.32 µm | `waist_distance_*_mm` ± 0.0014 mm |
-| 光斑半径（引擎高斯 vs 外部二阶矩） | −3.0 … −7.3 % | −1.6 … −5.8 % | `waist_radius_*_mm` ± 8.1 % |
+| 光斑半径（引擎高斯 vs 外部二阶矩） | −0.6 … −7.3 % | −1.6 … −5.8 % | `waist_radius_*_mm` ± 8.1 % |
 | 输出功率 | −5.4 … +15.9 % | −3.6 … +15.7 % | `power_W` ± 19 % |
 
-所有测试情况都在声明误差内。焦点位置在整个波段内都与外部结果吻合；理想高斯焦斑比外部光斑小 2–7 %（单元相位离散所致），这部分由声明的半径误差承担。聚焦效率在 10 nm 内从 0.64 变到 0.95，因此行间线性插值对输出功率的预测只能达到约 16 %；更密的表格行或 `transmittance_interpolation: POINTS_ONLY` 可以得到更紧的功率模型。2° 时引擎焦点在上限内（轴向 −0.23 µm，光斑 −5.2 %）；5° 时外部焦点向透镜移动 1.56 µm 而引擎焦点不变，超过 1.4 µm 的上限，因此 `max_field_angle_deg` 为 2。引擎复现模型薄透镜预测的偏差为 5e-16；把全部 19 个波长作为同一光源的多条谱线一次运行，结果相同；未进入焦斑的功率在功率预算中显示为该元件的 `UNMODELLED_RESPONSE` 汇。
+所有测试情况都在声明误差内。焦点位置在整个波段内都与外部结果吻合；理想高斯焦斑比外部光斑小 2–7 %（单元相位离散所致），这部分由声明的半径误差承担。聚焦效率在 10 nm 内从 0.64 变到 0.95，因此行间线性插值对输出功率的预测只能达到约 16 %；更密的表格行或 `transmittance_interpolation: POINTS_ONLY` 可以得到更紧的功率模型。2° 时引擎焦点在上限内（轴向 −0.23 µm，光斑 −5.2 %）；5° 时外部焦点向透镜移动 1.56 µm 而引擎焦点不变，超过 1.4 µm 的上限，因此 `max_field_angle_deg` 为 2。引擎复现模型薄透镜预测的偏差为 4.4e-16；把全部 19 个波长作为同一光源的多条谱线一次运行，结果相同；未进入焦斑的功率在功率预算中显示为该元件的 `UNMODELLED_RESPONSE` 汇。
 
-反例均为 `OUT_OF_MODEL_SCOPE`：450 nm 光源在 490–580 nm 表格范围之外（`MODEL_WAVELENGTH_OUTSIDE_BAND`）；5°、8° 和 20°（`MODEL_FIELD_ANGLE_EXCEEDED`；20° 时外部焦点比引擎焦点更靠近透镜 15.6 µm、更靠近光轴 5.6 µm，光斑大 68 %，功率少 13 %）；以及经过该元件、要求模型未验证指标（`peak_irradiance_W_per_mm2`）的目标（`METRIC_NOT_VALIDATED_FOR_ELEMENT`，不给出数值）。`--model per-wavelength-ideal` 用每个波长一个 `IDEAL_THIN_LENS` 做同样比较；该类型无法声明视场角有效域，5°、8° 和 20° 时返回 `WARNING`。30 µm 光束的所有运行都报告 `GAUSSIAN_TRUNCATION`，因为 100 µm 口径截去了其 0.4 % 的功率；引擎自身已计入这部分损耗。20 µm 和 25 µm 光束的情形为 `WARNING`，来自束腰目标的高斯状态。
+反例均为 `OUT_OF_MODEL_SCOPE`，受影响目标的判定为 `INDETERMINATE`：450 nm 光源在 490–580 nm 表格范围之外（`MODEL_WAVELENGTH_OUTSIDE_BAND`）；5°、8° 和 20°（`MODEL_FIELD_ANGLE_EXCEEDED`；20° 时外部焦点比引擎焦点更靠近透镜 15.6 µm、更靠近光轴 5.6 µm，光斑大 68 %，功率少 13 %）；以及经过该元件、要求模型未验证指标（`peak_irradiance_W_per_mm2`）的目标（`METRIC_NOT_VALIDATED_FOR_ELEMENT`，不给出数值）。适用范围代码出现在目标的 `applicability_issue_codes` 中：数值仍可读取，而判定明确表示它不能说明模型范围外的结果有效。`--model per-wavelength-ideal` 用每个波长一个 `IDEAL_THIN_LENS` 做同样比较；该类型无法声明视场角有效域，5°、8° 和 20° 时返回 `WARNING`。30 µm 光束的所有运行都报告 `GAUSSIAN_TRUNCATION`，因为 100 µm 口径截去了其 0.4 % 的功率；引擎自身已计入这部分损耗。20 µm 和 25 µm 光束的情形为 `WARNING`，来自束腰目标的高斯状态。
 
 只要第 1 步写出相同的库字段，其他单元求解器也可接入同一流程：meent（MIT）和 torcwa（LGPL）可用 pip 安装；DFlat（`dflat-opt`）和 metabox 依赖 gdspy，在 Windows 上需要 C 编译器，metabox 还要求 Python 3.8 和 TensorFlow 2.11，应放在独立环境中通过文件交换。本示例只实际运行了 grcwa（其软件包元数据声明 GPLv3）。
 

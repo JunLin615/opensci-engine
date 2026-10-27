@@ -74,7 +74,7 @@ opensci-engine export arrivals run --format csv --out arrivals.csv
 opensci-engine schema project
 ```
 
-0.9.0 候选版本提供语义编辑与精简结果读取，公开软件包验证尚待完成；请阅读
+OpenSci Engine 0.9.0 提供语义编辑与精简结果读取；匹配的安装方式见
 [版本匹配说明](installation.md#让示例与安装版本一致)。将[编辑步骤](../workflow-recipes.md#edit-a-project-by-id)
 中的操作保存为 `edits.json`，然后保留原始 Project，运行修改后的设计：
 

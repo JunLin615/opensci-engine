@@ -18,7 +18,7 @@ opensci_engine. For every case:
 5. threshold detectors with dark counts give the coincidence probability P_cc,
    compared with the closed-form reference of ``reference.py``.
 
-Requires network exports made by opensci-engine 0.8.0. Perceval is MIT licensed;
+Requires network exports made by opensci-engine 0.9.0. Perceval is MIT licensed;
 its required dependency exqalibur declares CC BY-NC-ND 4.0 in its package
 metadata. Piquasso is Apache-2.0.
 
@@ -255,7 +255,7 @@ def run_example(directory, inputs_path):
     checks = {key: {"value": worst[key], "tolerance": TOLERANCES[key]} for key in TOLERANCES if key in worst}
     status = comparison_status(not unexpected and all(c["value"] <= c["tolerance"] for c in checks.values()))
     figure = plot_scan(scan, directory / "hom_delay_scan.png") if scan else None
-    report = {"example": "interop/quantum", "outcome": status, "requires": "network exports from opensci-engine>=0.8.0",
+    report = {"example": "interop/quantum", "outcome": status, "requires": "network exports from opensci-engine>=0.9.0",
               "environment": environment("perceval-quandela", "exqalibur", "piquasso", "numba", "numpy", "scipy"),
               "licenses_as_reported_upstream": {
                   "perceval-quandela": "MIT", "exqalibur": "CC BY-NC-ND 4.0 (package metadata; required by Perceval)",

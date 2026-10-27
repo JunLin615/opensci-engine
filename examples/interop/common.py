@@ -61,7 +61,7 @@ def engine_version():
 
 
 def require_engine():
-    """Return the installed engine version; refuse anything older than 0.8.0."""
+    """Return the installed engine version; refuse anything older than 0.9.0."""
     installed = engine_version()
     if installed is None or version_tuple(installed) < MINIMUM_ENGINE:
         needed = ".".join(str(part) for part in MINIMUM_ENGINE)

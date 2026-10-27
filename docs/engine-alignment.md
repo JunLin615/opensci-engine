@@ -4,7 +4,7 @@ Two files in the repository root drive the alignment checks:
 
 | File | Contents |
 | --- | --- |
-| [engine-baseline.json](../engine-baseline.json) | Verified PyPI release, CI Python versions, website and retired hosts, verified environment (date, Python, platform, engine build, catalog release and its SHA-256, evidence), current documents and the documentation scan |
+| [engine-baseline.json](../engine-baseline.json) | Verified PyPI release, its wheel and source SHA-256 values, CI Python versions, website and retired hosts, verified environment (date, Python, platform, engine build, catalog release and its SHA-256, evidence), current documents and the documentation scan |
 | [alignment-checks.json](../alignment-checks.json) | The checks run against an installed release: command, expected exit code and result status, catalog and environment requirements |
 
 Current entry and installation documents state the baseline version and reference
@@ -22,7 +22,7 @@ distribution from PyPI, even if another engine is already installed:
 
 ```bash
 python scripts/check_alignment.py --out run-alignment
-python scripts/check_alignment.py --candidate 0.8.0 --out run-candidate-080
+python scripts/check_alignment.py --candidate 0.9.1 --out run-candidate-091
 python scripts/check_alignment.py --candidate latest --out run-candidate-latest
 ```
 
@@ -38,8 +38,8 @@ Before a release reaches PyPI, use a supplied wheel with its exact version and
 SHA-256. For example, substitute the wheel filename and digest you received:
 
 ```bash
-python scripts/check_alignment.py --candidate 0.9.0 \
-  --candidate-wheel opensci_engine-0.9.0-py3-none-any.whl \
+python scripts/check_alignment.py --candidate 0.9.1 \
+  --candidate-wheel opensci_engine-0.9.1-py3-none-any.whl \
   --candidate-sha256 WHEEL_SHA256 --out run-wheel-preparation
 ```
 
@@ -83,8 +83,8 @@ store (`catalog sync`), which exercises the catalog service. On a network that
 cannot reach the service, import a published release file instead:
 
 ```bash
-python scripts/check_alignment.py --candidate 0.8.0 \
-  --catalog-file 2026-10-15.1.json --out run-candidate-080-file
+python scripts/check_alignment.py --candidate 0.9.1 \
+  --catalog-file CATALOG_RELEASE.json --out run-candidate-file
 ```
 
 The runner verifies the file's SHA-256 before importing it: against
@@ -223,7 +223,7 @@ failed report.
 (exact install pins such as `opensci-engine[protected]==X.Y.Z`, prose such as
 **X.Y.Z** or `opensci-engine X.Y.Z`, issue-template placeholders), and entries
 written as plain paths must also link `engine-baseline.json`. Minimum statements
-(`0.8.0 or newer`, `>=0.8.0`) are not pins. `documentation_scan.include` lists
+(`0.9.1 or newer`, `>=0.9.1`) are not pins. `documentation_scan.include` lists
 further files that are checked for exact install pins and retired hosts;
 `documentation_scan.historical` lists dated validation records, which are exempt.
 A new document that states the version belongs in `documentation`; a new
@@ -266,8 +266,9 @@ posting issues.
 2. Update examples, helpers, documentation and expected results for the published
    API. Rerun the candidate check, including the affected optional checks, until
    the relevant workflows pass.
-3. In one reviewed pull request, update `engine-baseline.json` (`version`,
-   `verified_environment` with date, Python, platform, engine build, catalog release
+3. In one reviewed pull request, update `engine-baseline.json` (`version`, the
+   published `artifacts` wheel and source SHA-256 values, `verified_environment` with
+   date, Python, platform, engine build, catalog release
    and SHA-256, evidence), every document the documentation check reports, and the
    affected walkthroughs or expected outputs. Add a dated section to the validation
    record and leave earlier sections unchanged.

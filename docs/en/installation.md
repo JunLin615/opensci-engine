@@ -6,17 +6,17 @@ OpenSci Engine runs on Windows, macOS, and Linux with **Python 3.11 or newer**. 
 
 ## Match the examples to the installed version
 
-The verified PyPI baseline is **0.8.0**, recorded in
-[engine-baseline.json](../../engine-baseline.json). Use the
-[0.8.0 snapshot](https://github.com/JunLin615/opensci-engine/tree/2e34e1dcd3eb74c4bfbf89dccfb9393673d0ffdb)
-with `python -m pip install "opensci-engine[protected]==0.8.0"` to reproduce it.
-The updated workflow helpers in this revision require the forthcoming 0.9.0 release;
-its clean-install validation is pending. Installing the latest package below gives
-what is currently published, which may differ from a prepared workflow's requirement.
-Use `opensci-engine doctor` to check before running an example.
+These examples and guides use opensci-engine **0.9.0**, recorded in
+[engine-baseline.json](../../engine-baseline.json) together with its wheel and source
+hashes and the tested environment. Install that exact version in a fresh environment:
 
-After 0.9.0 is published, install that exact version in a fresh environment for its
-alignment check. A successful local candidate run does not advance the verified baseline.
+```bash
+python -m pip install "opensci-engine[protected]==0.9.0"
+```
+
+The [alignment checks](../engine-alignment.md) run the examples against that
+installation. `opensci-engine doctor` reports the installed version before you run an
+example.
 
 ## Python environment
 
@@ -87,7 +87,7 @@ For a uv tool installation:
 uv tool upgrade opensci-engine
 ```
 
-Run `opensci-engine doctor` to see the installed version. To reproduce the preserved 0.8.0 example snapshot, install `"opensci-engine[protected]==0.8.0"`.
+Run `opensci-engine doctor` to see the installed version. To pin the version these examples use, install `"opensci-engine[protected]==0.9.0"`.
 
 [engine-baseline.json](../../engine-baseline.json) records the verified release and test environment. Maintainers can check another released version with the [alignment workflow](../engine-alignment.md); a successful candidate check does not automatically change this baseline.
 

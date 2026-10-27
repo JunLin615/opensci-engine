@@ -5,14 +5,14 @@
 OpenSci computes ray paths, Gaussian beams, polarization, power and a linear optical
 network of your design. Optimizers, diffraction codes, quantum-optics simulators and
 electromagnetic solvers run in your own Python environment and read what OpenSci
-exports. The four worked examples below retain historical 0.8.0 checks against independent references;
+exports. The four worked examples below were validated against independent references;
 the [validation record](../interop-validation.md) lists versions, inputs, outputs and
 deviations.
 
-The updated engine-running scripts require candidate release 0.9.0. Published-package
-validation is pending; [version matching](installation.md#match-the-examples-to-the-installed-version)
-links the preserved 0.8.0 snapshot. Numerical comparisons below describe that historical
-snapshot unless identified as new results. They use the linear optical
+The engine-running scripts use opensci-engine **0.9.0**; use
+[version matching](installation.md#match-the-examples-to-the-installed-version) for the
+matching installation. The numerical comparisons below are the recorded validation runs
+unless identified as a new result. They use the linear optical
 network with per-path group delays, native components and the `TABULATED_THIN_LENS`
 model kind. The scripts that run the Engine check the installed version and stop with a
 clear message on an older engine; the external-side scripts read only exported files and
@@ -44,9 +44,8 @@ python -m venv .venv-optimization
 .venv-optimization/bin/python -m pip install -r examples/interop/optimization/requirements-optimization.txt
 ```
 
-On Windows use `.venv-optimization\Scripts\python`. The updated requirements files request the candidate engine series; run the PyPI
-installation commands after its publication, or use the preserved snapshot with its
-verified release. The files pin the historically tested
+On Windows use `.venv-optimization\Scripts\python`. The requirements files request
+opensci-engine 0.9.0 or newer. They pin the tested
 versions of the third-party packages, which are never dependencies of `opensci-engine`
 itself.
 
@@ -217,10 +216,11 @@ the script gives each run a fresh `NUMBA_CACHE_DIR`.
 
 ## Metasurface lens as a virtual focusing component
 
-The current 0.9.0 candidate's tabulated-lens route reports four inconsistent
-out-of-domain target assessments and exits 1 in step 4. In-domain comparisons and
-convergence checks pass. See the [preview check record](../release-preview-validation.md)
-for the exact cases; the numerical tables below describe the earlier 0.8.0 run.
+Step 4 passes on 0.9.0: the in-domain comparisons and convergence checks are inside
+their tolerances, and the four out-of-domain counterexamples (a 450 nm wavelength and
+the 5°, 8° and 20° field angles) report their scope codes with `INDETERMINATE` target
+assessments. See the [validation record](../interop-validation.md) for the exact cases;
+the numerical tables below record this validation run.
 
 A TiO2 nanopillar metalens (f = 200 µm at 532 nm, 100 µm diameter) is characterized
 externally and turned into an OpenSci `TABULATED_THIN_LENS` model:
@@ -276,13 +276,13 @@ The external results are split into three sets that play different roles:
    test set, and refuse the counterexamples. The calibration set's deviations are
    reported as an envelope only: they set the bounds, so they cannot test them.
 
-Results of the validated run on the PyPI 0.8.0 wheel (external spread: 0.50 % in focus
+Results of the validated run on the published PyPI 0.9.0 wheel (external spread: 0.50 % in focus
 position, 0.71 % in spot radius, 0.015 in efficiency):
 
 | Quantity | Calibration set (sets the bound) | Test set (checks it) | Stated model error |
 | --- | --- | --- | --- |
 | Focus position | ≤ 0.30 µm | ≤ 0.32 µm | `waist_distance_*_mm` ± 0.0014 mm |
-| Spot radius (Engine Gaussian vs external second moment) | −3.0 … −7.3 % | −1.6 … −5.8 % | `waist_radius_*_mm` ± 8.1 % |
+| Spot radius (Engine Gaussian vs external second moment) | −0.6 … −7.3 % | −1.6 … −5.8 % | `waist_radius_*_mm` ± 8.1 % |
 | Delivered power | −5.4 … +15.9 % | −3.6 … +15.7 % | `power_W` ± 19 % |
 
 All test cases stay inside the stated errors. The focal position follows the external
@@ -294,16 +294,19 @@ between rows predicts the delivered power only to about 16 %; denser rows or
 Engine's focus stays inside the bounds (axial −0.23 µm, spot −5.2 %); at 5° the external
 focus moves 1.56 µm toward the lens while the Engine's does not, more than the 1.4 µm
 bound, so `max_field_angle_deg` is 2. The Engine reproduced the model's thin-lens
-prediction to 5e-16, also with all 19 wavelengths as spectral lines of one source; the
+prediction to 4.4e-16, also with all 19 wavelengths as spectral lines of one source; the
 power not delivered into the focus appears as the element's `UNMODELLED_RESPONSE` sink in
 the power budget.
 
-Counterexamples, all `OUT_OF_MODEL_SCOPE`: a 450 nm source, outside the 490–580 nm rows
+Counterexamples, all `OUT_OF_MODEL_SCOPE` with the affected target assessed
+`INDETERMINATE`: a 450 nm source, outside the 490–580 nm rows
 (`MODEL_WAVELENGTH_OUTSIDE_BAND`); 5°, 8° and 20° (`MODEL_FIELD_ANGLE_EXCEEDED`; at 20°
 the external focus lies 15.6 µm closer to the lens and 5.6 µm closer to the axis than
 the Engine's, with a 68 % larger spot and 13 % less power); and a target asking for a
 metric the model was not validated for (`peak_irradiance_W_per_mm2`) through the element
-(`METRIC_NOT_VALIDATED_FOR_ELEMENT`, no value). `--model per-wavelength-ideal` runs the
+(`METRIC_NOT_VALIDATED_FOR_ELEMENT`, no value). The scope code appears in the target's
+`applicability_issue_codes`, so the value stays readable while its assessment states
+that it does not establish validity outside the model. `--model per-wavelength-ideal` runs the
 same comparison with one `IDEAL_THIN_LENS` per wavelength; that kind cannot state a
 field-angle domain and returns `WARNING` at 5°, 8° and 20°. All runs with the 30 µm beam
 report `GAUSSIAN_TRUNCATION` because the 100 µm aperture clips 0.4 % of it; the Engine

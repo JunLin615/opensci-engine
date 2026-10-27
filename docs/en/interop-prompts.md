@@ -4,10 +4,9 @@
 
 Copy one template into your own coding agent and replace the parts in angle
 brackets. Each template asks the agent to work in your environment, with your
-installed tools, and to keep OpenSci results and external results apart. The
-updated examples require candidate release 0.9.0; follow the
-[version matching instructions](installation.md#match-the-examples-to-the-installed-version)
-until published-package validation is complete.
+installed tools, and to keep OpenSci results and external results apart. The examples
+use opensci-engine **0.9.0**; follow the
+[version matching instructions](installation.md#match-the-examples-to-the-installed-version).
 
 The templates cover simulation and analysis only. Ordering, sending feedback and
 uploading a design to a commercial cloud service are separate decisions you make

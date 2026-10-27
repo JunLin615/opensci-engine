@@ -25,6 +25,6 @@
 
 运行脚本前，将软件包安装到当前 Python 环境。`uv tool install` 提供独立命令行工具；需要在 Python 中导入时，请采用 [pip 安装方式](installation.md)。
 
-已验证的 PyPI 基线仍为 **opensci-engine 0.8.0**。本次修订准备 0.9.0 工作流程；运行前请阅读[版本匹配说明](installation.md#让示例与安装版本一致)。命令参数可通过 `--help` 查看；Python API 说明可查阅已安装的软件包和 [PyPI 参考文档](https://pypi.org/project/opensci-engine/)。
+本仓库的指南和示例使用 **opensci-engine 0.9.0**；匹配的安装方式见[版本匹配说明](installation.md#让示例与安装版本一致)。命令参数可通过 `--help` 查看；Python API 说明可查阅已安装的软件包和 [PyPI 参考文档](https://pypi.org/project/opensci-engine/)。
 
 [OpenSci 官网](https://opensci-optics.com/) · [软件包版本](https://pypi.org/project/opensci-engine/#history) · [交流与反馈](https://github.com/JunLin615/opensci-engine/issues/new/choose)

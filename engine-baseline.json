@@ -1,19 +1,30 @@
 {
   "schema_version": 1,
   "distribution": "opensci-engine",
-  "version": "0.8.0",
+  "version": "0.9.0",
   "ci_python": ["3.11", "3.14"],
   "website": "https://opensci-optics.com",
   "retired_hosts": ["opensci-optic.com"],
+  "artifacts": {
+    "wheel": {
+      "filename": "opensci_engine-0.9.0-py3-none-any.whl",
+      "sha256": "049d367b3b4f5cc26490b0da7bc6baf189ad4e51efff2d68eb7060d46259f1c4"
+    },
+    "sdist": {
+      "filename": "opensci_engine-0.9.0.tar.gz",
+      "sha256": "bc9de85fa552f2b0f5b69ab1ffb58a8ff491de99d2e43803f0d1bee49bc68393"
+    }
+  },
   "verified_environment": {
-    "date": "2026-10-18",
-    "python": "3.11.16",
-    "platform": "Windows AMD64",
-    "engine_build_id": "0.8.0+94f6dc70bb40a2ed",
+    "date": "2026-10-28",
+    "python": "3.14.8",
+    "platform": "Windows 11 AMD64",
+    "engine_build_id": "0.9.0+63613606da77d301",
     "catalog_version": "2026-10-15.1",
     "catalog_sha256": "ce974b614b15b857edb6053709eb57136c339e592ef5116402047a5d8cdf5e87",
     "evidence": [
-      "docs/engine-alignment-validation.md"
+      "docs/engine-alignment-validation.md",
+      "docs/release-preview-validation.md"
     ]
   },
   "documentation": [
@@ -47,7 +58,10 @@
       "docs/result-summary-validation.md",
       "docs/measurement-validation.md",
       "docs/interop-validation.md",
-      "docs/engine-alignment-validation.md"
+      "docs/engine-alignment-validation.md",
+      "docs/release-preview-validation.md",
+      "docs/sensitivity-tolerance-validation.md",
+      "docs/workflow-validation.md"
     ]
   }
 }

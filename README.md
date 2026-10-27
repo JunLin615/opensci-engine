@@ -18,11 +18,9 @@ When a design is ready, continue to [OpenSci](https://opensci-optics.com/) for o
 
 **[Agent guide](AGENT_GUIDE.md) · [Get started](docs/en/getting-started.md) · [User guide](docs/en/README.md) · [PyPI](https://pypi.org/project/opensci-engine/) · [Website](https://opensci-optics.com/) · [Feedback](https://github.com/JunLin615/opensci-engine/issues)**
 
-**0.9.0 workflow preview:** this revision prepares the editing, result and budget
-workflows for 0.9.0; verification of the published package is pending. The verified
-PyPI baseline remains **0.8.0** in [engine-baseline.json](engine-baseline.json).
-Use the [preserved 0.8.0 examples](https://github.com/JunLin615/opensci-engine/tree/2e34e1dcd3eb74c4bfbf89dccfb9393673d0ffdb)
-with that release; the updated workflow helpers require 0.9.0.
+**Engine 0.9.0:** these examples and workflow helpers run on the published
+opensci-engine **0.9.0** release. [engine-baseline.json](engine-baseline.json) records
+the verified version, its wheel and source hashes, and the tested environment.
 
 ## What you can do
 
@@ -96,7 +94,7 @@ Try the runnable [beam expander](examples/beam_expander.py) and [ideal-lens focu
 | From design to hardware | [Read](docs/en/hardware.md) | [阅读](docs/zh-CN/hardware.md) |
 | External scientific tools | [Read](docs/en/interop.md) | [阅读](docs/zh-CN/interop.md) |
 
-The prior verified examples use the published **0.8.0** package. The updated guides describe 0.9.0 controls and distinguish their preparation evidence from released-package validation. External-tool examples cover optimization, diffraction, quantum photonics and metasurface components. Find available package versions in the [PyPI release history](https://pypi.org/project/opensci-engine/#history).
+The examples and guides use the published **0.9.0** package. External-tool examples cover optimization, diffraction, quantum photonics and metasurface components. Find available package versions in the [PyPI release history](https://pypi.org/project/opensci-engine/#history).
 
 The verified version and test environment are recorded in [engine-baseline.json](engine-baseline.json). [Release-alignment checks](docs/engine-alignment.md) validate this baseline and candidate PyPI releases; only a reviewed update advances the baseline.
 

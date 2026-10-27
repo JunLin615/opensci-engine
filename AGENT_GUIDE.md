@@ -5,11 +5,10 @@ scripts: [English](docs/en/README.md) · [简体中文](docs/zh-CN/README.md).
 
 ## Version and environment
 
-This revision prepares workflows for candidate release 0.9.0 of opensci-engine. Publication validation
-is pending. The recorded verified PyPI baseline remains **0.8.0** in
-[engine-baseline.json](engine-baseline.json); the preserved
-[0.8.0 example snapshot](https://github.com/JunLin615/opensci-engine/tree/2e34e1dcd3eb74c4bfbf89dccfb9393673d0ffdb)
-reproduces that version. Use that snapshot with 0.8.0. The commands below require 0.9.0.
+These examples and workflow helpers use the published **0.9.0** release of
+opensci-engine, the version recorded in [engine-baseline.json](engine-baseline.json)
+with its wheel and source hashes and the tested environment. Install the exact version
+in a fresh environment and run the alignment checks to reproduce the verified result.
 See [installation](docs/en/installation.md) and [alignment](docs/engine-alignment.md).
 
 Run scripts from the repository root in a Python 3.11+ virtual environment. Install

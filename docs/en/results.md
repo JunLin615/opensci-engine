@@ -27,14 +27,16 @@ opensci-engine project verify run
 
 ## Interpret the result
 
-The following compact controls describe the 0.9.0 candidate. Published-package
-validation is pending; see [version matching](installation.md#match-the-examples-to-the-installed-version).
+These compact controls are available in 0.9.0; install the matching package as
+described in [version matching](installation.md#match-the-examples-to-the-installed-version).
 
-Known candidate limitation: a tabulated lens can report `MET` outside its declared
-wavelength or angle domain even while a model-scope issue is present. That `MET`
-assessment does not establish validity outside the declared domain. Inspect the scope
-diagnostics and keep the calculation within that domain; see the
-[preview validation report](../release-preview-validation.md) for the affected cases.
+When a quantity lies outside a component model's declared wavelength, angle or beam
+domain, the targets that depend on it are assessed `INDETERMINATE` and carry the
+model-scope issue code in `applicability_issue_codes`. The quantity keeps its value,
+unit and bounds, so you can read the number while the assessment states that it does
+not establish validity outside the declared domain. Keep the calculation inside the
+domain when you need a `MET` or `UNMET` assessment; see the
+[metasurface validation record](../interop-validation.md) for worked cases.
 
 ```bash
 opensci-engine results targets run

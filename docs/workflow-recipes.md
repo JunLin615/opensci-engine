@@ -2,9 +2,9 @@
 
 [Agent guide](../AGENT_GUIDE.md). English-only reference for the workflow scripts in
 `examples/`; read only the section the task needs. Each script's `--help` holds its
-complete specification. These updated workflows require candidate release 0.9.0.
-Published-package validation is pending; the verified **0.8.0** baseline and its
-reproducible snapshot are described in the [installation guide](en/installation.md). Human walkthrough: [English](en/workflows.md) ·
+complete specification. These workflows use opensci-engine **0.9.0**, the version
+recorded in [engine-baseline.json](../engine-baseline.json) with the matching
+[installation guide](en/installation.md). Human walkthrough: [English](en/workflows.md) ·
 [简体中文](zh-CN/workflows.md).
 
 ## Conventions
@@ -195,8 +195,8 @@ python examples/edit_project.py run-example/project.json --edits edits.json --ou
 ```
 
 Result on catalog `2026-10-15.1`: exit 1, `run.outcome` `FAIL`, `expanded_waist`
-1.1148985411200965 mm outside 1.8–2.2 mm in the recorded 0.8.0 run (a design that misses its
-target). The output is `run-edit/project.json` (the Engine-normalized Project),
+1.1148985411200965 mm outside 1.8–2.2 mm (a design that misses its target). The output
+is `run-edit/project.json` (the Engine-normalized Project),
 `run-edit/project.changes.json` (every op as given and normalized, before/after of each
 affected field, project hashes before and after, output sha256) and the run directory.
 

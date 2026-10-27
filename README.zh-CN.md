@@ -18,10 +18,8 @@
 
 **[Agent 指南（英文）](AGENT_GUIDE.md) · [快速开始](docs/zh-CN/getting-started.md) · [用户指南](docs/zh-CN/README.md) · [PyPI](https://pypi.org/project/opensci-engine/) · [官网](https://opensci-optics.com/) · [问题反馈](https://github.com/JunLin615/opensci-engine/issues)**
 
-**0.9.0 工作流程预览：** 本次修订为 0.9.0 准备项目编辑、结果读取和计算预算工作流程；
-公开软件包验证尚待完成。[engine-baseline.json](engine-baseline.json) 中已验证的 PyPI
-基线仍为 **0.8.0**。该版本请使用[保留的 0.8.0 示例](https://github.com/JunLin615/opensci-engine/tree/2e34e1dcd3eb74c4bfbf89dccfb9393673d0ffdb)；
-更新后的工作流程工具需要 0.9.0。
+**引擎 0.9.0：** 本仓库的示例和工作流程工具对应已发布的 opensci-engine **0.9.0**。
+[engine-baseline.json](engine-baseline.json) 记录已验证的版本、wheel 与源码包哈希以及测试环境。
 
 ## 你可以做什么
 
@@ -95,7 +93,7 @@ print(results.power_budget())
 | 从设计到硬件 | [阅读](docs/zh-CN/hardware.md) | [Read](docs/en/hardware.md) |
 | 外部科学工具联用 | [阅读](docs/zh-CN/interop.md) | [Read](docs/en/interop.md) |
 
-此前已验证的示例使用已发布的 **0.8.0** 版本。更新后的指南介绍 0.9.0 控制接口，并区分准备阶段证据与已发布软件包验证。外部工具示例涵盖优化、衍射、量子光子学和超表面元件。其他软件包版本见 [PyPI 发布记录](https://pypi.org/project/opensci-engine/#history)。
+本仓库的示例和指南对应已发布的 **0.9.0** 版本。外部工具示例涵盖优化、衍射、量子光子学和超表面元件。其他软件包版本见 [PyPI 发布记录](https://pypi.org/project/opensci-engine/#history)。
 
 已验证的版本与测试环境记录在 [engine-baseline.json](engine-baseline.json) 中。[版本对齐检查](docs/engine-alignment.md)用于验证当前基线与候选 PyPI 版本；只有经过评审的更新才会推进基线。
 

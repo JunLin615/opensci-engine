@@ -6,15 +6,15 @@ OpenSci Engine 支持 Windows、macOS 和 Linux，要求 **Python 3.11 及以上
 
 ## 让示例与安装版本一致
 
-已验证的 PyPI 基线是 **0.8.0**，记录在
-[engine-baseline.json](../../engine-baseline.json)。复现该版本时，使用
-[0.8.0 快照](https://github.com/JunLin615/opensci-engine/tree/2e34e1dcd3eb74c4bfbf89dccfb9393673d0ffdb)
-并运行 `python -m pip install "opensci-engine[protected]==0.8.0"`。
-本次修订的工作流程工具需要即将发布的 0.9.0，其全新安装验证尚待完成。
-下面的最新版安装命令获取当前已发布版本，可能与准备中的工作流程要求不同；运行示例前请用
-`opensci-engine doctor` 确认。
+本仓库的示例和指南使用 opensci-engine **0.9.0**，该版本及其 wheel、源码包哈希和测试环境记录在
+[engine-baseline.json](../../engine-baseline.json)。请在全新环境中安装该精确版本：
 
-0.9.0 发布后，应在全新环境中安装该精确版本并执行对齐检查。本地候选版本运行成功不会推进已验证基线。
+```bash
+python -m pip install "opensci-engine[protected]==0.9.0"
+```
+
+[对齐检查](../engine-alignment.md)会在该安装上运行示例；运行示例前先用
+`opensci-engine doctor` 查看已安装版本。
 
 ## Python 环境
 
@@ -85,7 +85,7 @@ python -m pip install --upgrade "opensci-engine[protected]"
 uv tool upgrade opensci-engine
 ```
 
-运行 `opensci-engine doctor` 查看已安装版本。需要复现保留的 0.8.0 示例快照时，安装 `"opensci-engine[protected]==0.8.0"`。
+运行 `opensci-engine doctor` 查看已安装版本。需要固定这些示例对应的版本时，安装 `"opensci-engine[protected]==0.9.0"`。
 
 [engine-baseline.json](../../engine-baseline.json)记录已验证的版本和测试环境。维护者可以通过[版本对齐流程](../engine-alignment.md)检查其他已发布版本；候选版本检查通过后也不会自动修改基线。
 

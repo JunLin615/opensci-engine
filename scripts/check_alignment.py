@@ -2,7 +2,7 @@
 
 python scripts/check_alignment.py --out run-alignment
 python scripts/check_alignment.py --candidate latest --out run-candidate
-python scripts/check_alignment.py --candidate 0.8.0 --catalog-file RELEASE.json --out run-candidate-file
+python scripts/check_alignment.py --candidate 0.9.1 --catalog-file RELEASE.json --out run-candidate-file
 python scripts/check_alignment.py --optional all --out run-alignment-full
 
 engine-baseline.json records the verified release; alignment-checks.json lists the

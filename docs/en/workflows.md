@@ -11,17 +11,18 @@ polarization control and alignment.
 
 ## Before you start
 
-The verified PyPI baseline remains **0.8.0**. The updated helpers require candidate release 0.9.0; published-package validation is
-pending. Follow [version matching](installation.md#match-the-examples-to-the-installed-version).
-Run commands from the repository root with the candidate package installed in an
-isolated environment, plus `requirements-examples.txt` for plots.
+The examples and helpers use opensci-engine **0.9.0**, recorded in
+[engine-baseline.json](../../engine-baseline.json). Install it as described in
+[version matching](installation.md#match-the-examples-to-the-installed-version).
+Run commands from the repository root in an isolated environment, plus
+`requirements-examples.txt` for plots.
 
 Sections 1–3 use catalog components and need `opensci-engine catalog sync`; sections
-4 and 5 use catalog-free ideal elements. The quoted numerical examples below are
-**historical 0.8.0 reference results**, using catalog release `2026-10-15.1` where
-applicable. Keep their original records in the linked validation documents; read each
-new run's actual identities and assessments. Catalog contents and result identities
-can differ when the engine or catalog changes.
+4 and 5 use catalog-free ideal elements. The quoted numerical examples are the
+**reference results** of the runs in the linked validation documents, using catalog
+release `2026-10-15.1` where applicable; the alignment checks reproduce them on this
+release. Read each new run's own identities and assessments: catalog contents and
+result identities can differ when the engine or catalog changes.
 
 ### Edit, check, run and read compact results
 
