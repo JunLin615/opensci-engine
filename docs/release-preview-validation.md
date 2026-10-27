@@ -21,13 +21,18 @@ findings changed status:
 - **Tabulated-lens target assessments:** the four out-of-domain counterexamples now
   assess their target `INDETERMINATE` with the scope code in
   `applicability_issue_codes`, so step 4 reports `WITHIN_TOLERANCE` instead of
-  `OUT_OF_TOLERANCE`. The re-run is recorded in
-  [external-tool validation](interop-validation.md#record-2026-10-28-published-pypi-wheel-opensci-engine-090).
+  `OUT_OF_TOLERANCE`.
 
-The workflow, measurement and external-tool observations below were made on the
-candidate build identified in the next section; they are kept as that record. The
-optimization, diffraction and quantum external comparisons were not repeated on the
-published wheel for this record.
+All four external-tool topics were re-run against the published wheel: optimization,
+diffraction and quantum through `check_alignment.py --optional all`, and the
+metasurface chain from scratch. Every check reports `WITHIN_TOLERANCE` or `COMPLETED`
+with the same independent references as before; the only numerical change is the
+optimizer path (10 evaluations, minimum 8.97e-7 mm from the reference, still far inside
+the 1e-4 mm tolerance). The results are in
+[external-tool validation](interop-validation.md#record-2026-10-28-published-pypi-wheel-opensci-engine-090).
+
+The workflow-discovery and measurement observations below were made on the candidate
+build identified in the next section; they are kept as that record.
 
 ## 2026-10-27 candidate record
 

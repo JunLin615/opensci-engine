@@ -42,7 +42,7 @@ python examples/interop/optimization/optimize_expander.py --out run-interop-opti
 
 每次评估都复制 Project，按 `instance_id` 设置 `L2` 的位置，在内存中运行引擎，并从运行结果中读取目标指标 `divergence_half_angle_x_rad`。SciPy（`minimize_scalar`，有界）和 Optuna（TPE，种子 1，60 次试验）搜索透镜间距；随后 SALib 针对两片透镜 ±0.5 mm 的均匀装调误差和光源束腰 ±5 % 的误差，估计发散角的一阶和总 Sobol 指数。独立的 ABCD 计算（只用 numpy）给出参考最优解，以及每个被评估设计的参考值。
 
-`--out` 目录中的输出：`evaluations.jsonl`（每次引擎运行一行，包含输入、指标值、状态以及 `project_hash`、`input_hash`、`result_hash`、`engine_build_id`）、`project-baseline.json` 和 `report.json`。0.8.0 历史运行中，SciPy 用 9 次评估达到参考最优间距（200.0573 mm），误差 6e-14 mm；每个引擎结果与 ABCD 参考的相对差为 2e-14；引擎与参考的 Sobol 指数相差 1e-14。优化器决定取值，OpenSci 计算每个设计。更新后的工作流程将目标函数有效性与要求可行性分开：
+`--out` 目录中的输出：`evaluations.jsonl`（每次引擎运行一行，包含输入、指标值、状态以及 `project_hash`、`input_hash`、`result_hash`、`engine_build_id`）、`project-baseline.json` 和 `report.json`。在已发布的 0.9.0 wheel 上，SciPy 用 10 次评估达到参考最优间距（200.0573 mm），误差 9e-7 mm；每个引擎结果与 ABCD 参考的相对差为 2e-14；引擎与参考的 Sobol 指数相差 2e-14。优化器决定取值，OpenSci 计算每个设计。更新后的工作流程将目标函数有效性与要求可行性分开：
 所选发散角必须是可用的精确点值，且 `collimated` 要求的判定为 `MET`，才能成为可行最优解。
 无关的模型范围问题不会使该目标函数失效。每次评估都保留在 `evaluations.jsonl`，包括无效、
 部分完成、未满足和无法判定的情况。没有可行最优解时报告 `NO_FEASIBLE_RESULT`（退出码 2）。

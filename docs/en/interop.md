@@ -76,10 +76,10 @@ optimum and the reference value of every evaluated design.
 
 Outputs in the `--out` directory: `evaluations.jsonl` (one line per Engine run with its
 inputs, metric value, status and `project_hash`, `input_hash`, `result_hash`,
-`engine_build_id`), `project-baseline.json` and `report.json`. In the historical 0.8.0 run
-SciPy reached the reference optimum (200.0573 mm separation) to 6e-14 mm in 9
+`engine_build_id`), `project-baseline.json` and `report.json`. On the published 0.9.0
+wheel SciPy reached the reference optimum (200.0573 mm separation) to 9e-7 mm in 10
 evaluations, every Engine value matched the ABCD reference to 2e-14 relative, and the
-Sobol indices of Engine and reference agreed to 1e-14. The optimizer chooses values and OpenSci computes each design. The updated workflow
+Sobol indices of Engine and reference agreed to 2e-14. The optimizer chooses values and OpenSci computes each design. The updated workflow
 keeps objective validity separate from feasibility: the selected divergence must be
 an exact usable quantity; the `collimated` requirement must have assessment `MET`
 for a feasible optimum. Unrelated scope findings do not invalidate that objective.

@@ -37,11 +37,29 @@ committed.
 
 ## Record 2026-10-28: published PyPI wheel opensci-engine 0.9.0
 
-The metasurface route was re-run from scratch on the published 0.9.0 wheel, because the
-engine's target applicability changed for out-of-domain tabulated lenses. Environment:
-Windows 11 (AMD64), CPython 3.14.8, opensci-engine 0.9.0 (wheel SHA-256
+All four topics were re-run against the published 0.9.0 wheel: the three shorter routes
+through the alignment runner, and the metasurface route from scratch in its own
+environment, because the engine's target applicability changed for out-of-domain
+tabulated lenses. The metasurface environment was Windows 11 (AMD64), CPython 3.14.8,
+opensci-engine 0.9.0 (wheel SHA-256
 `049d367b3b4f5cc26490b0da7bc6baf189ad4e51efff2d68eb7060d46259f1c4`), numpy 2.5.4,
 scipy 1.18.1, grcwa 0.1.2. All Projects are catalog-free.
+
+The alignment runner executed the other three topics against the published wheel
+(`python scripts/check_alignment.py --optional all`, CPython 3.12.6, the pinned
+packages of each requirements file):
+
+| Topic | Check | Outcome |
+| --- | --- | --- |
+| Optimization | `interop-optimization` | `WITHIN_TOLERANCE`: SciPy optimum within 9.0e-7 mm of the ABCD reference (tolerance 1e-4), Optuna 0.137 % above it (tolerance 1 %), Engine vs ABCD 2.0e-14 (tolerance 1e-9), Sobol indices 1.8e-14 (tolerance 1e-6) |
+| Diffraction | `interop-diffraction-handoff`, `-external` | `COMPLETED`, `WITHIN_TOLERANCE`: LightPipes finest grid 3.2e-8, −1.0e-4, 8.6e-4; Engine peak +0.024 %, +62.1 % and withheld, as before |
+| Quantum | `interop-quantum-layouts`, `-simulation` | `COMPLETED` (19 networks exported; the ideal-lens network refused as `PHASE_UNDEFINED_IDEAL_LENS`), `WITHIN_TOLERANCE`: Perceval 4.0e-8, Piquasso 1.8e-9, relative delay 4.1e-10 ps, exported vs computed group delay 1.3e-9 ps |
+| Metasurface | the seven guide commands | below |
+
+The optimization result follows a different optimizer path than the 2026-10-18 record
+(10 evaluations, minimum 8.97e-7 mm from the reference instead of 5.7e-14 mm in 9); both
+are far inside the 1e-4 mm tolerance, and every other comparison value is identical to
+that record.
 
 | Step | Result |
 | --- | --- |
@@ -69,8 +87,7 @@ The 530 nm reference run, the seven in-domain test cases and the calibration env
 match the 2026-10-18 record. The unit-cell library file hash is
 `35cb69a544935b8c78d3564342e48cd6801c15e4fd05b5d11fb7b9b8d28a9aa6`; run under a
 different CPython build it differs in the stored bytes while every derived quantity
-agrees with the earlier record to the printed precision. The other three topics were
-not re-run for this record; their 2026-10-18 results stand.
+agrees with the earlier record to the printed precision.
 
 ## Record 2026-10-18: PyPI wheel opensci-engine 0.8.0
 
