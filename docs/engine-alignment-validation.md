@@ -99,6 +99,20 @@ contract (the 530 nm in-domain case is unchanged).
 python scripts/check_alignment.py --optional all --out run-alignment-full
 ```
 
+On CPython 3.12.6 (the topic requirements files need 3.12 or newer) the run passed
+**71 of 71 rows**: the default checks above plus all 22 optional checks, including every
+external-tool check. Each topic environment installed the published wheel and the
+pinned packages of its requirements file from PyPI. Outcomes: `interop-optimization`
+`WITHIN_TOLERANCE`; `interop-diffraction-handoff` `COMPLETED` and
+`interop-diffraction-external` `WITHIN_TOLERANCE`; `interop-quantum-layouts`
+`COMPLETED` (19 networks exported) and `interop-quantum-simulation`
+`WITHIN_TOLERANCE`; the metasurface chain `COMPLETED` with
+`interop-metasurface-engine-check` `WITHIN_TOLERANCE` (engine vs the model 4.4e-16,
+bounds ±1.4 µm, ±8.1 % and ±19 %, no unexpected counterexample); and the optional
+workflow and study checks (full studies, the unmet and refused cases, edit retry, seed
+verification, zero tolerance and band-edge sensitivity) all passing. The per-case
+metasurface numbers are in the [external-tool record](interop-validation.md).
+
 ### Baseline update
 
 `engine-baseline.json` now records version 0.9.0, the published wheel and source

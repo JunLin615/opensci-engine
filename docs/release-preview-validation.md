@@ -23,12 +23,13 @@ findings changed status:
   `applicability_issue_codes`, so step 4 reports `WITHIN_TOLERANCE` instead of
   `OUT_OF_TOLERANCE`.
 
-All four external-tool topics were re-run against the published wheel: optimization,
-diffraction and quantum through `check_alignment.py --optional all`, and the
-metasurface chain from scratch. Every check reports `WITHIN_TOLERANCE` or `COMPLETED`
-with the same independent references as before; the only numerical change is the
-optimizer path (10 evaluations, minimum 8.97e-7 mm from the reference, still far inside
-the 1e-4 mm tolerance). The results are in
+All four external-tool topics were re-run against the published wheel:
+`check_alignment.py --optional all` passed **71 of 71 rows** including every
+external-tool check, and the metasurface chain was rebuilt from scratch for its
+recorded numbers. Every check reports `WITHIN_TOLERANCE` or `COMPLETED` with the same
+independent references as before; the only numerical change is the optimizer path
+(10 evaluations, minimum 8.97e-7 mm from the reference, still far inside the 1e-4 mm
+tolerance). The results are in
 [external-tool validation](interop-validation.md#record-2026-10-28-published-pypi-wheel-opensci-engine-090).
 
 The workflow-discovery and measurement observations below were made on the candidate

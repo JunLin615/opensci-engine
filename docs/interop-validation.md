@@ -37,17 +37,17 @@ committed.
 
 ## Record 2026-10-28: published PyPI wheel opensci-engine 0.9.0
 
-All four topics were re-run against the published 0.9.0 wheel: the three shorter routes
-through the alignment runner, and the metasurface route from scratch in its own
-environment, because the engine's target applicability changed for out-of-domain
-tabulated lenses. The metasurface environment was Windows 11 (AMD64), CPython 3.14.8,
-opensci-engine 0.9.0 (wheel SHA-256
+All four topics were re-run against the published 0.9.0 wheel. The alignment runner
+executed every one of them (`python scripts/check_alignment.py --optional all`:
+**71 of 71 rows passed**, 22 optional checks selected on CPython 3.12.6), and the
+metasurface route was additionally rebuilt from scratch in its own environment, which
+is where the recorded step numbers and times below come from. That environment was
+Windows 11 (AMD64), CPython 3.14.8, opensci-engine 0.9.0 (wheel SHA-256
 `049d367b3b4f5cc26490b0da7bc6baf189ad4e51efff2d68eb7060d46259f1c4`), numpy 2.5.4,
 scipy 1.18.1, grcwa 0.1.2. All Projects are catalog-free.
 
-The alignment runner executed the other three topics against the published wheel
-(`python scripts/check_alignment.py --optional all`, CPython 3.12.6, the pinned
-packages of each requirements file):
+The runner's results for the shorter routes (CPython 3.12.6, the pinned packages of
+each requirements file):
 
 | Topic | Check | Outcome |
 | --- | --- | --- |
