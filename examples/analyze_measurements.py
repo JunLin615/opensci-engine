@@ -342,7 +342,7 @@ def main(argv=None):
         input_path, output_dir = args.pop("input"), args.pop("out")
         return analyze_measurements(input_path, output_dir, MeasurementConfig(**args))
 
-    return emit_cli(workflow)
+    return emit_cli(workflow, exit_status_key="status")
 
 
 if __name__ == "__main__":

@@ -4,6 +4,20 @@
 
 OpenSci Engine runs on Windows, macOS, and Linux with **Python 3.11 or newer**. Choose pip for Python scripts and notebooks, or uv for a standalone command-line tool.
 
+## Match the examples to the installed version
+
+These examples and guides use opensci-engine **0.9.0**, recorded in
+[engine-baseline.json](../../engine-baseline.json) together with its wheel and source
+hashes and the tested environment. Install that exact version in a fresh environment:
+
+```bash
+python -m pip install "opensci-engine[protected]==0.9.0"
+```
+
+The [alignment checks](../engine-alignment.md) run the examples against that
+installation. `opensci-engine doctor` reports the installed version before you run an
+example.
+
 ## Python environment
 
 Create a virtual environment:
@@ -73,7 +87,9 @@ For a uv tool installation:
 uv tool upgrade opensci-engine
 ```
 
-Run `opensci-engine doctor` to see the installed version. To reproduce the version used by this guide, install `"opensci-engine[protected]==0.6.1"`.
+Run `opensci-engine doctor` to see the installed version. To pin the version these examples use, install `"opensci-engine[protected]==0.9.0"`.
+
+[engine-baseline.json](../../engine-baseline.json) records the verified release and test environment. Maintainers can check another released version with the [alignment workflow](../engine-alignment.md); a successful candidate check does not automatically change this baseline.
 
 ## Common setup questions
 

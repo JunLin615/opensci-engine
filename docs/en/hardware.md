@@ -2,7 +2,7 @@
 
 [User guide](README.md) · English · [简体中文](../zh-CN/hardware.md)
 
-[OpenSci](https://opensci-optic.com/) connects optical design to component purchasing and assembly. Use the engine to develop the optical system locally, then continue with your OpenSci Account to obtain a component list, pricing, and a hardware configuration.
+[OpenSci](https://opensci-optics.com/) connects optical design to component purchasing and assembly. Use the engine to develop the optical system locally, then continue with your OpenSci Account to obtain a component list, pricing, and a hardware configuration.
 
 ## The workflow
 
@@ -19,7 +19,7 @@ Choose the route that fits your experiment:
 
 ## Connect your Account
 
-Start at the [OpenSci website](https://opensci-optic.com/). Your Account provides the service URL and Agent-token setup. Configure `OPENSCI_API_URL` with that URL and complete the token setup shown in your Account. Then inspect the connection:
+Start at the [OpenSci website](https://opensci-optics.com/). Your Account provides the service URL and Agent-token setup. Configure `OPENSCI_API_URL` with that URL and complete the token setup shown in your Account. Then inspect the connection:
 
 ```bash
 opensci-engine account status
@@ -29,7 +29,12 @@ The `protected` extra from the [installation guide](installation.md) supports op
 
 ## Get a configuration
 
-Use a run with a `PASS` Local Validation:
+Use the saved run for the design you want to purchase. The service evaluates purchase
+eligibility from the submitted design and its commercial requirements. Scientific
+target assessments remain separate: a met target does not establish orderability,
+and an unmet optional target is not a helper-side purchase veto.
+
+The command requests a configuration; it does not create or pay for an order:
 
 ```bash
 opensci-engine resolve run
@@ -76,4 +81,4 @@ opensci-engine order layout ORDER_ID --out layout --locale en
 
 Use `--locale zh-CN` to produce Chinese drawings. Drawings are available as SVG and PDF.
 
-Explore the platform and available products at **[opensci-optic.com](https://opensci-optic.com/)**.
+Explore the platform and available products at **[opensci-optics.com](https://opensci-optics.com/)**.

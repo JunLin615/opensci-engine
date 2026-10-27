@@ -4,12 +4,16 @@ Run from the repository root: python -m tests.check_beam_summary
 Requires the published package and an available (or cached) optical catalog.
 """
 
+import argparse
 import hashlib
 from importlib.metadata import version
 import json
 from pathlib import Path
+import sys
 from unittest.mock import patch
 
+from opensci_engine.catalog import CatalogError
+from opensci_engine.local import LocalRunError
 from opensci_engine.results import load_run
 
 from examples.beam_expander import run_example
@@ -21,8 +25,10 @@ def snapshot(directory):
             for path in directory.iterdir() if path.is_file()}
 
 
-def main():
-    directory = Path("run-summary-check")
+def main(argv=None):
+    parser = argparse.ArgumentParser(description=__doc__)
+    parser.add_argument("--out", type=Path, default=Path("run-summary-check"))
+    directory = parser.parse_args(argv).out
     summary = run_example(directory)
     results = load_run(directory)
     # Reproduce the original example's JSON layout using this exact saved result.
@@ -50,9 +56,14 @@ def main():
     assert all(Path(p).exists() for p in summary["exports"].values())
     old_bytes = len((json.dumps(legacy, indent=2, ensure_ascii=False) + "\n").encode("utf-8"))
     new_bytes = len((json.dumps(summary, separators=(",", ":"), ensure_ascii=True) + "\n").encode("utf-8"))
-    # Also compare identical formatting to isolate content reduction from minification.
+    # Historical byte counts remain descriptive: current summaries carry richer scientific semantics.
     old_compact_bytes = len((json.dumps(legacy, separators=(",", ":")) + "\n").encode("utf-8"))
-    assert new_bytes < old_compact_bytes, "Default summary did not reduce content"
+    compact_bytes = len((json.dumps(compact, separators=(",", ":"), ensure_ascii=True) + "\n").encode("utf-8"))
+    detailed_bytes = len((json.dumps(detailed, separators=(",", ":"), ensure_ascii=True) + "\n").encode("utf-8"))
+    assert compact_bytes < detailed_bytes, "Default summary must omit the full power ledger"
+    assert "power_budget_details" not in compact
+    assert {key: value for key, value in detailed.items() if key != "power_budget_details"} == compact
+    assert all(key in compact for key in ("outcome", "requirement_outcome", "observations", "targets"))
     report = {
         "engine_version": version("opensci-engine"),
         "catalog_version": summary["identity"]["catalog_version"],
@@ -61,6 +72,8 @@ def main():
         "legacy_stdout_utf8_bytes_lf": old_bytes,
         "legacy_minified_utf8_bytes_lf": old_compact_bytes,
         "summary_stdout_utf8_bytes_lf": new_bytes,
+        "saved_summary_utf8_bytes_lf": compact_bytes,
+        "saved_summary_details_utf8_bytes_lf": detailed_bytes,
         "saved_inspection_unchanged": True,
         "details_match_full_power_budget": True,
     }
@@ -69,4 +82,9 @@ def main():
 
 
 if __name__ == "__main__":
-    main()
+    try:
+        main()
+    except (CatalogError, LocalRunError) as exc:
+        # Preserve structured catalog/model failures for the alignment report.
+        print(json.dumps(exc.as_dict()), file=sys.stderr)
+        raise SystemExit(4)

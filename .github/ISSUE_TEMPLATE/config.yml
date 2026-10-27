@@ -1,7 +1,7 @@
 blank_issues_enabled: true
 contact_links:
   - name: OpenSci website
-    url: https://opensci-optic.com/
+    url: https://opensci-optics.com/
     about: Explore optical products, design tools, and hardware services.
   - name: English user guide
     url: https://github.com/JunLin615/opensci-engine/blob/main/docs/en/README.md

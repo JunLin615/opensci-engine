@@ -25,18 +25,47 @@ opensci-engine project verify run
 
 `output` 是扩束示例中的观测平面标识。自己的项目可以通过 `results describe` 查看可用观测平面。
 
-## 理解状态
+## 理解结果
 
-| 状态 | 含义 | 后续操作 |
+以下精简控制接口对应 0.9.0；请按
+[版本匹配说明](installation.md#让示例与安装版本一致)安装匹配的软件包。
+
+当某个科学量超出元件模型声明的波长、角度或光束范围时，依赖它的目标判定为 `INDETERMINATE`，
+并在 `applicability_issue_codes` 中给出适用范围问题代码。该科学量仍保留数值、单位和上下界：
+数值可读，但判定明确表示它不能说明声明范围外的结果有效。需要 `MET` 或 `UNMET` 判定时，
+请将计算保持在适用范围内；具体案例见
+[超表面验证记录](../interop-validation.md)。
+
+```bash
+opensci-engine results targets run
+opensci-engine results freshness run --project project.json
+```
+
+分别读取以下信息：
+
+| 维度 | 查看内容 | 含义 |
 | --- | --- | --- |
-| `PASS` | 已评估目标满足要求 | 检查数值，继续设计流程 |
-| `WARNING` | 结果附有问题记录 | 阅读问题列表及相关上下文 |
-| `FAIL` | 某项要求或验证检查未通过 | 查看失败目标或问题，调整项目 |
-| `UNKNOWN` | 已有信息不足以确定结果 | 补充输入，或查看该指标所需条件 |
-| `OUT_OF_MODEL_SCOPE` | 请求的计算超出所选模型适用范围 | 查看相关模型与参数信息 |
-| `NOT_APPLICABLE` | 某项检查不适用于当前配置 | 继续查看适用的检查项 |
+| 计算执行 | `outcome.execution` 中的完成情况、终止原因和预算 | 请求的计算是否完成，哪些限额已用尽 |
+| 科学量 | 指标的数值、单位、有效性、上下界及适用性问题 | 可用点值、区间、不可用的量或超出模型范围的量 |
+| 客户要求 | 各目标的 `assessment` 与 `outcome.requirements` | `MET`、`UNMET`、`INDETERMINATE` 或 `NOT_APPLICABLE`；未配置目标表示未评估要求 |
+| 结果时效 | `CURRENT`、`HISTORICAL` 或 `UNDETERMINED` 及原因代码 | 保存的运行是否对应给定 Project |
+| 商业结果 | 配置或订单命令的响应 | 在该操作条件下哪些内容可以采购或下单 |
 
-编写脚本时，设计命令退出码 `0` 对应 PASS/WARNING/NOT_APPLICABLE，`1` 对应 FAIL，`2` 对应 UNKNOWN，`3` 对应 OUT_OF_MODEL_SCOPE。文件和命令用法错误使用其他退出码，详见命令行参考。
+一个汇总 `PASS` 不能同时回答这五个问题。计算完成时，可选目标可能未满足，但仍有可用的科学量。
+应读取所用科学量或目标的适用性：无关的模型范围问题不会使所有结果失效。
+有界量应保留为区间；如果区间无法确定比较结果，目标应保留为无法判定。
+
+物理参数或计算预算修改会报告 `PHYSICS_CHANGED`，仅修改目标会报告 `TARGETS_CHANGED`。
+保留原始运行及其哈希。修改目标不会把旧判定变成新判定。只要 Project 与转换后的引擎输入一致，
+其他引擎构建生成的运行仍可能为 `CURRENT`；复现时还应查看 `engine_build_matches`。
+详见[比较工作流程](../workflow-recipes.md#compare-and-freshness)。
+
+`project verify` 检查记录中的文件哈希及一致性，不会与独立光学解或实验进行比较。
+工作示例中的解析参考提供单独的校验，并注明适用假设。
+
+`results targets` 成功返回时退出码为 0，即使目标未满足；`results freshness` 的退出码
+0、1、2 分别表示 `CURRENT`、`HISTORICAL`、`UNDETERMINED`。科学任务是否完成应依据结构化
+判定，不能仅根据命令退出成功。
 
 ## 示例中的精简摘要
 
@@ -58,19 +87,24 @@ python examples/result_summary.py run-example
 python examples/result_summary.py run-example --details
 ```
 
-摘要工具先验证已保存的运行记录，再通过公开结果 API 生成摘要。此命令读取扩束示例或 `opensci-engine project run` 生成的原生本地运行产物；理想透镜示例的输出是底层 API 结果文件集。[result_summary.py](../../examples/result_summary.py) 提供可复用的 Python 函数 `summarize_results(results, *, artifacts=None, details=False)` 和 `summarize_run(directory, *, details=False)`，两者均返回可用于 JSON 输出的字典。
+摘要工具先检查保存文件的完整性，再通过公开结果 API 生成摘要，同时保留执行、要求和科学量信息以及旧状态字段。此命令读取扩束示例或 `opensci-engine project run` 生成的原生本地运行产物；理想透镜示例的输出是底层 API 结果文件集。[result_summary.py](../../examples/result_summary.py) 提供可复用的 Python 函数 `summarize_results(results, *, artifacts=None, details=False)` 和 `summarize_run(directory, *, details=False)`，两者均返回可用于 JSON 输出的字典。
 
-示例脚本和已保存运行摘要命令使用以下退出码：
+示例脚本和已保存运行摘要命令使用 `requirement_outcome` 决定退出码；记录同时保留原始
+汇总 `status`、`outcome.execution` 和 `outcome.requirements`。工具退出码如下：
+
+退出码 `0` 描述所选要求的判定，并不表示执行完整。例如，无目标且受到计算预算限制的运行，
+可同时保留 `execution.outcome: PARTIAL`、汇总 `status: UNKNOWN` 和
+`requirement_outcome: NOT_APPLICABLE`，并以 `0` 退出。使用数值前仍须检查执行情况和量的有效性。
 
 | 退出码 | 报告的结果 |
 | --- | --- |
-| `0` | `PASS`、`WARNING` 或 `NOT_APPLICABLE` |
-| `1` | `FAIL` |
-| `2` | `UNKNOWN` |
-| `3` | `OUT_OF_MODEL_SCOPE` |
+| `0` | 所选要求满足或不适用 |
+| `1` | 所选要求未满足 |
+| `2` | 所选要求无法判定 |
+| `3` | 所选科学量超出模型范围 |
 | `4` | 输入、产物完整性、运行时或命令用法错误 |
 
-设计结果即使未通过，也会生成 JSON 摘要并保留完整数据。退出码 `4` 会向标准错误写入 JSON 错误信息，标准输出为空。这些示例错误码与引擎 CLI 的文件和用法错误码分别定义。
+设计结果即使未通过，也会生成 JSON 摘要并保留完整数据。输入或运行时异常会向标准错误写入 JSON 错误信息，标准输出为空，退出码为 `4`。若已保存的运行记录表明执行失败或取消，标准输出仍保留 JSON 结果摘要，退出码同样为 `4`。这些示例错误码与引擎 CLI 的文件和用法错误码分别定义。
 
 理想透镜示例可通过 `--maximum-radius-mm` 修改目标上限（默认 `0.05`）。以下命令分别使用默认目标、预期不通过的更严格目标和无效输入：
 
@@ -117,6 +151,6 @@ Path("arrivals.csv").write_bytes(results.export("arrivals", "csv"))
 
 ## 单位与约定
 
-API 使用毫米表示长度、纳米表示真空波长、角度制表示角度、瓦特表示功率。高斯光束尺寸 `w` 表示**光强降至 1/e² 处的半径**。坐标系为右手系，元件局部 `+z` 为光轴。导出列名和指标说明会标明相应单位。
+API 使用毫米表示长度、纳米表示真空波长、角度制表示角度、瓦特表示功率。高斯光束尺寸 `w` 表示**光强降至 1/e² 处的半径**。坐标系为右手系，透射元件的局部 `+z` 为光轴，反射元件的局部 `+z` 为镀膜表面向外的法线。导出列名和指标说明会标明相应单位。
 
 下一步：[从设计到硬件](hardware.md)。
