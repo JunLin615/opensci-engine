@@ -2,7 +2,7 @@
 
 python scripts/check_alignment.py --out run-alignment
 python scripts/check_alignment.py --candidate latest --out run-candidate
-python scripts/check_alignment.py --candidate 0.9.1 --catalog-file RELEASE.json --out run-candidate-file
+python scripts/check_alignment.py --candidate 0.10.1 --catalog-file RELEASE.json --out run-candidate-file
 python scripts/check_alignment.py --optional all --out run-alignment-full
 
 engine-baseline.json records the verified release; alignment-checks.json lists the
@@ -56,14 +56,17 @@ TRANSPORT_ERROR = re.compile(
 
 V = r"(\d+\.\d+(?:\.\d+)*(?:(?:a|b|rc)\d+|\.post\d+|\.dev\d+)?)(?![\w+]|\.\d)"
 MINIMUM = r"(?!\**\s*(?:or (?:newer|later)|或更高|及以上))"
+# Distribution names in version statements: the current one and the earlier name (up to 0.9.0),
+# so a leftover pin of the earlier name is reported as well.
+NAMES = r"(?:os-optics|opensci-engine)"
 # Exact install pins and issue-template placeholders: checked in every scanned file.
 STRICT_PINS = (
-    re.compile(r"opensci-engine(?:\[[\w,\s-]+\])?==" + V),
+    re.compile(NAMES + r"(?:\[[\w,\s-]+\])?==" + V),
     re.compile(r"placeholder:\s*[\"']" + V + r"[\"']"),
 )
 # Prose statements of the documented version: checked in listed current documents.
 PROSE_PINS = (
-    re.compile(r"opensci-engine\**\s+\**" + V + MINIMUM),
+    re.compile(r"(?:" + NAMES + r"|OS Optics)\**\s+\**" + V + MINIMUM),
     re.compile(r"\*\*" + V + r"\*\*" + MINIMUM),
 )
 CATALOG_RELEASE = re.compile(r"(?<![\w.-])(20\d\d-\d\d-\d\d\.\d+)(?![\w.]*\d)")
@@ -78,7 +81,7 @@ def release_version(value):
 
 def latest_version():
     request = urllib.request.Request(
-        "https://pypi.org/pypi/opensci-engine/json", headers={"User-Agent": "opensci-engine-alignment"}
+        "https://pypi.org/pypi/os-optics/json", headers={"User-Agent": "os-optics-alignment"}
     )
     with urllib.request.urlopen(request, timeout=30) as response:
         return release_version(json.load(response)["info"]["version"])
@@ -126,7 +129,7 @@ def documentation_problems(root, baseline):
     """Current pins, catalog release and website host must match the baseline.
 
     Listed current documents must state the baseline version (exact pins and prose such as
-    **0.8.0** or "opensci-engine 0.8.0"); minimum statements ("0.8.0 or newer", ">=0.8.0") are
+    **0.8.0** or "os-optics 0.8.0"); minimum statements ("0.8.0 or newer", ">=0.8.0") are
     not pins. Every other scanned file is checked for exact install pins and retired hosts.
     Historical validation records keep their original versions and are not scanned.
     """
@@ -369,10 +372,10 @@ def environment_slug(requirements):
 
 
 IDENTITY = (
-    "import json,platform,sys,opensci_engine; from importlib.metadata import version; "
-    "print(json.dumps({'engine_version':version('opensci-engine'),'python':sys.version,"
+    "import json,platform,sys,os_optics; from importlib.metadata import version; "
+    "print(json.dumps({'engine_version':version('os-optics'),'python':sys.version,"
     "'python_version':platform.python_version(),'platform':platform.platform(),"
-    "'executable':sys.executable,'module_path':opensci_engine.__file__}))"
+    "'executable':sys.executable,'module_path':os_optics.__file__}))"
 )
 
 
@@ -514,8 +517,8 @@ class AlignmentCheck:
             # a different artifact in one of the external-tool environments.
             if sha256_file(self.candidate_wheel) != self.candidate_sha256:
                 raise ValueError("Candidate wheel changed after its identity check")
-            return "opensci-engine[protected] @ " + self.candidate_wheel.as_uri()
-        return f"opensci-engine[protected]=={self.target}"
+            return "os-optics[protected] @ " + self.candidate_wheel.as_uri()
+        return f"os-optics[protected]=={self.target}"
 
     def _package_artifact(self, install_report):
         """Keep the artifact URL and hash pip actually installed, not a latest-page guess."""
@@ -525,7 +528,7 @@ class AlignmentCheck:
                 raise ValueError("Unsupported pip installation report version")
             installs = document["install"]
             engine = next(item for item in installs
-                          if item["metadata"]["name"].replace("_", "-").lower() == "opensci-engine")
+                          if item["metadata"]["name"].replace("_", "-").lower() == "os-optics")
             download = engine["download_info"]
             digest = download["archive_info"]["hashes"]["sha256"]
             if not SHA256.fullmatch(digest):
@@ -599,7 +602,7 @@ class AlignmentCheck:
             self.catalog_row = self._catalog_file(python, baseline, source)
         else:
             self.catalog_row = self.command("catalog-sync", "catalog_network",
-                                            [python, "-m", "opensci_engine", "catalog", "sync"],
+                                            [python, "-m", "os_optics", "catalog", "sync"],
                                             catalog=True, timeout=180)
             if self.catalog_row["status"] == "FAIL":
                 # Name the service the failed sync tried, from its error document.
@@ -634,11 +637,11 @@ class AlignmentCheck:
                                error=f"SHA-256 {actual} differs from published {expected}")
         self.record("catalog-file", "catalog_data", "PASS", [], sha256=actual, catalog_version=release)
         return self.command("catalog-import", "catalog_data",
-                            [python, "-m", "opensci_engine", "catalog", "import", str(self.catalog_file)],
+                            [python, "-m", "os_optics", "catalog", "import", str(self.catalog_file)],
                             catalog=True)
 
     def _catalog_identity(self, python, baseline, source):
-        row = self.command("catalog-identity", "catalog_data", [python, "-m", "opensci_engine", "catalog", "status"],
+        row = self.command("catalog-identity", "catalog_data", [python, "-m", "os_optics", "catalog", "status"],
                            catalog=True)
         if row["status"] == "FAIL":
             return row
