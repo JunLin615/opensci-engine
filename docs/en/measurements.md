@@ -4,7 +4,7 @@
 
 Use [analyze_measurements.py](../../examples/analyze_measurements.py) to subtract
 measured backgrounds, optionally divide by a simultaneous reference channel, and
-fit a linear response. It runs independently of OpenSci Engine or a simulation.
+fit a linear response. It runs independently of OS Optics or a simulation.
 The supplied CSVs are **synthetic**, with known answers and deliberate bad rows.
 
 ## Install and run

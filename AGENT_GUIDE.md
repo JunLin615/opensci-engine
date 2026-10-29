@@ -5,8 +5,8 @@ scripts: [English](docs/en/README.md) · [简体中文](docs/zh-CN/README.md).
 
 ## Version and environment
 
-These examples and workflow helpers use the published **0.9.0** release of
-opensci-engine, the version recorded in [engine-baseline.json](engine-baseline.json)
+These examples and workflow helpers use the published **0.10.0** release of
+os-optics, the version recorded in [engine-baseline.json](engine-baseline.json)
 with its wheel and source hashes and the tested environment. Install the exact version
 in a fresh environment and run the alignment checks to reproduce the verified result.
 See [installation](docs/en/installation.md) and [alignment](docs/engine-alignment.md).
@@ -23,9 +23,9 @@ and pinned dependencies in [the interop guide](docs/en/interop.md).
 | Editable catalog design | `python examples/beam_expander.py --out run-example` | Saves `project.json` and native run |
 | Discover object IDs, units and axes | `python examples/edit_project.py run-example/project.json --describe --ids L2` | [Find objects](docs/workflow-recipes.md#find-objects) |
 | Edit, check, run, read | `python examples/edit_project.py BASE.json --edits OPS.json --out NEW.json --run NEW-run` | [Edit and retry](docs/workflow-recipes.md#edit-a-project-by-id) |
-| Check a Project | `opensci-engine project check NEW.json` | [Native controls](docs/workflow-recipes.md#native-project-controls) |
-| Compact targets | `opensci-engine results targets NEW-run` | [Interpretation](docs/en/results.md#interpret-the-result) |
-| Check saved-run freshness | `opensci-engine results freshness NEW-run --project NEW.json` | [Freshness](docs/workflow-recipes.md#compare-and-freshness) |
+| Check a Project | `os-optics project check NEW.json` | [Native controls](docs/workflow-recipes.md#native-project-controls) |
+| Compact targets | `os-optics results targets NEW-run` | [Interpretation](docs/en/results.md#interpret-the-result) |
+| Check saved-run freshness | `os-optics results freshness NEW-run --project NEW.json` | [Freshness](docs/workflow-recipes.md#compare-and-freshness) |
 | Parameter sweep | `python examples/sweep_parameters.py SPEC.json --base BASE.json --out STUDY` | [Sweep](docs/workflow-recipes.md#sweep) |
 | Compare saved results | `python examples/compare_runs.py RUN_A RUN_B --project CURRENT.json --out CMP` | No simulation |
 | Plot and report | `python examples/plot_results.py sweep STUDY --y target:ID` then `python examples/build_report.py STUDY --project CURRENT.json --plots STUDY/plots` | [Recipes](docs/workflow-recipes.md) |

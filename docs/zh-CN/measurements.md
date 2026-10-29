@@ -4,7 +4,7 @@
 
 使用 [analyze_measurements.py](../../examples/analyze_measurements.py) 扣除背景，
 按需利用同步参考通道归一化，并进行线性拟合。此流程无需运行光学仿真，也无需安装
-OpenSci Engine。示例 CSV 全部是**合成数据**，包含已知关系和刻意设置的无效行。
+OS Optics。示例 CSV 全部是**合成数据**，包含已知关系和刻意设置的无效行。
 
 ## 安装与运行
 

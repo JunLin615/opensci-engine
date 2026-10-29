@@ -9,12 +9,12 @@
 
 ## 准备工作
 
-本仓库的示例和工具使用 opensci-engine **0.9.0**，版本记录在
+本仓库的示例和工具使用 os-optics **0.10.0**，版本记录在
 [engine-baseline.json](../../engine-baseline.json)。请按[版本匹配说明](installation.md#让示例与安装版本一致)
 安装该版本，并在独立环境中从仓库根目录运行命令；绘图另需安装 `requirements-examples.txt`。
 
-第 1–3 节使用目录元件，需要 `opensci-engine catalog sync`；第 4、5 节使用无需目录的理想元件。
-下文引用的数值是各个验证文档中运行的**参考结果**，涉及目录时采用 `2026-10-15.1`；
+第 1–3 节使用目录元件，需要 `os-optics catalog sync`；第 4、5 节使用无需目录的理想元件。
+下文引用的数值是各个验证文档中运行的**参考结果**，涉及目录时采用 `2026-10-28.1`；
 对齐检查会在当前版本上复现这些结果。每次新运行仍应读取其实际标识与目标判定：
 引擎或目录改变时，目录内容和结果标识可能不同。
 
@@ -22,9 +22,9 @@
 
 ```bash
 python examples/beam_expansion_focus.py --out run-controls --no-studies
-opensci-engine project check run-controls/nominal/project.json
-opensci-engine results targets run-controls/nominal/run
-opensci-engine results freshness run-controls/nominal/run --project run-controls/nominal/project.json
+os-optics project check run-controls/nominal/project.json
+os-optics results targets run-controls/nominal/run
+os-optics results freshness run-controls/nominal/run --project run-controls/nominal/project.json
 ```
 
 `project check` 验证 Project 并生成引擎输入，但不运行仿真；`results targets`

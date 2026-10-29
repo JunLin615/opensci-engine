@@ -2,7 +2,7 @@
 
 [Agent guide](../AGENT_GUIDE.md). English-only reference for the workflow scripts in
 `examples/`; read only the section the task needs. Each script's `--help` holds its
-complete specification. These workflows use opensci-engine **0.9.0**, the version
+complete specification. These workflows use os-optics **0.10.0**, the version
 recorded in [engine-baseline.json](../engine-baseline.json) with the matching
 [installation guide](en/installation.md). Human walkthrough: [English](en/workflows.md) ·
 [简体中文](zh-CN/workflows.md).
@@ -70,12 +70,12 @@ The engine supplies semantic editing, atomic checks and freshness. For an existi
 `BASE.json`, write the operations to `OPS.json` and use:
 
 ```bash
-opensci-engine project check BASE.json
-opensci-engine project update BASE.json --ops OPS.json --expect-hash BASE_HASH --out NEW.json
-opensci-engine project check NEW.json
-opensci-engine project run NEW.json --out-dir NEW-run
-opensci-engine results targets NEW-run
-opensci-engine results freshness NEW-run --project NEW.json
+os-optics project check BASE.json
+os-optics project update BASE.json --ops OPS.json --expect-hash BASE_HASH --out NEW.json
+os-optics project check NEW.json
+os-optics project run NEW.json --out-dir NEW-run
+os-optics results targets NEW-run
+os-optics results freshness NEW-run --project NEW.json
 ```
 
 Replace `BASE_HASH` with the `project_hash` from `project check`. The update checks all
@@ -108,11 +108,11 @@ save the following as `budget.json`:
 ```
 
 ```bash
-opensci-engine project update run-expansion/nominal/project.json --ops budget.json --out limited.json
-opensci-engine project check limited.json
-opensci-engine project run limited.json --out-dir limited-run
-opensci-engine results targets limited-run
-opensci-engine results freshness run-expansion/nominal/run --project limited.json
+os-optics project update run-expansion/nominal/project.json --ops budget.json --out limited.json
+os-optics project check limited.json
+os-optics project run limited.json --out-dir limited-run
+os-optics results targets limited-run
+os-optics results freshness run-expansion/nominal/run --project limited.json
 ```
 
 The one-interaction limit stops this three-lens design early. Inspect
@@ -194,7 +194,7 @@ waist target by an interval. Save as `edits.json`:
 python examples/edit_project.py run-example/project.json --edits edits.json --out run-edit/project.json --run run-edit/run
 ```
 
-Result on catalog `2026-10-15.1`: exit 1, `run.outcome` `FAIL`, `expanded_waist`
+Result on catalog `2026-10-28.1`: exit 1, `run.outcome` `FAIL`, `expanded_waist`
 1.1148985411200965 mm outside 1.8–2.2 mm (a design that misses its target). The output
 is `run-edit/project.json` (the Engine-normalized Project),
 `run-edit/project.changes.json` (every op as given and normalized, before/after of each
@@ -254,7 +254,7 @@ codes) and at most five rows, each with its `warnings`.
 
 ```bash
 python examples/compare_runs.py RUN_A RUN_B --project CURRENT.json --out CMP
-opensci-engine results freshness RUN_A --project CURRENT.json
+os-optics results freshness RUN_A --project CURRENT.json
 ```
 
 Targets and observation planes align by ID; missing quantities remain explicit.
@@ -399,7 +399,7 @@ samples before anything runs. Output: `DIR/workflow.json`, `DIR/nominal/`,
 | `BUDGET_EXCEEDED` | more evaluations than `max_evaluations` | fewer values or a deliberate larger budget |
 | `SPEC_INVALID`, `TARGET_UNKNOWN`, `COLUMN_UNKNOWN`, `NOMINAL_MISMATCH`, `STEP_REQUIRED` | spec structure, unknown target, objective / constraint / derived column the spec cannot produce, `set_*` parameter without its base `nominal`, relative step at nominal 0 | fix the spec as the message states; `known` lists the valid ids or columns |
 | `INPUT_INVALID` | a workflow input cannot build a design | change the named input |
-| `CATALOG_NOT_AVAILABLE` | no catalog release installed | `opensci-engine catalog sync` (or `catalog import FILE`) |
+| `CATALOG_NOT_AVAILABLE` | no catalog release installed | `os-optics catalog sync` (or `catalog import FILE`) |
 
 An `ERROR` sample inside a study is recorded with its stage and code in `table.csv`; the
 other samples still run.

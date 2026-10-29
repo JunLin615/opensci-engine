@@ -18,16 +18,16 @@
 | `optical_scene.glb` | glTF 二进制格式的三维场景 |
 
 ```bash
-opensci-engine results describe run
-opensci-engine results monitor run output
-opensci-engine project verify run
+os-optics results describe run
+os-optics results monitor run output
+os-optics project verify run
 ```
 
 `output` 是扩束示例中的观测平面标识。自己的项目可以通过 `results describe` 查看可用观测平面。
 
 ## 理解结果
 
-以下精简控制接口对应 0.9.0；请按
+以下精简控制接口对应 0.10.0；请按
 [版本匹配说明](installation.md#让示例与安装版本一致)安装匹配的软件包。
 
 当某个科学量超出元件模型声明的波长、角度或光束范围时，依赖它的目标判定为 `INDETERMINATE`，
@@ -37,8 +37,8 @@ opensci-engine project verify run
 [超表面验证记录](../interop-validation.md)。
 
 ```bash
-opensci-engine results targets run
-opensci-engine results freshness run --project project.json
+os-optics results targets run
+os-optics results freshness run --project project.json
 ```
 
 分别读取以下信息：
@@ -87,7 +87,7 @@ python examples/result_summary.py run-example
 python examples/result_summary.py run-example --details
 ```
 
-摘要工具先检查保存文件的完整性，再通过公开结果 API 生成摘要，同时保留执行、要求和科学量信息以及旧状态字段。此命令读取扩束示例或 `opensci-engine project run` 生成的原生本地运行产物；理想透镜示例的输出是底层 API 结果文件集。[result_summary.py](../../examples/result_summary.py) 提供可复用的 Python 函数 `summarize_results(results, *, artifacts=None, details=False)` 和 `summarize_run(directory, *, details=False)`，两者均返回可用于 JSON 输出的字典。
+摘要工具先检查保存文件的完整性，再通过公开结果 API 生成摘要，同时保留执行、要求和科学量信息以及旧状态字段。此命令读取扩束示例或 `os-optics project run` 生成的原生本地运行产物；理想透镜示例的输出是底层 API 结果文件集。[result_summary.py](../../examples/result_summary.py) 提供可复用的 Python 函数 `summarize_results(results, *, artifacts=None, details=False)` 和 `summarize_run(directory, *, details=False)`，两者均返回可用于 JSON 输出的字典。
 
 示例脚本和已保存运行摘要命令使用 `requirement_outcome` 决定退出码；记录同时保留原始
 汇总 `status`、`outcome.execution` 和 `outcome.requirements`。工具退出码如下：
@@ -119,9 +119,9 @@ python examples/ideal_lens_focus.py --maximum-radius-mm -1
 ## 查看与分享
 
 ```bash
-opensci-engine view run
-opensci-engine view run --write-html view.html
-opensci-engine view run --snapshot shots
+os-optics view run
+os-optics view run --write-html view.html
+os-optics view run --snapshot shots
 ```
 
 浏览器查看器提供预设视角、元件选择、光束显隐和中英文标签。截图输出包含正交视图 PNG、`scene_summary.json` 和图例。
@@ -129,10 +129,10 @@ opensci-engine view run --snapshot shots
 ## 导出表格
 
 ```bash
-opensci-engine export arrivals run --format csv --out arrivals.csv
-opensci-engine export rays run --format jsonl --out rays.jsonl
-opensci-engine results columns arrivals
-opensci-engine results metrics --name waist_distance_x_mm
+os-optics export arrivals run --format csv --out arrivals.csv
+os-optics export rays run --format jsonl --out rays.jsonl
+os-optics results columns arrivals
+os-optics results metrics --name waist_distance_x_mm
 ```
 
 可导出的内容包括观测面、到达光束、光线、路径、路径分段、功率收支、叠加结果、波前、辐照度和指标定义。使用 `export --help` 查看格式与筛选参数。波前导出采用追迹光程差，辐照度图采用近轴高斯光束叠加模型。
@@ -141,7 +141,7 @@ Python 调用方式：
 
 ```python
 from pathlib import Path
-from opensci_engine.results import load_run
+from os_optics.results import load_run
 
 results = load_run("run")
 print(results.describe())

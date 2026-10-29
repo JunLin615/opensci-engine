@@ -22,7 +22,7 @@ Choose the route that fits your experiment:
 Start at the [OpenSci website](https://opensci-optics.com/). Your Account provides the service URL and Agent-token setup. Configure `OPENSCI_API_URL` with that URL and complete the token setup shown in your Account. Then inspect the connection:
 
 ```bash
-opensci-engine account status
+os-optics account status
 ```
 
 The `protected` extra from the [installation guide](installation.md) supports opening assembly previews and details.
@@ -37,22 +37,22 @@ and an unmet optional target is not a helper-side purchase veto.
 The command requests a configuration; it does not create or pay for an order:
 
 ```bash
-opensci-engine resolve run
+os-optics resolve run
 ```
 
 The response contains a `resolution_id`, the Customer Purchase BOM, current prices, and the assembly configuration. Variants include:
 
 ```bash
-opensci-engine resolve run --optics-only
-opensci-engine resolve run --no-breadboard
-opensci-engine resolve run --assembly-service
+os-optics resolve run --optics-only
+os-optics resolve run --no-breadboard
+os-optics resolve run --assembly-service
 ```
 
 Inspect the chosen resolution and its preview, replacing `RESOLUTION_ID` with the returned identifier:
 
 ```bash
-opensci-engine resolution show RESOLUTION_ID --locale en
-opensci-engine assembly preview RESOLUTION_ID --view
+os-optics resolution show RESOLUTION_ID --locale en
+os-optics assembly preview RESOLUTION_ID --view
 ```
 
 The resolution describes how component positioning and retained degrees of freedom are implemented. Use `--locale zh-CN` for Chinese text. The assembly preview applies to configurations that include an assembly.
@@ -62,21 +62,21 @@ The resolution describes how component positioning and retained degrees of freed
 Choose the shipping address in your OpenSci Account and review the component list, total, and agreement. The following command creates the order for the selected resolution:
 
 ```bash
-opensci-engine order create RESOLUTION_ID
+os-optics order create RESOLUTION_ID
 ```
 
-Follow the payment instructions in the order. After transferring payment, report the transfer with `opensci-engine order report-transfer ORDER_ID`. OpenSci confirms receipt and makes the corresponding drawing deliverables available.
+Follow the payment instructions in the order. After transferring payment, report the transfer with `os-optics order report-transfer ORDER_ID`. OpenSci confirms receipt and makes the corresponding drawing deliverables available.
 
 For an assembly order:
 
 ```bash
-opensci-engine assembly drawing RESOLUTION_ID --out drawing --locale en
+os-optics assembly drawing RESOLUTION_ID --out drawing --locale en
 ```
 
 For an optics-only order:
 
 ```bash
-opensci-engine order layout ORDER_ID --out layout --locale en
+os-optics order layout ORDER_ID --out layout --locale en
 ```
 
 Use `--locale zh-CN` to produce Chinese drawings. Drawings are available as SVG and PDF.

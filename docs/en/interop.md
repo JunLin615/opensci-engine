@@ -9,7 +9,7 @@ exports. The four worked examples below were validated against independent refer
 the [validation record](../interop-validation.md) lists versions, inputs, outputs and
 deviations.
 
-The engine-running scripts use opensci-engine **0.9.0**; use
+The engine-running scripts use os-optics **0.10.0**; use
 [version matching](installation.md#match-the-examples-to-the-installed-version) for the
 matching installation. The numerical comparisons below are the recorded validation runs
 unless identified as a new result. They use the linear optical
@@ -45,8 +45,8 @@ python -m venv .venv-optimization
 ```
 
 On Windows use `.venv-optimization\Scripts\python`. The requirements files request
-opensci-engine 0.9.0 or newer. They pin the tested
-versions of the third-party packages, which are never dependencies of `opensci-engine`
+os-optics 0.10.0 or newer. They pin the tested
+versions of the third-party packages, which are never dependencies of `os-optics`
 itself.
 
 Every script prints one JSON summary on stdout. Its `outcome` compares OpenSci with an
@@ -111,7 +111,7 @@ python examples/interop/diffraction/external_focus.py run-interop-diffraction
 
 `opensci_handoff.py` runs the Project for stop radii 3, 1.2 and 0.5 mm and writes a
 `handoff.json` per case: the Engine's transverse-plane handoff on an observation plane
-in the stop's plane (`RunResults.handoff`, also `opensci-engine results handoff RUN
+in the stop's plane (`RunResults.handoff`, also `os-optics results handoff RUN
 --monitor ID --element ID`): Gaussian q per axis, radii, wavefront radii, M², power,
 wavelength, medium, beam axes, Jones vector, the stop outline in the plane's frame and
 the field-construction convention with its applicability; plus the lens parameters
@@ -150,7 +150,7 @@ field, so together they are one cross-check of the sampling, not two independent
 references. Diffractio's absolute peak agrees to 3e-5.
 
 Diffractio 1.0.0 requires numpy < 2 and cannot share an environment with
-opensci-engine. Install `requirements-diffractio.txt` in a second environment and run
+os-optics. Install `requirements-diffractio.txt` in a second environment and run
 the same `external_focus.py` there: it reads only the handoff files. The script also
 writes `focus_profiles.png` in the primary environment (Engine Gaussian and diffraction reference per case).
 
@@ -181,7 +181,7 @@ V mode; Gaussian wavepackets (rms intensity duration 0.25 ps for the HOM cases, 
 for the MZI) with zero-delay indistinguishability 0.95; one threshold detector per output
 plane with efficiency 0.8 and a dark-count probability per gate (0, and 0.01 in the
 lossless HOM case and the lossy 1 mm MZI case).
-`run_quantum.py` never imports opensci-engine:
+`run_quantum.py` never imports os-optics:
 
 * it reads `T[output, input]` (Perceval `Unitary(Matrix(U))` and Piquasso
   `Interferometer(U)` read matrices the same way) and multiplies by `sqrt(η)` for the

@@ -11,16 +11,16 @@ polarization control and alignment.
 
 ## Before you start
 
-The examples and helpers use opensci-engine **0.9.0**, recorded in
+The examples and helpers use os-optics **0.10.0**, recorded in
 [engine-baseline.json](../../engine-baseline.json). Install it as described in
 [version matching](installation.md#match-the-examples-to-the-installed-version).
 Run commands from the repository root in an isolated environment, plus
 `requirements-examples.txt` for plots.
 
-Sections 1–3 use catalog components and need `opensci-engine catalog sync`; sections
+Sections 1–3 use catalog components and need `os-optics catalog sync`; sections
 4 and 5 use catalog-free ideal elements. The quoted numerical examples are the
 **reference results** of the runs in the linked validation documents, using catalog
-release `2026-10-15.1` where applicable; the alignment checks reproduce them on this
+release `2026-10-28.1` where applicable; the alignment checks reproduce them on this
 release. Read each new run's own identities and assessments: catalog contents and
 result identities can differ when the engine or catalog changes.
 
@@ -28,9 +28,9 @@ result identities can differ when the engine or catalog changes.
 
 ```bash
 python examples/beam_expansion_focus.py --out run-controls --no-studies
-opensci-engine project check run-controls/nominal/project.json
-opensci-engine results targets run-controls/nominal/run
-opensci-engine results freshness run-controls/nominal/run --project run-controls/nominal/project.json
+os-optics project check run-controls/nominal/project.json
+os-optics results targets run-controls/nominal/run
+os-optics results freshness run-controls/nominal/run --project run-controls/nominal/project.json
 ```
 
 `project check` validates and lowers a Project without running it. `results targets`

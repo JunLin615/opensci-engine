@@ -4,7 +4,7 @@
 
 OpenSci 计算光路、高斯光束、偏振、功率以及设计的线性光学网络。优化器、衍射程序、量子光学模拟器和电磁求解器在你自己的 Python 环境中运行，读取 OpenSci 导出的数据。下面四个示例都有独立参考比较的验证记录；版本、输入、输出和偏差见[验证记录](../interop-validation.md)。
 
-更新后的引擎调用脚本使用 opensci-engine **0.9.0**，匹配的安装方式见
+更新后的引擎调用脚本使用 os-optics **0.10.0**，匹配的安装方式见
 [版本匹配说明](installation.md#让示例与安装版本一致)。
 下文数值比较描述已经记录的验证运行，另行标明的新结果除外。 它们用到带逐路径群延迟的线性光学网络、原生元件和 `TABULATED_THIN_LENS` 模型类型。运行引擎的脚本会检查已安装版本，引擎版本过旧时给出明确提示并停止；外部侧脚本只读取导出文件，不导入引擎。
 
@@ -28,7 +28,7 @@ python -m venv .venv-optimization
 .venv-optimization/bin/python -m pip install -r examples/interop/optimization/requirements-optimization.txt
 ```
 
-Windows 上使用 `.venv-optimization\Scripts\python`。依赖文件要求 opensci-engine 0.9.0 或更高版本，并固定第三方软件包的已验证版本；这些软件包都不是 `opensci-engine` 本身的依赖。
+Windows 上使用 `.venv-optimization\Scripts\python`。依赖文件要求 os-optics 0.10.0 或更高版本，并固定第三方软件包的已验证版本；这些软件包都不是 `os-optics` 本身的依赖。
 
 每个脚本在 stdout 输出一个 JSON 摘要。其中的 `outcome` 是 OpenSci 与外部工具或独立参考的比较结果，不是 OpenSci 运行状态：所有比较都在给定容差内时为 `WITHIN_TOLERANCE`（退出码 0），有比较超出容差时为 `OUT_OF_TOLERANCE`（退出码 1），只生成数据的步骤为 `COMPLETED`（退出码 0），出错时退出码为 4（stderr 上给出 JSON 错误）。OpenSci 自身的状态（`PASS`、`WARNING`、`OUT_OF_MODEL_SCOPE` 等）单独列在 `engine_status` 中。
 
@@ -67,7 +67,7 @@ python examples/interop/diffraction/opensci_handoff.py --out run-interop-diffrac
 python examples/interop/diffraction/external_focus.py run-interop-diffraction
 ```
 
-`opensci_handoff.py` 对光阑半径 3、1.2 和 0.5 mm 分别运行 Project，并为每种情况写出 `handoff.json`：引擎在光阑所在平面的观察面上给出的横截面交接数据（`RunResults.handoff`，也可用 `opensci-engine results handoff RUN --monitor ID --element ID`），包括各轴高斯 q、半径、波前曲率半径、M²、功率、波长、介质、光束坐标轴、Jones 矢量、该平面坐标系中的光阑轮廓，以及场构造约定和适用条件；另外还有来自 Project 的透镜参数、引擎自己的焦面结果和运行身份。脚本会用上游 1 mm 处 pupil 面的状态经 ABCD 传播来核对交接数据。`external_focus.py` 只读取这些文件。OpenSci 不导出场：仅凭光强或功率不能确定复场，运行中稀疏的瞳面光线也不等于采样的瞳面场。因此脚本按明确约定由高斯状态构造采样场（`tem00_field.py`）：
+`opensci_handoff.py` 对光阑半径 3、1.2 和 0.5 mm 分别运行 Project，并为每种情况写出 `handoff.json`：引擎在光阑所在平面的观察面上给出的横截面交接数据（`RunResults.handoff`，也可用 `os-optics results handoff RUN --monitor ID --element ID`），包括各轴高斯 q、半径、波前曲率半径、M²、功率、波长、介质、光束坐标轴、Jones 矢量、该平面坐标系中的光阑轮廓，以及场构造约定和适用条件；另外还有来自 Project 的透镜参数、引擎自己的焦面结果和运行身份。脚本会用上游 1 mm 处 pupil 面的状态经 ABCD 传播来核对交接数据。`external_focus.py` 只读取这些文件。OpenSci 不导出场：仅凭光强或功率不能确定复场，运行中稀疏的瞳面光线也不等于采样的瞳面场。因此脚本按明确约定由高斯状态构造采样场（`tem00_field.py`）：
 
 * 场 `E ~ exp[i(k·r − ωt)]`；在光束坐标轴中 `U = sqrt(2P/(π w_x w_y)) exp(−x²/w_x² − y²/w_y²) exp(+ik(x²/2R_x + y²/2R_y))`，发散光束 `R > 0`；省略 Gouy 相位和整体相位；`|U|²` 的积分等于光束功率；
 * 只适用于两个方向 M² = 1 的情况（否则脚本拒绝）；仅凭 M² > 1 不能确定模式组成或相干性；
@@ -83,7 +83,7 @@ LightPipes 以绝对单位在六种网格和窗口上传播（收敛研究）；
 
 所有情况下引擎的透过功率都等于 `1 − exp(−2a²/w²)`。引擎的焦面辐照度是近轴高斯量：光阑足够大时准确；出现 `GAUSSIAN_TRUNCATION` 警告后只有功率可靠，焦面辐照度需要像这里这样做衍射计算。prysm 和 POPPY 与参考剖面相差 4e-7；两者对同一采样场做的是同一种离散傅里叶变换，因此合起来只算一项采样交叉校验，而不是两个独立参考。Diffractio 的绝对峰值相差 3e-5。
 
-Diffractio 1.0.0 要求 numpy < 2，不能与 opensci-engine 共用环境。在第二个环境中安装 `requirements-diffractio.txt`，再在其中运行同一个 `external_focus.py`：它只读取 handoff 文件。主环境中的脚本写出 `focus_profiles.png`（每种情况的引擎高斯结果与衍射参考）。
+Diffractio 1.0.0 要求 numpy < 2，不能与 os-optics 共用环境。在第二个环境中安装 `requirements-diffractio.txt`，再在其中运行同一个 `external_focus.py`：它只读取 handoff 文件。主环境中的脚本写出 `focus_profiles.png`（每种情况的引擎高斯结果与衍射参考）。
 
 单独的 Diffractio 环境会写入 `external_report_diffractio.json`、
 `external_summary_diffractio.json` 和 `focus_profiles_diffractio.png`，保留主环境的报告和图像。
@@ -99,7 +99,7 @@ python examples/interop/quantum/run_quantum.py run-interop-quantum --inputs exam
 
 情况包括：780 nm Hong-Ou-Mandel 干涉；光源 B 移动 −0.3 … +0.3 mm 的 13 次导出组成的延迟扫描；一臂放入 3 mm 窗口，另一光源分别后移窗口群延迟长度或仅后移相位延迟长度；532 nm 双输入 Mach-Zehnder，窗口厚度 0、1、1.0003 mm；以及光路上有理想薄透镜、被导出拒绝的情况（`PHASE_UNDEFINED_IDEAL_LENS`）。
 
-Project 中的激光器只确定网络的模式、波长和偏振。所有量子参数都来自 `quantum_inputs.json`：每个光源一个光子，处于 V 模式；高斯波包（HOM 情况均方根光强时长 0.25 ps，MZI 为 1000 ps），零延迟不可区分度 0.95；每个输出面一个阈值探测器，效率 0.8，每个门的暗计数概率为 0（无损 HOM 情况和有损 1 mm MZI 情况为 0.01）。`run_quantum.py` 不导入 opensci-engine：
+Project 中的激光器只确定网络的模式、波长和偏振。所有量子参数都来自 `quantum_inputs.json`：每个光源一个光子，处于 V 模式；高斯波包（HOM 情况均方根光强时长 0.25 ps，MZI 为 1000 ps），零延迟不可区分度 0.95；每个输出面一个阈值探测器，效率 0.8，每个门的暗计数概率为 0（无损 HOM 情况和有损 1 mm MZI 情况为 0.01）。`run_quantum.py` 不导入 os-optics：
 
 * 按 `T[输出, 输入]` 读取矩阵（Perceval `Unitary(Matrix(U))` 和 Piquasso `Interferometer(U)` 的读取方式相同），并乘以 `sqrt(η)` 表示探测效率；
 * 有损 T 嵌入两倍维度的幺正矩阵（幺正扩张），额外模式求迹消去；
