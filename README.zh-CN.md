@@ -44,6 +44,7 @@ os-optics doctor
 虚拟环境配置和升级方法见[安装指南](docs/zh-CN/installation.md)。
 0.9.0 及更早版本以 `opensci-engine` 名称发布；以该名称安装的环境同样运行
 `python -m pip install --upgrade "os-optics[protected]"`，之后使用 `os-optics` 命令和 `import os_optics`。
+以该名称通过 `uv tool` 安装的环境运行 `uv tool install "os-optics[protected]"`，之后使用 `os-optics`。
 
 ## 运行第一个设计
 

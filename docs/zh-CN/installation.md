@@ -87,7 +87,8 @@ uv tool upgrade os-optics
 
 0.9.0 及更早版本以 `opensci-engine` 名称发布（命令 `opensci-engine`，`import opensci_engine`）。
 以该名称安装的环境同样运行 `python -m pip install --upgrade "os-optics[protected]"`，两个软件包没有共用文件。
-之后使用 `os-optics` 命令和 `import os_optics`。
+之后使用 `os-optics` 命令和 `import os_optics`。以该名称通过 `uv tool` 安装的环境运行
+`uv tool install "os-optics[protected]"`，之后使用 `os-optics`。
 
 运行 `os-optics doctor` 查看已安装版本。需要固定这些示例对应的版本时，安装 `"os-optics[protected]==0.10.0"`。
 

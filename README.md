@@ -45,7 +45,8 @@ Prefer an isolated command-line tool? Use `uv tool install "os-optics[protected]
 See the [installation guide](docs/en/installation.md) for virtual environments and upgrades.
 Up to 0.9.0 the package was published as `opensci-engine`; an installation under that name
 takes the same `python -m pip install --upgrade "os-optics[protected]"`, then uses the
-`os-optics` command and `import os_optics`.
+`os-optics` command and `import os_optics`. A `uv tool` installation under the earlier name
+installs the new one with `uv tool install "os-optics[protected]"`, then uses `os-optics`.
 
 ## Run your first design
 
