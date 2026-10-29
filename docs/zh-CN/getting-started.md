@@ -42,6 +42,10 @@ os-optics project example --kind beam_expander | Out-File -Encoding utf8 project
 | `two_color_dichroic` | 双谱线光源经二向色镜分到两个探测面 |
 | `dichroic_combiner` | 两束激光通过二向色镜合束 |
 
+目录版本给出各镀膜的群延迟上限时（目录 schema 3.2，例如 `2026-10-28.1`），
+`two_beam_interference` 会给出条纹可见度和相干性，并同时注明该延迟上限。镀膜未给出相位时，
+`phase_difference_rad` 没有数值，结果中列出 `PHASE_UNDEFINED`。
+
 ## 3. 运行仿真
 
 ```bash

@@ -42,6 +42,11 @@ Other starting points:
 | `two_color_dichroic` | A two-line source routed to two detectors |
 | `dichroic_combiner` | Two lasers combined onto one beam |
 
+With a catalog release that states each coating's group-delay bound (catalog schema 3.2,
+such as release `2026-10-28.1`), `two_beam_interference` reports fringe visibility and
+coherence together with that delay bound. Where a coating does not state its phase,
+`phase_difference_rad` has no value and the result lists `PHASE_UNDEFINED`.
+
 ## 3. Simulate
 
 ```bash
