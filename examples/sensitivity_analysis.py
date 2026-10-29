@@ -198,7 +198,7 @@ def check_base(document, parameters, *, build=None):
     checked = wc.check(document)
     if not checked.get("ok"):
         problems = checked["error"].get("problems", [])
-        raise wc.WorkflowError("PROJECT_REJECTED", "opensci-engine refused the base Project; nothing was run",
+        raise wc.WorkflowError("PROJECT_REJECTED", "os-optics refused the base Project; nothing was run",
                                problems=problems)
     if build is not None:
         return checked

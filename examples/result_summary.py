@@ -33,7 +33,7 @@ def summarize_results(results, *, artifacts=None, details=False):
     All targets and diagnostics are retained. Only the power overview is reduced;
     complete power entries and rays remain in the supplied artifact files.
     """
-    from opensci_engine.results import ResultsError
+    from os_optics.results import ResultsError
 
     description = results.describe()
     integrity = description["integrity"]
@@ -93,7 +93,7 @@ def summarize_results(results, *, artifacts=None, details=False):
 
 def summarize_run(directory, *, details=False):
     """Read and verify a native local run; do not modify its files."""
-    from opensci_engine.results import load_run
+    from os_optics.results import load_run
 
     directory = Path(directory)
     results = load_run(directory)
@@ -101,7 +101,7 @@ def summarize_run(directory, *, details=False):
     artifacts.update({item["role"]: directory / item["name"]
                       for item in results.describe()["files"]})
     summary = summarize_results(results, artifacts=artifacts, details=details)
-    summary["view_command"] = f'opensci-engine view "{directory}"'
+    summary["view_command"] = f'os-optics view "{directory}"'
     return summary
 
 

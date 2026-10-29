@@ -23,8 +23,8 @@ Products without a --range, --near or --sort field are excluded and counted per 
 Values are the catalog's decimal strings, compared exactly. Output: one JSON document with catalog_version, the
 filters, engine_matches (products the Engine filters return), matched (after ranges), shown, omitted, units per
 column and the rows. Exit 0 when rows match, 1 when no product matches, 4 on invalid input or when no catalog
-release is installed (code CATALOG_NOT_AVAILABLE; install one with "opensci-engine catalog sync" or
-"opensci-engine catalog import FILE").
+release is installed (code CATALOG_NOT_AVAILABLE; install one with "os-optics catalog sync" or
+"os-optics catalog import FILE").
 """
 
 from __future__ import annotations
@@ -97,7 +97,7 @@ def candidates(*, category=None, form=None, wavelength_nm=None, readiness=None, 
                near=None, sort=None, descending=False, limit=10, columns=None):
     """Filtered, sorted, bounded candidate rows (module docstring). ``ranges``: ``{field: {"min", "max", "unit"}}``;
     ``near``: ``(field, value)`` in the field's unit or ``(field, {"value", "unit"})``."""
-    from opensci_engine.local import json_api
+    from os_optics.local import json_api
 
     if isinstance(limit, bool) or not isinstance(limit, int) or not 1 <= limit <= MAX_LIMIT:
         raise wc.WorkflowError("BAD_ARGUMENT", f"limit must be an integer from 1 to {MAX_LIMIT}")

@@ -32,7 +32,7 @@ def plane(observation_id, x_mm, radius_mm=12.5):
 
 
 def lens(document, instance_id, focal_length_mm, x_mm, valid_band_nm=None):
-    from opensci_engine.native_library import add_to_project, build_native_model
+    from os_optics.native_library import add_to_project, build_native_model
 
     parameters = {"focal_length_mm": str(focal_length_mm), "clear_aperture_diameter_mm": "25",
                   "model_id": f"thin-{instance_id}"}
@@ -95,7 +95,7 @@ def catalog_available():
     With OPENSCI_EXAMPLES_REQUIRE_CATALOG=1 (set by the alignment runner's catalog-tests check) a missing catalog
     raises instead, so the catalog tests fail rather than skip."""
     try:
-        from opensci_engine.local import json_api
+        from os_optics.local import json_api
 
         available = bool(json_api.catalog_status().get("available"))
     except Exception:  # noqa: BLE001

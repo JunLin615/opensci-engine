@@ -207,7 +207,7 @@ def _target_cells(targets):
 def render_markdown(report):
     section = report["section"]
     lines = ["# OpenSci result report", "",
-             f"Generated {report['generated']} with opensci-engine {report['engine']['engine_version']} "
+             f"Generated {report['generated']} with os-optics {report['engine']['engine_version']} "
              f"(build {report['engine']['engine_build_id']}); active catalog "
              f"{report['catalog']['catalog_version'] or 'none'}.", ""]
     lines += ["## Inputs", ""]

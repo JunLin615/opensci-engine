@@ -41,7 +41,7 @@ class EngineControlsTests(unittest.TestCase):
         self.assertTrue(sweep.constraint_failures(row, [{"target": "p", "assessment": ["MET"]}]))
 
     def cli(self, *args):
-        result = subprocess.run([sys.executable, "-m", "opensci_engine", *map(str, args)],
+        result = subprocess.run([sys.executable, "-m", "os_optics", *map(str, args)],
                                 capture_output=True, text=True, timeout=60)
         return result.returncode, json.loads(result.stdout)
 

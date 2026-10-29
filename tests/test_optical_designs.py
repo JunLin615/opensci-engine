@@ -1,4 +1,4 @@
-"""Checks of examples/optical_designs.py on the published opensci-engine (0.9.0).
+"""Checks of examples/optical_designs.py on the published os-optics (0.10.0).
 
 The native designs need no catalog. The catalog variants are skipped when no catalog release is installed.
 Run from the repository root: python -m unittest discover -s tests -v
@@ -8,8 +8,8 @@ import inspect
 import math
 import unittest
 
-from opensci_engine.local import LocalRunError
-from opensci_engine.results import load_run
+from os_optics.local import LocalRunError
+from os_optics.results import load_run
 
 from examples import optical_designs as D
 from tests.workflow_fixtures import catalog_available

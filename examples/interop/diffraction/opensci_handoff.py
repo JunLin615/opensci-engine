@@ -1,4 +1,4 @@
-"""OpenSci side of the diffraction example (requires opensci-engine 0.9.0).
+"""OpenSci side of the diffraction example (requires os-optics 0.10.0).
 
 A 532 nm TEM00 beam (1 mm waist radius at the source, 1 mW) passes a declared
 circular APERTURE_STOP 100 mm downstream and a declared IDEAL_THIN_LENS
@@ -148,8 +148,8 @@ def engine_focus(results):
 
 
 def run_case(stop_radius_mm, out_dir):
-    from opensci_engine.local import load_project, run_optical_project
-    from opensci_engine.results import load_run
+    from os_optics.local import load_project, run_optical_project
+    from os_optics.results import load_run
 
     document = project_document(stop_radius_mm)
     run_dir = out_dir / "run"
@@ -157,7 +157,7 @@ def run_case(stop_radius_mm, out_dir):
     results = load_run(run_dir)
     beam, surface, engine_handoff = gaussian_at_stop(results, document)
     handoff = {
-        "schema": HANDOFF_SCHEMA, "requires": "opensci-engine>=0.9.0",
+        "schema": HANDOFF_SCHEMA, "requires": "os-optics>=0.10.0",
         "identity": run_identity(results), "run_directory": str(run_dir),
         "field_convention": engine_handoff["conventions"]["tem00_field"],
         "beam_at_stop": beam,

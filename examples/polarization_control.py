@@ -56,7 +56,7 @@ REFERENCE = ("independent Jones calculus (optical_designs.jones_polarization_ref
 def _after_hwp(record):
     if not record.get("run_dir"):
         return None
-    from opensci_engine.results import load_run
+    from os_optics.results import load_run
 
     rows = load_run(record["run_dir"], verify=False).arrivals("after_hwp")
     return rows[0] if rows else None

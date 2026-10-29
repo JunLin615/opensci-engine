@@ -7,9 +7,9 @@ import json
 import math
 from pathlib import Path
 
-from opensci_engine import ValidationRequest, builders as B, validate_with_ray_paths
-from opensci_engine.contracts import ProjectSnapshot, Target
-from opensci_engine.results import results_from_engine
+from os_optics import ValidationRequest, builders as B, validate_with_ray_paths
+from os_optics.contracts import ProjectSnapshot, Target
+from os_optics.results import results_from_engine
 
 if __package__:
     from .result_summary import ArgumentParser, emit_cli, summarize_results

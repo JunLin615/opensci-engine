@@ -172,7 +172,7 @@ class PlotAndReportTests(unittest.TestCase):
         results.identity.return_value = {}
         results.power_budget.return_value = {}
         source = self.dir / "study" / "samples" / "s0001" / "run"
-        with patch("opensci_engine.results.load_run", return_value=results):
+        with patch("os_optics.results.load_run", return_value=results):
             power = self.pr.plot_power(source, out_dir=self.dir / "mixed_power")
         self.assertIsNone(power["observations"]["unknown"]["total_power_W"])
         self.assertEqual(power["observations"]["bounded"]["power_upper_bound_W"], 0.8)
@@ -263,7 +263,7 @@ class CandidateTests(unittest.TestCase):
         self.assertEqual((done.returncode, done.stdout), (4, ""))
         self.assertEqual(json.loads(done.stderr)["error"]["code"], "CATALOG_NOT_AVAILABLE")
 
-    @unittest.skipUnless(catalog_available(), "no public catalog release installed (opensci-engine catalog sync)")
+    @unittest.skipUnless(catalog_available(), "no public catalog release installed (os-optics catalog sync)")
     def test_catalog_query_is_filtered_sorted_and_bounded(self):
         result = cc.candidates(category="LENS", form="PLANO_CONVEX_LENS", wavelength_nm="780",
                                ranges={"focal_length_mm": {"min": 90, "max": 110}}, near=("focal_length_mm", 100),

@@ -4,7 +4,7 @@ Run from the repository root: python -m unittest tests.test_interop -v
 
 The reference formulas, input parsing and network handling need only numpy (and
 scipy for the diffraction reference); third-party solvers are never imported here.
-Checks that run the Engine need opensci-engine 0.9.0 or newer and are skipped
+Checks that run the Engine need os-optics 0.10.0 or newer and are skipped
 otherwise, as is any check whose optional dependency is missing.
 """
 
@@ -37,12 +37,12 @@ class CommonTests(unittest.TestCase):
         self.assertLess(common.version_tuple("0.6.1"), common.MINIMUM_ENGINE)
 
     def test_require_engine_refuses_older_or_missing_engines(self):
-        for installed in ("0.6.1", "0.7.0", "0.8.0", None):
+        for installed in ("0.6.1", "0.8.0", "0.9.0", None):
             with self.subTest(installed=installed), patch.object(common, "engine_version", return_value=installed):
-                with self.assertRaisesRegex(RuntimeError, "requires opensci-engine 0.9.0"):
+                with self.assertRaisesRegex(RuntimeError, "requires os-optics 0.10.0"):
                     common.require_engine()
-        with patch.object(common, "engine_version", return_value="0.9.0"):
-            self.assertEqual(common.require_engine(), "0.9.0")
+        with patch.object(common, "engine_version", return_value="0.10.0"):
+            self.assertEqual(common.require_engine(), "0.10.0")
 
 
     def test_decimal_text_is_a_plain_canonical_decimal(self):
@@ -69,7 +69,7 @@ class CommonTests(unittest.TestCase):
                 self.assertAlmostEqual(got, want, places=12)
 
 
-@unittest.skipUnless(engine_supported(), "opensci-engine 0.9 is required")
+@unittest.skipUnless(engine_supported(), "os-optics 0.10.0 or newer is required")
 class OptimizationOutcomeTests(unittest.TestCase):
     def test_refused_sample_is_logged_and_counts_toward_budget(self):
         from examples.interop.optimization.optimize_expander import EngineObjective, INFEASIBLE_PENALTY_RAD
@@ -118,8 +118,8 @@ class OptimizationOutcomeTests(unittest.TestCase):
 
     def test_unrelated_scope_issue_does_not_invalidate_selected_objective(self):
         from examples.interop.optimization import optimize_expander as oe
-        from opensci_engine.local import load_project, run_optical_project
-        from opensci_engine.results import load_run
+        from os_optics.local import load_project, run_optical_project
+        from os_optics.results import load_run
         results = load_run(run_optical_project(load_project(oe.base_project())))
         original = results.describe()
         original["status"]["validation_status"] = "OUT_OF_MODEL_SCOPE"
@@ -406,10 +406,10 @@ class MetasurfaceFitTests(unittest.TestCase):
         self.assertAlmostEqual(self.fit.aperture_fraction(30.0, 50.0), 1 - math.exp(-2 * 2500 / 900), places=15)
 
 
-@unittest.skipUnless(HAS_NUMPY and engine_supported(), "needs opensci-engine 0.9.0 or newer")
+@unittest.skipUnless(HAS_NUMPY and engine_supported(), "needs os-optics 0.10.0 or newer")
 class EngineInteropTests(unittest.TestCase):
     def test_hom_layout_exports_a_four_mode_lossless_network(self):
-        from opensci_engine.local import json_api
+        from os_optics.local import json_api
 
         from examples.interop.quantum import build_layouts
 
@@ -423,8 +423,8 @@ class EngineInteropTests(unittest.TestCase):
         self.assertTrue(all(p.get("group_delay_ps") is not None for p in exported["network"]["paths"]))
 
     def test_tabulated_lens_outside_its_rows_is_out_of_model_scope(self):
-        from opensci_engine.local import load_project, run_optical_project
-        from opensci_engine.results import load_run
+        from os_optics.local import load_project, run_optical_project
+        from os_optics.results import load_run
 
         from examples.interop.metasurface import step4_engine_check
 
