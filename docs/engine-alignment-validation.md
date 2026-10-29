@@ -4,15 +4,15 @@ Dated records of alignment checks, newest first. Each record keeps the versions,
 hosts and results observed at the time; later records do not change earlier ones.
 The maintainer procedure is in [engine alignment](engine-alignment.md).
 
-## 2026-10-29: baseline os-optics 0.10.0 (release-candidate wheel)
+## 2026-10-29: baseline os-optics 0.10.0
 
 From 0.10.0 the engine is published as `os-optics` (command `os-optics`,
 `import os_optics`); 0.9.0 and earlier were published as `opensci-engine`. This record
-prepares the move of the verified baseline to **0.10.0** (build
-`0.10.0+502a4e1b62417916`) with catalog release `2026-10-28.1` (catalog schema 3.2).
-The checks below ran on the release-candidate wheel before publication
-(`engine_source.mode` `local-wheel`, `publication_verified` `false`); the published
-PyPI artifacts are checked again before the baseline is accepted.
+moves the verified baseline to the published **0.10.0** (build
+`0.10.0+502a4e1b62417916`), published 2026-10-29 13:37Z, with catalog release
+`2026-10-28.1` (catalog schema 3.2). The checks ran first on the release-candidate wheel
+and again on the published PyPI release; the PyPI artifacts are byte-identical to the
+candidate builds:
 
 | Artifact | SHA-256 |
 | --- | --- |
@@ -30,7 +30,30 @@ release file of `2026-10-28.1` (13,463,067 B, SHA-256
 examples on that release; they do not establish delivery by `catalog sync`, which is
 checked separately.
 
-### Default and optional alignment runs: complete pass
+### Published release: complete pass
+
+```bash
+python scripts/check_alignment.py --catalog-file 2026-10-28.1.json --out run-alignment
+python scripts/check_alignment.py --catalog-file 2026-10-28.1.json --optional all --out run-alignment-full
+```
+
+| Python | Selection | Status |
+| --- | --- | --- |
+| 3.11.16 | default checks | `PASS`, 34 of 34 rows |
+| 3.14.7 | default and all 22 optional checks | `PASS`, 72 of 72 rows |
+
+Each run installed `os-optics[protected]==0.10.0` from `https://pypi.org/simple`; pip's
+installation report names the `files.pythonhosted.org` wheel and SHA-256 `52dc3749…`, and
+the report records `engine_source.publication_verified: true`. Nothing was skipped;
+`offline-tests` ran 306 tests (7 catalog classes skipped there) and `catalog-tests` their
+9 with none skipped. Every external-tool outcome and comparison value equals the
+candidate run below. Separately, `python -m unittest discover -s tests` with the catalog
+imported and `OPENSCI_EXAMPLES_REQUIRE_CATALOG=1` passed 306 tests, none skipped, in fresh
+environments holding the PyPI release on CPython 3.11.16 and 3.14.7.
+
+### Release-candidate wheel: complete pass
+
+Before publication (`engine_source.mode` `local-wheel`, `publication_verified` `false`):
 
 ```bash
 python scripts/check_alignment.py --candidate 0.10.0 \
@@ -88,8 +111,8 @@ guides describe this.
 
 ### Baseline update
 
-`engine-baseline.json` records distribution `os-optics`, version 0.10.0, the artifact
-digests above and the verified environment (CPython 3.14.7, Windows 10 AMD64, build
+`engine-baseline.json` records distribution `os-optics`, version 0.10.0, the published
+artifact digests above and the verified environment (CPython 3.14.7, Windows 10 AMD64, build
 `0.10.0+502a4e1b62417916`, catalog `2026-10-28.1`). The documentation check now also
 reports pins and prose under the earlier name; it reported no problems. Earlier
 records keep their versions and package names.

@@ -76,7 +76,7 @@ optimum and the reference value of every evaluated design.
 
 Outputs in the `--out` directory: `evaluations.jsonl` (one line per Engine run with its
 inputs, metric value, status and `project_hash`, `input_hash`, `result_hash`,
-`engine_build_id`), `project-baseline.json` and `report.json`. On the published 0.9.0
+`engine_build_id`), `project-baseline.json` and `report.json`. On the published 0.10.0
 wheel SciPy reached the reference optimum (200.0573 mm separation) to 9e-7 mm in 10
 evaluations, every Engine value matched the ABCD reference to 2e-14 relative, and the
 Sobol indices of Engine and reference agreed to 2e-14. The optimizer chooses values and OpenSci computes each design. The updated workflow
@@ -216,11 +216,11 @@ the script gives each run a fresh `NUMBA_CACHE_DIR`.
 
 ## Metasurface lens as a virtual focusing component
 
-Step 4 passes on 0.9.0: the in-domain comparisons and convergence checks are inside
+Step 4 passes on 0.10.0: the in-domain comparisons and convergence checks are inside
 their tolerances, and the four out-of-domain counterexamples (a 450 nm wavelength and
 the 5°, 8° and 20° field angles) report their scope codes with `INDETERMINATE` target
 assessments. See the [validation record](../interop-validation.md) for the exact cases;
-the numerical tables below record this validation run.
+the numerical tables below record the full run on the published 0.9.0 wheel.
 
 A TiO2 nanopillar metalens (f = 200 µm at 532 nm, 100 µm diameter) is characterized
 externally and turned into an OpenSci `TABULATED_THIN_LENS` model:
