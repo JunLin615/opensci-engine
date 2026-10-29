@@ -35,6 +35,19 @@ export with group delays, `TABULATED_THIN_LENS` scope) and are skipped on engine
 than 0.9.0. Run outputs are written under `run-interop-*` directories and are not
 committed.
 
+## Record 2026-10-29: os-optics 0.10.0 release-candidate wheel
+
+From 0.10.0 the package is published as `os-optics`, and the requirements files require
+`os-optics>=0.10.0`. All four topics ran on the 0.10.0 release-candidate wheel (SHA-256
+`52dc37494df0e0e83e0a233ff750f987b788456431349eb931bdcd56f3ea871b`) with the alignment
+runner (`--optional all`, CPython 3.14.7, Windows 10 AMD64): every external-tool check
+passed with the same outcomes and comparison values as the 0.9.0 record below
+(optimization SciPy 9.0e-7 mm, Engine vs ABCD 2.0e-14, Sobol 1.8e-14; diffraction LightPipes
+3.2e-8, −1.0e-4, 8.6e-4 and Engine peak +0.024 %, +62.1 % and withheld; quantum 19 networks,
+Perceval 4.0e-8, Piquasso 1.8e-9, HOM visibility 0.9491; metasurface step 4 Engine vs
+model 4.4e-16, test set inside the stated errors, four counterexamples `INDETERMINATE`).
+The run summary is in the [alignment record](engine-alignment-validation.md).
+
 ## Record 2026-10-28: published PyPI wheel opensci-engine 0.9.0
 
 All four topics were re-run against the published 0.9.0 wheel. The alignment runner
