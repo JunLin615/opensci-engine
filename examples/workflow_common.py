@@ -305,15 +305,15 @@ def utc_now():
 
 def engine_identity():
     """Installed Engine version and build id."""
-    from opensci_engine import __version__
-    from opensci_engine.manifest import engine_build_id
+    from os_optics import __version__
+    from os_optics.manifest import engine_build_id
 
     return {"engine_version": __version__, "engine_build_id": engine_build_id()}
 
 
 def catalog_identity():
     """Active catalog release (never uses the network); ``available`` false when none is installed."""
-    from opensci_engine.local import json_api
+    from os_optics.local import json_api
 
     status = json_api.catalog_status()
     active = status.get("active") or {}
@@ -326,7 +326,7 @@ def environment():
     from importlib.metadata import PackageNotFoundError, version
 
     packages = {}
-    for name in ("opensci-engine", "numpy", "matplotlib"):
+    for name in ("os-optics", "numpy", "matplotlib"):
         try:
             packages[name] = version(name)
         except PackageNotFoundError:
@@ -338,7 +338,7 @@ def environment():
 
 def target_metric_units():
     """Metric name -> unit of the installed Engine (no catalog needed)."""
-    from opensci_engine.local import target_metrics
+    from os_optics.local import target_metrics
 
     return dict(target_metrics())
 
@@ -348,7 +348,7 @@ def target_metric_units():
 def check(document):
     """``json_api.check_project``: ``{"ok": True, "project", "project_hash", "engine_input_hash", ...}`` or
     ``{"ok": False, "error": {"code", "problems"}}``. Never runs the Engine."""
-    from opensci_engine.local import json_api
+    from os_optics.local import json_api
 
     return json_api.check_project(document)
 
@@ -438,8 +438,8 @@ def run_sample(document, sample_dir, *, targets=None, write_run=True):
     sample record. Never raises for an Engine refusal: a refusal at load (``stage: "load"``) or at run (``stage:
     "run"``) gives an ``ERROR`` record with the Engine's problem codes. ``targets``: the target ids that decide the
     outcome (default: all targets of the run)."""
-    from opensci_engine.local import LocalRunError, load_project, run_optical_project
-    from opensci_engine.results import load_run
+    from os_optics.local import LocalRunError, load_project, run_optical_project
+    from os_optics.results import load_run
 
     sample_dir = Path(sample_dir)
     sample_dir.mkdir(parents=True, exist_ok=True)
@@ -544,7 +544,7 @@ def freshness(project, run_dir, *, verify=True):
     ``verify`` is retained for callers; freshness always includes the Engine's
     integrity check. Different Engine builds alone do not make matching runs historical.
     """
-    from opensci_engine.local.freshness import run_freshness
+    from os_optics.local.freshness import run_freshness
 
     document = read_json(project) if isinstance(project, (str, Path)) else project
     return {"run_dir": Path(run_dir).as_posix(), **run_freshness(document, run_dir)}

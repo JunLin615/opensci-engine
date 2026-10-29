@@ -23,7 +23,7 @@ vocabulary, applied in order to a copy of BASE; ``changes`` objects are merged a
   transform              {selector: {ids|groups|instances|kinds}, translation_mm?, rotation?: {axis, angle_deg} |
                           {quaternion_wxyz}, frame?: "design" | {"component": ID}, pivot?: "frame_origin" |
                           "selection_centroid" | {"point_mm": [x, y, z]} | {"component": ID}}
-                          rigid move computed by opensci_engine.composition; translation and axis are in the frame's
+                          rigid move computed by os_optics.composition; translation and axis are in the frame's
                           axes, so frame {"component": "L2"} with translation_mm [0, 0, 5] moves L2 5 mm along its
                           own optical axis (local +Z). Workspace frames {"group": ID} and {"instance": ID} need a
                           Designer workspace; a Project file has neither, so the Engine refuses them (FRAME_INVALID)
@@ -92,7 +92,7 @@ def normalize_op(op, index, document):
     """The op with every quantity converted to its schema unit (D3); raises EditError for unknown units."""
     if not isinstance(op, dict):
         raise _op_error("BAD_ARGUMENT", "each op must be an object", index)
-    from opensci_engine.local.project_ops import PROJECT_OPS
+    from os_optics.local.project_ops import PROJECT_OPS
 
     name = op.get("op")
     if name not in PROJECT_OPS:
@@ -191,7 +191,7 @@ def apply_edits(document, ops, *, validate=True, expected_project_hash=None):
     The Engine applies the whole batch before validation. A refused operation or final
     check leaves the original document and files unchanged.
     """
-    from opensci_engine.local.project_ops import (
+    from os_optics.local.project_ops import (
         ProjectOpError, ProjectUpdateError, apply_project_ops, update_project,
     )
 
@@ -321,7 +321,7 @@ def _with_units(values):
 
 
 def _catalog_band(sku):
-    from opensci_engine.local import json_api
+    from os_optics.local import json_api
 
     reply = json_api.catalog_product(sku)
     if not reply.get("ok"):
@@ -457,7 +457,7 @@ def outcome_status(run):
 
 def run_edited(project_path, run_dir):
     """Run a saved Project into ``run_dir`` (or reuse a CURRENT run there); compact summary with the outcome."""
-    from opensci_engine.local import LocalRunError, load_project, run_optical_project
+    from os_optics.local import LocalRunError, load_project, run_optical_project
 
     run_dir = Path(run_dir)
     reused = False

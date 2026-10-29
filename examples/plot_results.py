@@ -275,7 +275,7 @@ def plot_histogram(values, unit, out_dir, name, *, title, xlabel=None, bounds=No
 
 def plot_power(run_dir, *, out_dir=None, name="power_distribution"):
     """Power received per observation plane and the power-ledger sinks of one saved run (W)."""
-    from opensci_engine.results import load_run
+    from os_optics.results import load_run
 
     run_dir = Path(run_dir)
     results = load_run(run_dir)

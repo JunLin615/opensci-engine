@@ -1,8 +1,8 @@
 """Parameterized optical designs as OpenSci Projects, with independent closed-form references.
 
 Each builder returns a ``ProjectDocumentV2`` dictionary (``schema: opensci.project``, version 2.0) built from the
-released APIs ``opensci_engine.native_library`` (``build_native_model`` + ``add_to_project``) and
-``opensci_engine.composition.axis_angle_quaternion`` / ``opensci_engine.math.quat_multiply``. The native designs need
+released APIs ``os_optics.native_library`` (``build_native_model`` + ``add_to_project``) and
+``os_optics.composition.axis_angle_quaternion`` / ``os_optics.math.quat_multiply``. The native designs need
 no catalog; the ``catalog_*`` variants start from a catalog example Project and need an installed catalog release.
 
 Designs (``DESIGN_INFO`` lists every parameter with unit, default and meaning, the observation planes, the targets,
@@ -41,9 +41,9 @@ import copy
 import math
 from typing import Any, Mapping, Sequence
 
-from opensci_engine.composition import axis_angle_quaternion
-from opensci_engine.math import quat_multiply
-from opensci_engine.native_library import add_to_project, build_native_model
+from os_optics.composition import axis_angle_quaternion
+from os_optics.math import quat_multiply
+from os_optics.native_library import add_to_project, build_native_model
 
 # Element / plane orientations (unit quaternions w, x, y, z). Element local +Z is its optical axis (a mirror's local
 # +Z is its face normal); local +Y is design +Z ("up") in every design here.
@@ -488,7 +488,7 @@ def alignment_errors(run: Any, *, near: str = "near", far: str = "far") -> dict[
     axes; the separation is measured along the near plane's normal. Returns positions (mm), the two-plane pointing
     (mrad), the far-plane direction-cosine pointing ``asin(direction)`` (mrad) and ``reached`` per plane; values are
     ``None`` where a plane received no beam."""
-    from opensci_engine.results import RunResults, load_run
+    from os_optics.results import RunResults, load_run
 
     results = run if isinstance(run, RunResults) else load_run(run)
     planes = {name: results.monitor(name)["plane"] for name in (near, far)}
@@ -528,7 +528,7 @@ class CatalogDesignUnavailable(RuntimeError):
 
 
 def _catalog_example(kind: str) -> dict[str, Any]:
-    from opensci_engine.local import json_api
+    from os_optics.local import json_api
 
     reply = json_api.example_project_document(kind=kind)
     if not reply.get("ok"):
@@ -585,7 +585,7 @@ def catalog_polarization_control(*, hwp_angle_deg: float = 22.5, polarizer_angle
 def catalog_element_values(document: Mapping[str, Any]) -> dict[str, dict[str, float]]:
     """Transmittance, extinction ratio, retardance and design wavelength of the catalog ``HWP`` / ``POL`` of a
     ``catalog_polarization_control`` Project, read from the installed catalog (floats; absent fields omitted)."""
-    from opensci_engine.local import json_api
+    from os_optics.local import json_api
 
     out = {}
     for instance_id in ("HWP", "POL"):
@@ -603,17 +603,17 @@ def catalog_element_values(document: Mapping[str, Any]) -> dict[str, dict[str, f
 # ------------------------------------------------------------------------------------------------- run helpers
 
 def check_design(document: Mapping[str, Any]) -> dict[str, Any]:
-    """``opensci_engine.local.json_api.check_project``: ``{"ok": True, "project_hash", "engine_input_hash",
+    """``os_optics.local.json_api.check_project``: ``{"ok": True, "project_hash", "engine_input_hash",
     "catalog_version", ...}`` or ``{"ok": False, "error": {...}}``; nothing is run."""
-    from opensci_engine.local import json_api
+    from os_optics.local import json_api
 
     return json_api.check_project(copy.deepcopy(dict(document)))
 
 
 def run_design(document: Mapping[str, Any], output_dir: Any = None) -> Any:
     """Load and run one design in this process; returns the ``LocalOpticalRun`` (run directory written when
-    ``output_dir`` is given). A refused Project raises ``opensci_engine.local.LocalRunError`` (``.problems``)."""
-    from opensci_engine.local import load_project, run_optical_project
+    ``output_dir`` is given). A refused Project raises ``os_optics.local.LocalRunError`` (``.problems``)."""
+    from os_optics.local import load_project, run_optical_project
 
     return run_optical_project(load_project(copy.deepcopy(dict(document))), output_dir=output_dir)
 
@@ -624,7 +624,7 @@ def design_outcome(run: Any) -> dict[str, Any]:
     ``in_model_scope`` is ``False`` whenever ``model_scope_issues`` is non-empty or the run, the Engine, an Engine
     issue or a target reports ``OUT_OF_MODEL_SCOPE``, whatever ``status`` says (a FAIL target takes precedence over OUT_OF_MODEL_SCOPE
     in ``status``)."""
-    from opensci_engine.results import load_run
+    from os_optics.results import load_run
 
     compact = load_run(run).targets()
     targets = {}

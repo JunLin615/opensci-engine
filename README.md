@@ -2,24 +2,24 @@
   <a href="https://opensci-optics.com/"><img src="assets/logo.svg" alt="OpenSci" width="88"></a>
 </p>
 
-# OpenSci Engine
+# OS Optics
 
 **Optical design, simulation, and a path to real hardware.**
 
 English · [简体中文](README.zh-CN.md)
 
-[![PyPI](https://img.shields.io/pypi/v/opensci-engine.svg)](https://pypi.org/project/opensci-engine/)
-[![Python](https://img.shields.io/pypi/pyversions/opensci-engine.svg)](https://pypi.org/project/opensci-engine/)
+[![PyPI](https://img.shields.io/pypi/v/os-optics.svg)](https://pypi.org/project/os-optics/)
+[![Python](https://img.shields.io/pypi/pyversions/os-optics.svg)](https://pypi.org/project/os-optics/)
 [![Website](https://img.shields.io/badge/website-opensci--optics.com-167D8D)](https://opensci-optics.com/)
 
-Build optical systems, simulate light propagation, and explore the results on your own computer. OpenSci Engine combines a catalog of optical components, deterministic physics, structured scientific results, and an interactive 3D view in one Python package. Use it directly or through your own coding agent.
+Build optical systems, simulate light propagation, and explore the results on your own computer. OS Optics combines a catalog of optical components, deterministic physics, structured scientific results, and an interactive 3D view in one Python package. Use it directly or through your own coding agent.
 
 When a design is ready, continue to [OpenSci](https://opensci-optics.com/) for optical components, assembly configurations, and hardware orders.
 
-**[Agent guide](AGENT_GUIDE.md) · [Get started](docs/en/getting-started.md) · [User guide](docs/en/README.md) · [PyPI](https://pypi.org/project/opensci-engine/) · [Website](https://opensci-optics.com/) · [Feedback](https://github.com/JunLin615/opensci-engine/issues)**
+**[Agent guide](AGENT_GUIDE.md) · [Get started](docs/en/getting-started.md) · [User guide](docs/en/README.md) · [PyPI](https://pypi.org/project/os-optics/) · [Website](https://opensci-optics.com/) · [Feedback](https://github.com/JunLin615/os-optics/issues)**
 
-**Engine 0.9.0:** these examples and workflow helpers run on the published
-opensci-engine **0.9.0** release. [engine-baseline.json](engine-baseline.json) records
+**OS Optics 0.10.0:** these examples and workflow helpers run on the published
+os-optics **0.10.0** release. [engine-baseline.json](engine-baseline.json) records
 the verified version, its wheel and source hashes, and the tested environment.
 
 ## What you can do
@@ -37,39 +37,43 @@ the verified version, its wheel and source hashes, and the tested environment.
 ## Install
 
 ```bash
-python -m pip install "opensci-engine[protected]"
-opensci-engine doctor
+python -m pip install "os-optics[protected]"
+os-optics doctor
 ```
 
-Prefer an isolated command-line tool? Use `uv tool install "opensci-engine[protected]"`.
+Prefer an isolated command-line tool? Use `uv tool install "os-optics[protected]"`.
 See the [installation guide](docs/en/installation.md) for virtual environments and upgrades.
+Up to 0.9.0 the package was published as `opensci-engine`; an installation under that name
+takes the same `python -m pip install --upgrade "os-optics[protected]"`, then uses the
+`os-optics` command and `import os_optics`. A `uv tool` installation under the earlier name
+installs the new one with `uv tool install "os-optics[protected]"`, then uses `os-optics`.
 
 ## Run your first design
 
 ```bash
-opensci-engine catalog sync
-opensci-engine project example --kind beam_expander > project.json
-opensci-engine project run project.json --out-dir run
-opensci-engine view run
+os-optics catalog sync
+os-optics project example --kind beam_expander > project.json
+os-optics project run project.json --out-dir run
+os-optics view run
 ```
 
 The first command downloads the current optical catalog. The example creates a two-lens beam expander; the run produces simulation results, a Local Validation record, and a 3D scene. The viewer opens locally in your browser.
 
-For Windows PowerShell 5.1, create the JSON file with `opensci-engine project example --kind beam_expander | Out-File -Encoding utf8 project.json`.
+For Windows PowerShell 5.1, create the JSON file with `os-optics project example --kind beam_expander | Out-File -Encoding utf8 project.json`.
 
 Inspect and export the same run:
 
 ```bash
-opensci-engine results describe run
-opensci-engine export arrivals run --format csv --out arrivals.csv
-opensci-engine project verify run
+os-optics results describe run
+os-optics export arrivals run --format csv --out arrivals.csv
+os-optics project verify run
 ```
 
 ## Use Python
 
 ```python
-from opensci_engine.local import example_project_of_kind, run_optical_project
-from opensci_engine.results import load_run
+from os_optics.local import example_project_of_kind, run_optical_project
+from os_optics.results import load_run
 
 project = example_project_of_kind("beam_expander")
 run = run_optical_project(project, output_dir="run-python")
@@ -94,12 +98,12 @@ Try the runnable [beam expander](examples/beam_expander.py) and [ideal-lens focu
 | From design to hardware | [Read](docs/en/hardware.md) | [阅读](docs/zh-CN/hardware.md) |
 | External scientific tools | [Read](docs/en/interop.md) | [阅读](docs/zh-CN/interop.md) |
 
-The examples and guides use the published **0.9.0** package. External-tool examples cover optimization, diffraction, quantum photonics and metasurface components. Find available package versions in the [PyPI release history](https://pypi.org/project/opensci-engine/#history).
+The examples and guides use the published **0.10.0** package. External-tool examples cover optimization, diffraction, quantum photonics and metasurface components. Find available package versions in the [PyPI release history](https://pypi.org/project/os-optics/#history).
 
 The verified version and test environment are recorded in [engine-baseline.json](engine-baseline.json). [Release-alignment checks](docs/engine-alignment.md) validate this baseline and candidate PyPI releases; only a reviewed update advances the baseline.
 
 ## Get involved
 
-Questions, example designs, bug reports, and documentation improvements are welcome in English or Chinese. [Open an issue](https://github.com/JunLin615/opensci-engine/issues/new/choose) or send a documentation or example pull request.
+Questions, example designs, bug reports, and documentation improvements are welcome in English or Chinese. [Open an issue](https://github.com/JunLin615/os-optics/issues/new/choose) or send a documentation or example pull request.
 
-This repository brings together the user documentation, examples, and community feedback for OpenSci Engine. Install the engine from [PyPI](https://pypi.org/project/opensci-engine/) and explore the full platform at [opensci-optics.com](https://opensci-optics.com/).
+This repository brings together the user documentation, examples, and community feedback for OS Optics. Install the engine from [PyPI](https://pypi.org/project/os-optics/) and explore the full platform at [opensci-optics.com](https://opensci-optics.com/).

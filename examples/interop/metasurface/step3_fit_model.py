@@ -25,7 +25,7 @@ them.
 
 A single external focus does not define a general component: the model holds only
 inside the stated wavelength span, field angle, beam size and polarization, for the
-listed metrics. The field-angle calibration requires opensci-engine 0.9.0.
+listed metrics. The field-angle calibration requires os-optics 0.10.0.
 
 Usage: python examples/interop/metasurface/step3_fit_model.py run-interop-metasurface
 """

@@ -76,13 +76,13 @@ class AlignmentReportingTests(unittest.TestCase):
     def test_local_candidate_stays_preliminary_and_never_posts_an_observation(self):
         candidate = report("0.9.0", failed=True)
         candidate["engine_source"] = {"mode": "local-wheel", "publication_verified": False,
-                                     "filename": "opensci_engine-0.9.0-py3-none-any.whl", "sha256": "b" * 64}
+                                     "filename": "os_optics-0.9.0-py3-none-any.whl", "sha256": "b" * 64}
         http = FakeHTTP()
         self.assertEqual(publish_report(candidate, http.client()), {"action": "none", "url": None})
         self.assertEqual(http.calls, [])
         summary = render_summary(candidate)
         self.assertIn("Local-wheel preparation result", summary)
-        self.assertIn("--candidate-wheel opensci_engine-0.9.0-py3-none-any.whl", summary)
+        self.assertIn("--candidate-wheel os_optics-0.9.0-py3-none-any.whl", summary)
         self.assertIn("--candidate-sha256 " + "b" * 64, summary)
 
     def test_verified_pass_is_quiet_without_http(self):

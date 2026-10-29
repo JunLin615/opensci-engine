@@ -203,7 +203,7 @@ class GitHubIssues:
             "Accept": "application/vnd.github+json",
             "Authorization": "Bearer " + self.token,
             "X-GitHub-Api-Version": "2022-11-28",
-            "User-Agent": "opensci-engine-alignment",
+            "User-Agent": "os-optics-alignment",
         }
         if data is not None:
             headers["Content-Type"] = "application/json"

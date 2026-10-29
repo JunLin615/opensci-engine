@@ -4,6 +4,119 @@ Dated records of alignment checks, newest first. Each record keeps the versions,
 hosts and results observed at the time; later records do not change earlier ones.
 The maintainer procedure is in [engine alignment](engine-alignment.md).
 
+## 2026-10-29: baseline os-optics 0.10.0
+
+From 0.10.0 the engine is published as `os-optics` (command `os-optics`,
+`import os_optics`); 0.9.0 and earlier were published as `opensci-engine`. This record
+moves the verified baseline to the published **0.10.0** (build
+`0.10.0+502a4e1b62417916`), published 2026-10-29 13:37Z, with catalog release
+`2026-10-28.1` (catalog schema 3.2). The checks ran first on the release-candidate wheel
+and again on the published PyPI release; the PyPI artifacts are byte-identical to the
+candidate builds:
+
+| Artifact | SHA-256 |
+| --- | --- |
+| `os_optics-0.10.0-py3-none-any.whl` (1,834,687 B) | `52dc37494df0e0e83e0a233ff750f987b788456431349eb931bdcd56f3ea871b` |
+| `os_optics-0.10.0.tar.gz` (1,668,941 B) | `2e44767fb0df8263b95293b4e88184fdffe88bc1390d1c35b90ff1b8644d141f` |
+
+Host: Windows 10 (`Windows-10-10.0.19045-SP0`, AMD64), CPython 3.11.16 and 3.14.7.
+
+### Catalog release used
+
+The catalog service was not reachable from this host, so every run imported the
+release file of `2026-10-28.1` (13,463,067 B, SHA-256
+`7d7f5f0a6fa1db7ce32503a6a1d86c5bdcd167035782b47b73c2ac00fc1acf30`, recorded as
+`verified_environment.catalog_sha256`) with `--catalog-file`. These runs establish the
+examples on that release; they do not establish delivery by `catalog sync`, which is
+checked separately.
+
+### Published release: complete pass
+
+```bash
+python scripts/check_alignment.py --catalog-file 2026-10-28.1.json --out run-alignment
+python scripts/check_alignment.py --catalog-file 2026-10-28.1.json --optional all --out run-alignment-full
+```
+
+| Python | Selection | Status |
+| --- | --- | --- |
+| 3.11.16 | default checks | `PASS`, 34 of 34 rows |
+| 3.14.7 | default and all 22 optional checks | `PASS`, 72 of 72 rows |
+
+Each run installed `os-optics[protected]==0.10.0` from `https://pypi.org/simple`; pip's
+installation report names the `files.pythonhosted.org` wheel and SHA-256 `52dc3749…`, and
+the report records `engine_source.publication_verified: true`. Nothing was skipped;
+`offline-tests` ran 306 tests (7 catalog classes skipped there) and `catalog-tests` their
+9 with none skipped. Every external-tool outcome and comparison value equals the
+candidate run below. Separately, `python -m unittest discover -s tests` with the catalog
+imported and `OPENSCI_EXAMPLES_REQUIRE_CATALOG=1` passed 306 tests, none skipped, in fresh
+environments holding the PyPI release on CPython 3.11.16 and 3.14.7.
+
+### Release-candidate wheel: complete pass
+
+Before publication (`engine_source.mode` `local-wheel`, `publication_verified` `false`):
+
+```bash
+python scripts/check_alignment.py --candidate 0.10.0 \
+  --candidate-wheel os_optics-0.10.0-py3-none-any.whl --candidate-sha256 52dc3749… \
+  --catalog-file 2026-10-28.1.json --out run-alignment
+python scripts/check_alignment.py --candidate 0.10.0 \
+  --candidate-wheel os_optics-0.10.0-py3-none-any.whl --candidate-sha256 52dc3749… \
+  --catalog-file 2026-10-28.1.json --optional all --out run-alignment-full
+```
+
+| Python | Selection | Status |
+| --- | --- | --- |
+| 3.11.16 | default checks | `PASS`, 35 of 35 rows |
+| 3.14.7 | default and all 22 optional checks | `PASS`, 73 of 73 rows |
+
+Nothing was skipped. `offline-tests` ran 306 tests (7 catalog classes skipped there);
+`catalog-tests` ran their 9 tests with none skipped. The expected non-zero exits were
+observed: `ideal-unmet-target` 1, `ideal-invalid-input` 4,
+`workflow-polarization-out-of-model` 3, `workflow-alignment-synthetic` 1 and
+`spec-be-swap` 1. The representative values equal those of the 0.9.0 record below:
+`ideal-pass` `spot_radius` 0.016934085944977664 mm; `workflow-expansion`
+`expanded_radius` 1.501118304 mm, `spot_radius` 0.01655211408 mm, `waist_location`
+−0.03648967541 mm; `tolerance-polarization` 14 `PASS` and 6 `OUT_OF_MODEL` of 20;
+`spec-be-swap` `expanded_waist` 1.4406961517845205 mm; `spec-be-sweep` best shift
+0.54 mm with 1.99645 mm, 5 of 12 `PASS`; `catalog-candidates` 471 modeled plano-convex
+lenses, 40 within 95–105 mm. External-tool outcomes: optimization `WITHIN_TOLERANCE`
+(SciPy 9.0e-7 mm from the reference in 10 evaluations, Engine vs ABCD 2.0e-14);
+diffraction `COMPLETED` and `WITHIN_TOLERANCE`; quantum `COMPLETED` (19 networks, the
+ideal-lens network refused as `PHASE_UNDEFINED_IDEAL_LENS`) and `WITHIN_TOLERANCE`
+(Perceval 4.0e-8, Piquasso 1.8e-9, HOM visibility 0.9491); metasurface `COMPLETED`
+through step 3 and step 4 `WITHIN_TOLERANCE` (Engine vs the model 4.4e-16, the four
+counterexamples `INDETERMINATE` as expected).
+
+### Documented tutorial commands
+
+With the imported release, the tutorial sections 1–3 of the workflow guide and the
+edit examples of both recipes reproduced their quoted values exactly (base
+`expanded_waist` 1.99607 mm; eight of 471 candidates; swap 1.4407 / 2.0102 mm; the
+twelve sweep values; final 1.99645 mm; recipe edit 1.1148985411200965 mm, exit 1), so
+those documents now name `2026-10-28.1`. On CPython 3.14.7 the README quick start and
+Python snippet, `doctor`, `catalog import/status/list/show`, `project
+example/check/run/verify`, `results describe/targets/freshness/monitor/power-budget`,
+`export arrivals`, `schema project`, `view --write-html` and `view --snapshot` exited 0.
+`catalog check` could not reach the service from this host.
+
+### Two-beam interference with catalog schema 3.2
+
+`project example --kind two_beam_interference` on `2026-10-28.1` completed with all four
+targets `MET` (fringe period 551.543 nm, intensity balance 0.99501, polarization
+overlap 1.0, coherence length 322.46 mm). The interference result reports fringe
+visibility 0.99991 with `group_delay_bound_mm` 0.6745 from the coatings' stated
+group-delay bound; `phase_difference_rad` is `null` and the run lists
+`PHASE_UNDEFINED`, because the coating passes do not state a phase. The getting-started
+guides describe this.
+
+### Baseline update
+
+`engine-baseline.json` records distribution `os-optics`, version 0.10.0, the published
+artifact digests above and the verified environment (CPython 3.14.7, Windows 10 AMD64, build
+`0.10.0+502a4e1b62417916`, catalog `2026-10-28.1`). The documentation check now also
+reports pins and prose under the earlier name; it reported no problems. Earlier
+records keep their versions and package names.
+
 ## 2026-10-28: baseline opensci-engine 0.9.0
 
 This record moves the verified baseline from 0.8.0 to the published **0.9.0**

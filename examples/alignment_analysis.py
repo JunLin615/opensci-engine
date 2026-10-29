@@ -203,7 +203,7 @@ def synthetic_variant(out_dir, inputs, nominal_doc, options):
     wc.write_json(synthetic_dir / "sample.json", record)
     rows = []
     if record["run_dir"]:
-        from opensci_engine.results import load_run
+        from os_optics.results import load_run
 
         results = load_run(record["run_dir"], verify=False)
     for distance, plane_id, residual in zip(options["planes_mm"], ids, options["residuals_mm"]):

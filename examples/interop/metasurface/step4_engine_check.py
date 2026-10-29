@@ -1,4 +1,4 @@
-"""Step 4: use the fitted metalens model in OpenSci and check it (requires opensci-engine 0.9.0).
+"""Step 4: use the fitted metalens model in OpenSci and check it (requires os-optics 0.10.0).
 
 The step-3 ``TABULATED_THIN_LENS`` model is declared in a catalog-free Project and
 traced with the same Gaussian input as the external calculation (waist at the
@@ -107,8 +107,8 @@ def spot_targets(metric, wavelengths_nm):
 
 
 def run(document):
-    from opensci_engine.local import load_project, run_optical_project
-    from opensci_engine.results import load_run
+    from os_optics.local import load_project, run_optical_project
+    from os_optics.results import load_run
 
     results = load_run(run_optical_project(load_project(document)))
     statuses = results.describe()["status"]

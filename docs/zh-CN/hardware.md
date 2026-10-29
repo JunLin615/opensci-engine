@@ -22,7 +22,7 @@
 从 [OpenSci 官网](https://opensci-optics.com/) 进入。Account 提供服务地址与 Agent Token 配置方式。将 `OPENSCI_API_URL` 设置为 Account 显示的地址，按页面完成 Token 配置，然后检查连接：
 
 ```bash
-opensci-engine account status
+os-optics account status
 ```
 
 [安装指南](installation.md)中的 `protected` 扩展支持打开装配预览和装配详情。
@@ -35,22 +35,22 @@ opensci-engine account status
 以下命令请求配置，不创建或支付订单：
 
 ```bash
-opensci-engine resolve run
+os-optics resolve run
 ```
 
 返回结果包含 `resolution_id`、客户购买 BOM、当前价格和装配配置。也可以选择：
 
 ```bash
-opensci-engine resolve run --optics-only
-opensci-engine resolve run --no-breadboard
-opensci-engine resolve run --assembly-service
+os-optics resolve run --optics-only
+os-optics resolve run --no-breadboard
+os-optics resolve run --assembly-service
 ```
 
 将 `RESOLUTION_ID` 替换为返回的标识，查看选定的方案及预览：
 
 ```bash
-opensci-engine resolution show RESOLUTION_ID --locale zh-CN
-opensci-engine assembly preview RESOLUTION_ID --view
+os-optics resolution show RESOLUTION_ID --locale zh-CN
+os-optics assembly preview RESOLUTION_ID --view
 ```
 
 方案会说明元件定位和保留自由度的实现方式。使用 `--locale en` 可以查看英文内容。装配预览适用于包含装配的配置。
@@ -60,21 +60,21 @@ opensci-engine assembly preview RESOLUTION_ID --view
 在 OpenSci Account 中选择收货地址，核对元件清单、总价和协议。以下命令会为选定方案创建订单：
 
 ```bash
-opensci-engine order create RESOLUTION_ID
+os-optics order create RESOLUTION_ID
 ```
 
-按订单说明完成付款后，使用 `opensci-engine order report-transfer ORDER_ID` 报告已转账。OpenSci 确认到账后，提供相应图纸交付物。
+按订单说明完成付款后，使用 `os-optics order report-transfer ORDER_ID` 报告已转账。OpenSci 确认到账后，提供相应图纸交付物。
 
 装配订单生成详细装配图：
 
 ```bash
-opensci-engine assembly drawing RESOLUTION_ID --out drawing --locale zh-CN
+os-optics assembly drawing RESOLUTION_ID --out drawing --locale zh-CN
 ```
 
 仅购买光学元件的订单生成光学布局图：
 
 ```bash
-opensci-engine order layout ORDER_ID --out layout --locale zh-CN
+os-optics order layout ORDER_ID --out layout --locale zh-CN
 ```
 
 使用 `--locale en` 生成英文图纸。图纸提供 SVG 和 PDF 格式。

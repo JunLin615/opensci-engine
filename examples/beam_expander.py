@@ -5,8 +5,8 @@ Usage: python examples/beam_expander.py --out run-example [--details]
 
 from pathlib import Path
 
-from opensci_engine.local import example_project_of_kind, run_optical_project
-from opensci_engine.results import load_run
+from os_optics.local import example_project_of_kind, run_optical_project
+from os_optics.results import load_run
 
 if __package__:
     from .result_summary import ArgumentParser, emit_cli, summarize_run

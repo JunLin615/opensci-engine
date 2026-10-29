@@ -1,8 +1,8 @@
-"""OpenSci side of the quantum example (requires opensci-engine 0.9.0).
+"""OpenSci side of the quantum example (requires os-optics 0.10.0).
 
 Builds small catalog-free Projects from native components (a thin 50:50 plate
 splitter, flat mirrors, uncoated windows of a declared N-BK7 Sellmeier glass) and
-exports each with the real command ``opensci-engine project network`` as an
+exports each with the real command ``os-optics project network`` as an
 ``opensci-linear-optical-network/v1`` document:
 
 * ``hom``: two 780 nm sources onto one splitter, two output planes D1 / D2;
@@ -67,7 +67,7 @@ class Layout:
                              "polarization": {"kind": "LINEAR", "angle_deg": 0.0}}})
 
     def native(self, instance_id, class_id, parameters, position, z_axis):
-        from opensci_engine.native_library import add_to_project, build_native_model
+        from os_optics.native_library import add_to_project, build_native_model
 
         build = build_native_model(class_id, dict(parameters, model_id=instance_id.lower()))
         placed = pose(position, z_axis)
@@ -145,7 +145,7 @@ def cases():
 
 def export(project_path, network_path):
     """Run the public CLI exactly as a user would; return its exit code and parsed stdout."""
-    process = subprocess.run([sys.executable, "-m", "opensci_engine", "project", "network", str(project_path),
+    process = subprocess.run([sys.executable, "-m", "os_optics", "project", "network", str(project_path),
                               "--out", str(network_path)], capture_output=True, text=True)
     try:
         stdout = json.loads(process.stdout)
@@ -159,7 +159,7 @@ def run_example(out_dir):
     out_dir = Path(out_dir)
     layouts = out_dir / "layouts"
     layouts.mkdir(parents=True, exist_ok=True)
-    manifest = {"requires": "opensci-engine>=0.9.0", "engine_version": installed, "cases": {}}
+    manifest = {"requires": "os-optics>=0.10.0", "engine_version": installed, "cases": {}}
     for name, (layout, meta) in cases().items():
         project_path = write_json(layouts / f"{name}.project.json", layout.document)
         network_path = layouts / f"{name}.network.json"

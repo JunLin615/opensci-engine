@@ -271,7 +271,7 @@ class CandidateExclusionTests(unittest.TestCase):
     def query(self, **options):
         reply = {"ok": True, "catalog_version": "test", "total": len(self.PRODUCTS),
                  "products": copy.deepcopy(self.PRODUCTS)}
-        with patch("opensci_engine.local.json_api.catalog_products", return_value=reply):
+        with patch("os_optics.local.json_api.catalog_products", return_value=reply):
             return cc.candidates(**options)
 
     def test_near_and_sort_count_missing_fields(self):

@@ -2,19 +2,19 @@
 
 [外部工具指南](interop.md) · [English](../en/interop-prompts.md) · 简体中文
 
-以下模板供人阅读和改写：复制一个模板到你自己的编程 Agent，替换尖括号中的内容。实际交给 Agent 时可以使用中文，也可以使用[英文版](../en/interop-prompts.md)。每个模板都要求 Agent 在你的环境中、用你已安装的工具完成计算，并把 OpenSci 结果与外部结果分开报告。示例使用 opensci-engine **0.9.0**；请按[版本匹配说明](installation.md#让示例与安装版本一致)安装匹配版本。
+以下模板供人阅读和改写：复制一个模板到你自己的编程 Agent，替换尖括号中的内容。实际交给 Agent 时可以使用中文，也可以使用[英文版](../en/interop-prompts.md)。每个模板都要求 Agent 在你的环境中、用你已安装的工具完成计算，并把 OpenSci 结果与外部结果分开报告。示例使用 os-optics **0.10.0**；请按[版本匹配说明](installation.md#让示例与安装版本一致)安装匹配版本。
 
 模板只涉及仿真和分析。下单、发送反馈、把设计上传到商业云服务，都由你另行明确决定；模板中不包含这些操作。
 
 ## 优化与容差（SciPy、Optuna、SALib）
 
 ```text
-在当前 Python 环境中，将 OpenSci Engine（配套示例要求的版本）与 SciPy、Optuna 或 SALib 联用。
+在当前 Python 环境中，将 OS Optics（配套示例要求的版本）与 SciPy、Optuna 或 SALib 联用。
 我的设计：<Project 文件或描述>。目标：<指标，例如 output 平面的输出发散半角，单位 rad>；
 变量：<元件 id 和字段，以及范围和单位>；需要分析的容差：<字段及 ± 范围>。
 
-1. 阅读 opensci-engine 配套仓库中的 Agent 指南和 docs/zh-CN/interop.md、`opensci-engine --help`、
-   `opensci-engine results metrics`，以及所选优化器的官方文档。
+1. 阅读 os-optics 配套仓库中的 Agent 指南和 docs/zh-CN/interop.md、`os-optics --help`、
+   `os-optics results metrics`，以及所选优化器的官方文档。
 2. 把目标写成带单位和选择器的 OpenSci 目标指标，把变量写成按 id 修改的 Project 字段，并说明分工：
    OpenSci 计算每个设计，优化器决定下一组取值。Project 中的 retained_dofs 是设计意图，不是优化变量。
 3. 检查已安装版本，并确认 Project 能运行一次。只询问会改变计算结果的缺失信息（范围、约束、波长、所需精度）。
@@ -30,11 +30,11 @@
 ## 衍射与成像（prysm、POPPY、LightPipes 或 Diffractio）
 
 ```text
-在我的环境中，将 OpenSci Engine（配套示例要求的版本）与 <prysm / POPPY / LightPipes / Diffractio> 联用。
+在我的环境中，将 OS Optics（配套示例要求的版本）与 <prysm / POPPY / LightPipes / Diffractio> 联用。
 光路：<Project 文件或描述：光源、光阑或孔径、透镜、观察面>。
 问题：<例如焦面峰值辐照度，以及 50 um 半径内的环围功率>。
 
-1. 阅读 opensci-engine 配套仓库的 docs/zh-CN/interop.md、`opensci-engine results --help` 及其中给出的
+1. 阅读 os-optics 配套仓库的 docs/zh-CN/interop.md、`os-optics results --help` 及其中给出的
    场构造约定，以及所选衍射软件的官方文档。
 2. 说明哪些数据来自 OpenSci（高斯光束状态、功率、孔径几何、平面坐标系），哪些来自外部软件（衍射场）。
    仅有光强不能确定复场，稀疏光线也不等于采样的瞳面场：说明你构造的是什么场、基于哪些假设
@@ -50,16 +50,16 @@
 ## 量子光子学（Perceval，Piquasso 作交叉校验）
 
 ```text
-在我的环境中，将 OpenSci Engine（配套示例要求的版本）与 Perceval 联用；若已安装 Piquasso，
+在我的环境中，将 OS Optics（配套示例要求的版本）与 Perceval 联用；若已安装 Piquasso，
 用它做独立交叉校验。光路：<Project 文件或描述>。量子输入：每个光源的光子数 <...>、偏振模式 <H/V>、
 波包 <形状、均方根时长、零延迟不可区分度>、探测器 <类型、效率、暗计数概率、对应的观察面>。
 
-1. 阅读 opensci-engine 配套仓库的 docs/zh-CN/interop.md、`opensci-engine project network --help`、
+1. 阅读 os-optics 配套仓库的 docs/zh-CN/interop.md、`os-optics project network --help`、
    导出网络中的 conventions 字段，以及 Perceval 关于线路、噪声模型和模拟器的文档。
 2. 说明分工：OpenSci 导出线性光学网络（模式、含损耗的传输矩阵 T、带光程和群延迟的路径、约定）；
    Perceval 计算光子统计。光子数、波包、不可区分度和探测器都由我提供，不能从 Project 中的经典激光推断。
 3. 检查已安装版本和各软件包自身声明的许可证，并确认每个量子输入都已给出。只询问缺失的量子输入。
-4. 用 `opensci-engine project network` 导出，按 T[输出, 输入] 读取 T；把含探测效率的有损 T 嵌入幺正矩阵
+4. 用 `os-optics project network` 导出，按 T[输出, 输入] 读取 T；把含探测效率的有损 T 嵌入幺正矩阵
    （幺正扩张）；由光子之间的相对群延迟确定部分可区分度；运行 Perceval。检查单一波长的 T 是否能描述这些光子
    （同一光子各路径的群延迟差远小于波包时长）。有闭式解时进行验证（2 x 2 网络上的双光子干涉）。
 5. 分开报告：导出结果（状态、拒绝原因、contract hash、引擎构建）、所用量子输入，以及 Perceval 结果与
@@ -70,11 +70,11 @@
 ## 超表面响应转为虚拟聚焦元件（grcwa、meent、DFlat 或 metabox）
 
 ```text
-在我的环境中，将 OpenSci Engine（配套示例要求的版本）与 <grcwa / meent / DFlat / metabox> 联用，
+在我的环境中，将 OS Optics（配套示例要求的版本）与 <grcwa / meent / DFlat / metabox> 联用，
 把超表面透镜的响应转为 OpenSci 的 TABULATED_THIN_LENS 模型并用于我的光路。
 超表面：<材料、晶格、柱体族、设计波长、焦距、口径>。使用范围：<波长、入射光束尺寸、视场角、偏振>。
 
-1. 阅读 opensci-engine 配套仓库的 docs/zh-CN/interop.md、`opensci-engine schema project` 中的
+1. 阅读 os-optics 配套仓库的 docs/zh-CN/interop.md、`os-optics schema project` 中的
    TABULATED_THIN_LENS 字段，以及所选电磁工具的文档。metabox 运行于 Python 3.8：放在独立环境中，通过文件交换数据。
 2. 说明分工：外部工具计算单元响应和聚焦（并说明所用近似，如局部周期近似、标量传播）；OpenSci 在声明的有效域内
    把拟合后的表格当作薄聚焦元件使用。一次外部聚焦结果不能定义一个通用元件。

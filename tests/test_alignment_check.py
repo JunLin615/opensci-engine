@@ -55,7 +55,7 @@ class ReleaseSelectionTests(unittest.TestCase):
             json.dumps({"info": {"version": "0.7.0"}})
         )) as request:
             self.assertEqual(alignment.latest_version(), "0.7.0")
-        self.assertEqual(request.call_args.args[0].full_url, "https://pypi.org/pypi/opensci-engine/json")
+        self.assertEqual(request.call_args.args[0].full_url, "https://pypi.org/pypi/os-optics/json")
         self.assertEqual(request.call_args.kwargs["timeout"], 30)
         with patch.object(alignment.urllib.request, "urlopen", return_value=io.StringIO(
             json.dumps({"info": {"version": "https://example.com/engine.whl"}})
@@ -106,7 +106,7 @@ class ClassificationTests(unittest.TestCase):
 
     def test_non_json_failures_use_only_explicit_signals(self):
         cases = (
-            ("Traceback (most recent call last):\nopensci_engine.catalog.errors.CatalogError: "
+            ("Traceback (most recent call last):\nos_optics.catalog.errors.CatalogError: "
              "CATALOG_SERVICE_ERROR: the service answered with HTML", True, "catalog_network"),
             ("CatalogError: CATALOG_INTEGRITY_FAILED: size differs", True, "catalog_data"),
             ("Downloading catalog\nwarning: slow\n" + json.dumps({"code": "CATALOG_STORE_BUSY"}), True,
@@ -136,14 +136,14 @@ class DocumentationTests(unittest.TestCase):
             "documentation_scan": {"include": ["*.md", "docs/**/*.md", ".github/**/*.yml", "examples/**/*.py"],
                                    "historical": ["docs/old-validation.md"]},
         }
-        self.write("README.md", 'Install "opensci-engine[protected]==0.8.0"; the **0.8.0** baseline is in '
+        self.write("README.md", 'Install "os-optics[protected]==0.8.0"; the **0.8.0** baseline is in '
                                 "engine-baseline.json. Website https://opensci-optics.com/.\n")
-        self.write("docs/en/README.md", "Guides target **opensci-engine 0.8.0**.\n")
+        self.write("docs/en/README.md", "Guides target **os-optics 0.8.0**.\n")
         self.write(".github/ISSUE_TEMPLATE/bug_report.yml", 'placeholder: "0.8.0"\n')
-        self.write("docs/en/interop.md", "Requires **opensci-engine 0.8.0** or newer; `opensci-engine>=0.8.0`.\n")
-        self.write("docs/zh-CN/interop.md", "需要 **opensci-engine 0.8.0** 或更高版本。\n")
-        self.write("docs/old-validation.md", f"Recorded with opensci-engine==0.6.1 at https://{RETIRED}/.\n")
-        self.write("examples/tool.py", '"""Requires opensci-engine 0.8.0."""\n')
+        self.write("docs/en/interop.md", "Requires **os-optics 0.8.0** or newer; `os-optics>=0.8.0`.\n")
+        self.write("docs/zh-CN/interop.md", "需要 **os-optics 0.8.0** 或更高版本。\n")
+        self.write("docs/old-validation.md", f"Recorded with os-optics==0.6.1 at https://{RETIRED}/.\n")
+        self.write("examples/tool.py", '"""Requires os-optics 0.8.0."""\n')
 
     def write(self, name, text):
         path = self.root / name
@@ -163,14 +163,15 @@ class DocumentationTests(unittest.TestCase):
     def test_prose_pins_exclude_minimum_versions_and_build_ids(self):
         def pins(text):
             return [pin for pattern in alignment.PROSE_PINS for _, pin in alignment._lines(text, pattern)]
-        for text in ("requires **opensci-engine 0.8.0** or newer", "(opensci-engine 0.8.0 or later)",
-                     "（opensci-engine 0.8.0 或更高版本）", "**0.8.0** or newer", "build `opensci-engine 0.8.0+94f6dc70`",
-                     "`opensci-engine>=0.8.0`", "older than 0.8.0"):
+        for text in ("requires **os-optics 0.8.0** or newer", "(os-optics 0.8.0 or later)",
+                     "（os-optics 0.8.0 或更高版本）", "**0.8.0** or newer", "build `os-optics 0.8.0+94f6dc70`",
+                     "`os-optics>=0.8.0`", "older than 0.8.0"):
             with self.subTest(text=text):
                 self.assertEqual(pins(text), [])
-        for text, expected in (("Guides target **opensci-engine 0.8.0**.", ["0.8.0"]),
+        for text, expected in (("Guides target **os-optics 0.8.0**.", ["0.8.0"]),
                                ("The verified engine baseline is **0.8.0**, recorded", ["0.8.0"]),
-                               ("对应已发布的 **0.8.0** 版本", ["0.8.0"]), ("opensci-engine 0.10.2rc1 is", ["0.10.2rc1"])):
+                               ("对应已发布的 **0.8.0** 版本", ["0.8.0"]), ("os-optics 0.10.2rc1 is", ["0.10.2rc1"]),
+                               ("OS Optics 0.10.2 adds", ["0.10.2"]), ("opensci-engine 0.9.0 was", ["0.9.0"])):
             with self.subTest(text=text):
                 self.assertEqual(pins(text), expected)
 
@@ -187,12 +188,18 @@ class DocumentationTests(unittest.TestCase):
         self.assertTrue(all("https://opensci-optics.com" in problem["message"] for problem in problems))
 
     def test_unlisted_files_are_checked_for_exact_pins_and_history_is_exempt(self):
-        self.write("docs/en/catalog.md", 'pip install "opensci-engine==0.6.1"\n')
-        self.write("run-alignment/.venv/README.md", 'pip install "opensci-engine==0.1.0"\n')
+        self.write("docs/en/catalog.md", 'pip install "os-optics==0.6.1"\n')
+        self.write("run-alignment/.venv/README.md", 'pip install "os-optics==0.1.0"\n')
         problems = self.problems()
         self.assertEqual([(problem["path"], problem["found"]) for problem in problems],
                          [("docs/en/catalog.md", "0.6.1")])
         self.assertIn("docs/en/catalog.md:1: version pin 0.6.1 differs from baseline 0.8.0", problems[0]["message"])
+
+    def test_pins_of_the_earlier_distribution_name_are_reported(self):
+        self.write("docs/en/catalog.md", 'pip install "opensci-engine[protected]==0.8.0"\n')
+        self.write("examples/tool.py", 'pip install "opensci-engine==0.6.1"\n')
+        self.assertEqual([(problem["path"], problem["found"]) for problem in self.problems()],
+                         [("examples/tool.py", "0.6.1")])
 
     def test_listed_documents_need_pin_reference_current_catalog_and_existence(self):
         self.write("README.md", "Results on catalog `2026-10-06.3`.\n")
@@ -248,11 +255,11 @@ class CheckDefinitionTests(unittest.TestCase):
         from tests import workflow_fixtures
 
         with patch.dict(alignment.os.environ, {"OPENSCI_EXAMPLES_REQUIRE_CATALOG": "1"}), \
-                patch("opensci_engine.local.json_api.catalog_status", return_value={"available": False}):
+                patch("os_optics.local.json_api.catalog_status", return_value={"available": False}):
             with self.assertRaises(RuntimeError):
                 workflow_fixtures.catalog_available()
         with patch.dict(alignment.os.environ, {"OPENSCI_EXAMPLES_REQUIRE_CATALOG": ""}), \
-                patch("opensci_engine.local.json_api.catalog_status", return_value={"available": False}):
+                patch("os_optics.local.json_api.catalog_status", return_value={"available": False}):
             self.assertFalse(workflow_fixtures.catalog_available())
 
     def test_defaults_and_normalization(self):
@@ -308,7 +315,7 @@ class AlignmentRunnerTests(unittest.TestCase):
         (self.root / "README.md").write_text(
             'Baseline **0.6.1**; see engine-baseline.json.\n', encoding="utf-8")
         (self.root / "installation.md").write_text(
-            'pip install "opensci-engine[protected]==0.6.1"\nSee engine-baseline.json.\n', encoding="utf-8")
+            'pip install "os-optics[protected]==0.6.1"\nSee engine-baseline.json.\n', encoding="utf-8")
         (self.root / "requirements-examples.txt").write_text("matplotlib\n", encoding="utf-8")
         (self.root / "requirements-topic.txt").write_text("scipy\n", encoding="utf-8")
         self.catalog = Path(self.temporary.name) / "release.json"
@@ -330,17 +337,17 @@ class AlignmentRunnerTests(unittest.TestCase):
             if "--report" in command:
                 install_report = Path(command[command.index("--report") + 1])
                 wheel = next((arg.split(" @ ", 1)[1] for arg in command
-                              if arg.startswith("opensci-engine[protected] @ file:")), None)
+                              if arg.startswith("os-optics[protected] @ file:")), None)
                 digest = hashlib.sha256(b"candidate wheel").hexdigest() if wheel else "a" * 64
-                install_report.write_text(json.dumps({"version": "1", "install": [{"metadata": {"name": "opensci-engine"},
+                install_report.write_text(json.dumps({"version": "1", "install": [{"metadata": {"name": "os-optics"},
                     "download_info": {"url": wheel if wheel else
-                    "https://files.pythonhosted.org/packages/opensci_engine.whl",
+                    "https://files.pythonhosted.org/packages/os_optics.whl",
                     "archive_info": {"hashes": {"sha256": digest}}}}]}), encoding="utf-8")
             if "-c" in command and "engine_version" in command[-1]:
                 stdout = json.dumps({"engine_version": version, "python": "test", "python_version": "3.11.9",
                                      "platform": "test", "executable": command[0], "module_path": str(
                                          Path(command[0]).parent.parent / "Lib" / "site-packages" /
-                                         "opensci_engine" / "__init__.py")})
+                                         "os_optics" / "__init__.py")})
             elif command[-2:] == ["catalog", "sync"] and sync_error:
                 if sync_error.startswith("{") or sync_error.startswith("Traceback"):
                     code, stderr = 1, sync_error
@@ -406,7 +413,7 @@ class AlignmentRunnerTests(unittest.TestCase):
         self.assertEqual(originals, {path.name: path.read_bytes() for path in self.root.iterdir()})
         install = next(call for call in commands.call_args_list if "install" in call.args[0])
         self.assertEqual(install.args[0][1:], ["-m", "pip", "--isolated", "install", "--no-compile",
-                                             "--index-url", "https://pypi.org/simple", "opensci-engine[protected]==0.7.0",
+                                             "--index-url", "https://pypi.org/simple", "os-optics[protected]==0.7.0",
                                              "--report", str(self.out / "logs" / "install-engine.json")])
         self.assertTrue(report["engine_source"]["publication_verified"])
         self.assertEqual(report["engine_source"]["sha256"], "a" * 64)
@@ -416,8 +423,8 @@ class AlignmentRunnerTests(unittest.TestCase):
             keys = set(call.kwargs["env"])
             self.assertEqual(keys & {"PYTHONPATH", "PYTHONHOME", "OPENSCI_CATALOG_CHECK_INTERVAL"}, set())
             self.assertEqual(call.kwargs["env"]["PYTHONNOUSERSITE"], "1")
-            self.assertNotIn("import opensci_engine._", " ".join(call.args[0]))
-            self.assertNotIn("from opensci_engine._", " ".join(call.args[0]))
+            self.assertNotIn("import os_optics._", " ".join(call.args[0]))
+            self.assertNotIn("from os_optics._", " ".join(call.args[0]))
         scientific_failure = next(row for row in report["checks"] if row["name"] == "ideal-unmet-target")
         self.assertEqual((scientific_failure["status"], scientific_failure["exit_code"]), ("PASS", 1))
         self.assertEqual(json.loads(Path(scientific_failure["stdout"]).read_text())["status"], "FAIL")
@@ -455,7 +462,7 @@ class AlignmentRunnerTests(unittest.TestCase):
     def test_non_json_sync_failures_are_classified_by_explicit_signals(self):
         for index, (stderr, category) in enumerate((
             ("Traceback (most recent call last):\nurllib.error.URLError: <urlopen error [Errno 104]>", "catalog_network"),
-            ("Traceback (most recent call last):\nopensci_engine.catalog.errors.CatalogError: "
+            ("Traceback (most recent call last):\nos_optics.catalog.errors.CatalogError: "
              "CATALOG_SERVICE_ERROR: not a manifest", "catalog_network"),
             ("Traceback (most recent call last):\nImportError: cannot import name 'sync'", "package_api"),
         )):
@@ -578,7 +585,7 @@ class AlignmentRunnerTests(unittest.TestCase):
         self.assertEqual(rows["topic"]["status"], "PASS")
         install = self.calls(commands, "requirements-topic.txt")[0].args[0]
         self.assertTrue(Path(install[0]).is_relative_to(self.out / "topic" / ".venv-topic"))
-        self.assertIn("opensci-engine[protected]==0.6.1", install)
+        self.assertIn("os-optics[protected]==0.6.1", install)
         self.assertTrue(Path(rows["topic"]["command"][0]).is_relative_to(self.out / "topic" / ".venv-topic"))
         self.assertEqual(rows["installed-environment-env-topic"]["status"], "PASS")
         self.assertEqual(report["optional_checks"]["selected"], ["topic"])
@@ -676,7 +683,7 @@ class AlignmentRunnerTests(unittest.TestCase):
         self.assertFalse(self.out.exists())
 
     def test_local_wheel_is_explicit_hashed_and_never_publication_evidence(self):
-        wheel = self.root / "opensci_engine-0.7.0-py3-none-any.whl"
+        wheel = self.root / "os_optics-0.7.0-py3-none-any.whl"
         wheel.write_bytes(b"candidate wheel")
         digest = alignment.sha256_file(wheel)
         baseline = (self.root / "engine-baseline.json").read_bytes()
@@ -689,10 +696,10 @@ class AlignmentRunnerTests(unittest.TestCase):
         self.assertFalse(report["engine_source"]["publication_verified"])
         self.assertEqual(report["engine_source"]["sha256"], digest)
         self.assertEqual(baseline, (self.root / "engine-baseline.json").read_bytes())
-        self.assertIn("opensci-engine[protected] @ " + wheel.as_uri(), self.calls(calls, "install")[0].args[0])
+        self.assertIn("os-optics[protected] @ " + wheel.as_uri(), self.calls(calls, "install")[0].args[0])
 
     def test_bad_candidate_digest_stops_before_installing(self):
-        wheel = self.root / "opensci_engine-0.7.0-py3-none-any.whl"
+        wheel = self.root / "os_optics-0.7.0-py3-none-any.whl"
         wheel.write_bytes(b"candidate wheel")
         for i, (version, digest) in enumerate((("0.7.0", "0" * 64), (None, alignment.sha256_file(wheel)))):
             with self.subTest(version=version):

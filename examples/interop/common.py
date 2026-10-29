@@ -1,6 +1,6 @@
 """Shared helpers for the external-tool (interop) examples.
 
-The interop examples require opensci-engine 0.9.0 or newer. Each topic keeps its
+The interop examples require os-optics 0.10.0 or newer. Each topic keeps its
 own third-party requirements file; nothing here imports a third-party solver.
 """
 
@@ -15,7 +15,7 @@ from pathlib import Path
 import platform
 import sys
 
-MINIMUM_ENGINE = (0, 9, 0)
+MINIMUM_ENGINE = (0, 10, 0)
 # Outcome words of these scripts. They describe a comparison with an external or independent reference (or a
 # completed production step), never an OpenSci run status.
 EXIT_CODES = {"WITHIN_TOLERANCE": 0, "COMPLETED": 0, "OUT_OF_TOLERANCE": 1, "UNEXPECTED_RESULT": 1,
@@ -55,18 +55,18 @@ def engine_version():
     from importlib.metadata import PackageNotFoundError, version
 
     try:
-        return version("opensci-engine")
+        return version("os-optics")
     except PackageNotFoundError:
         return None
 
 
 def require_engine():
-    """Return the installed engine version; refuse anything older than 0.9.0."""
+    """Return the installed engine version; refuse anything older than 0.10.0."""
     installed = engine_version()
     if installed is None or version_tuple(installed) < MINIMUM_ENGINE:
         needed = ".".join(str(part) for part in MINIMUM_ENGINE)
         raise RuntimeError(
-            f"this example requires opensci-engine {needed} or newer (installed: {installed or 'none'}); "
+            f"this example requires os-optics {needed} or newer (installed: {installed or 'none'}); "
             "install the topic's requirements file in a fresh virtual environment"
         )
     return installed
@@ -92,7 +92,7 @@ def environment(*names):
         "implementation": platform.python_implementation(),
         "os": f"{platform.system()} {platform.release()}",
         "machine": platform.machine(),
-        "packages": package_versions("opensci-engine", *names),
+        "packages": package_versions("os-optics", *names),
     }
 
 

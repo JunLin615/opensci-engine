@@ -1,4 +1,4 @@
-"""Offline regression checks against the published opensci-engine results API.
+"""Offline regression checks against the published os-optics results API.
 
 Run from the repository root: python -m unittest discover -s tests -v
 """
@@ -14,10 +14,10 @@ import tempfile
 import unittest
 from unittest.mock import patch
 
-from opensci_engine.contracts import (
+from os_optics.contracts import (
     PowerBudget, TargetResult, ValidationIssue, ValidationResult, ValidationSummary,
 )
-from opensci_engine.results import ResultsError, RunResults, results_from_engine
+from os_optics.results import ResultsError, RunResults, results_from_engine
 
 from examples.result_summary import emit_cli, summarize_results
 
@@ -170,9 +170,9 @@ class ResultSummaryTests(unittest.TestCase):
 
     def test_in_memory_summary_never_calls_the_simulator(self):
         results = results_from_engine(engine_result())
-        with patch("opensci_engine.validate", side_effect=AssertionError("simulation called")), \
-             patch("opensci_engine.validate_with_ray_paths", side_effect=AssertionError("simulation called")), \
-             patch("opensci_engine.local.run_optical_project", side_effect=AssertionError("simulation called")):
+        with patch("os_optics.validate", side_effect=AssertionError("simulation called")), \
+             patch("os_optics.validate_with_ray_paths", side_effect=AssertionError("simulation called")), \
+             patch("os_optics.local.run_optical_project", side_effect=AssertionError("simulation called")):
             summary = summarize_results(results, artifacts={"simulation_result": Path("result.json")})
         self.assertEqual(summary["artifacts"], {"simulation_result": "result.json"})
 

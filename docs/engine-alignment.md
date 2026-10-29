@@ -22,7 +22,7 @@ distribution from PyPI, even if another engine is already installed:
 
 ```bash
 python scripts/check_alignment.py --out run-alignment
-python scripts/check_alignment.py --candidate 0.9.1 --out run-candidate-091
+python scripts/check_alignment.py --candidate 0.10.1 --out run-candidate-0101
 python scripts/check_alignment.py --candidate latest --out run-candidate-latest
 ```
 
@@ -38,8 +38,8 @@ Before a release reaches PyPI, use a supplied wheel with its exact version and
 SHA-256. For example, substitute the wheel filename and digest you received:
 
 ```bash
-python scripts/check_alignment.py --candidate 0.9.1 \
-  --candidate-wheel opensci_engine-0.9.1-py3-none-any.whl \
+python scripts/check_alignment.py --candidate 0.10.1 \
+  --candidate-wheel os_optics-0.10.1-py3-none-any.whl \
   --candidate-sha256 WHEEL_SHA256 --out run-wheel-preparation
 ```
 
@@ -56,7 +56,7 @@ SHA-256, in `logs/install-engine.json`; `engine_source` repeats the engine artif
 identity. A local-wheel success does not advance the verified baseline.
 The runner reads the supported [pip installation-report format](https://pip.pypa.io/en/stable/reference/installation-report/).
 
-The runner installs `opensci-engine[protected]` and the `default_requirements` of
+The runner installs `os-optics[protected]` and the `default_requirements` of
 `alignment-checks.json` into `OUTPUT/.venv`, strips `PYTHONPATH`/`PYTHONHOME`,
 disables user-site imports, and verifies the imported engine version and that its
 module lies inside that environment. Every check runs with that interpreter.
@@ -72,7 +72,7 @@ classes; together they add about 70 s. `offline-tests` runs before the catalog s
 those classes skip there;
 `catalog-tests` sets `OPENSCI_EXAMPLES_REQUIRE_CATALOG=1`, which makes them fail
 instead of skip when no catalog release is installed. To run them locally, install a
-release (`opensci-engine catalog sync` or `catalog import FILE`) and run
+release (`os-optics catalog sync` or `catalog import FILE`) and run
 `python -m unittest discover -s tests`, or set the variable to make a missing
 catalog an error.
 
@@ -83,7 +83,7 @@ store (`catalog sync`), which exercises the catalog service. On a network that
 cannot reach the service, import a published release file instead:
 
 ```bash
-python scripts/check_alignment.py --candidate 0.9.1 \
+python scripts/check_alignment.py --candidate 0.10.1 \
   --catalog-file CATALOG_RELEASE.json --out run-candidate-file
 ```
 
@@ -220,10 +220,12 @@ failed report.
 ### Documentation scan
 
 `documentation` lists the current documents: each must state the baseline version
-(exact install pins such as `opensci-engine[protected]==X.Y.Z`, prose such as
-**X.Y.Z** or `opensci-engine X.Y.Z`, issue-template placeholders), and entries
-written as plain paths must also link `engine-baseline.json`. Minimum statements
-(`0.9.1 or newer`, `>=0.9.1`) are not pins. `documentation_scan.include` lists
+(exact install pins such as `os-optics[protected]==X.Y.Z`, prose such as
+**X.Y.Z** or `os-optics X.Y.Z`, issue-template placeholders), and entries
+written as plain paths must also link `engine-baseline.json`. Pins and prose under
+the earlier distribution name `opensci-engine` count as well, so a leftover one is
+reported. Minimum statements
+(`0.10.1 or newer`, `>=0.10.1`) are not pins. `documentation_scan.include` lists
 further files that are checked for exact install pins and retired hosts;
 `documentation_scan.historical` lists dated validation records, which are exempt.
 A new document that states the version belongs in `documentation`; a new

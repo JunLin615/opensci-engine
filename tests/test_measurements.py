@@ -205,7 +205,7 @@ class MeasurementArtifactTests(unittest.TestCase):
             code = """import sys
 class BlockEngine:
     def find_spec(self, fullname, *args):
-        if fullname == 'opensci_engine' or fullname.startswith('opensci_engine.'):
+        if fullname == 'os_optics' or fullname.startswith('os_optics.'):
             raise AssertionError('measurement analysis imported the engine')
 sys.meta_path.insert(0, BlockEngine())
 from examples.analyze_measurements import main

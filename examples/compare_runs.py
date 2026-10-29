@@ -152,7 +152,7 @@ def load_entry(label, run_dir, record, selected=None):
                       "model_scope_issues": [], "out_of_model_issues": [], "warnings": [], "identity": (record or {}).get("identity") or {},
                       "error": (record or {}).get("error") or {"code": "RUN_MISSING"}, "power_budget": None})
         return entry
-    from opensci_engine.results import load_run
+    from os_optics.results import load_run
 
     summary, fields = wc.read_saved_run(run_dir, selected)
     results = load_run(run_dir, verify=False)

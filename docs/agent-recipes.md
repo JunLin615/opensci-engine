@@ -2,8 +2,8 @@
 
 [Agent guide](../AGENT_GUIDE.md). These instructions are English-only; customer
 walkthroughs remain available in [English](en/getting-started.md) and
-[Simplified Chinese](zh-CN/getting-started.md). These recipes use opensci-engine
-**0.9.0**, the version recorded in [engine-baseline.json](../engine-baseline.json); use
+[Simplified Chinese](zh-CN/getting-started.md). These recipes use os-optics
+**0.10.0**, the version recorded in [engine-baseline.json](../engine-baseline.json); use
 the matching [installation](en/installation.md).
 The same edits by ID, with unit conversion, a change record and retry safety, are
 available without writing Python through `examples/edit_project.py`
@@ -25,7 +25,7 @@ root. It uses the same compact summary and exit behavior as the existing example
 ```python
 from pathlib import Path
 
-from opensci_engine.local import load_project, run_optical_project
+from os_optics.local import load_project, run_optical_project
 from examples.result_summary import emit_cli, summarize_run
 
 
@@ -86,7 +86,7 @@ Check `run-adapted/project.json` to confirm the saved inputs, `targets` to asses
 the interval, and `issues` / `model_scope_issues` before using the result.
 The original pinned catalog references and original run remain unchanged.
 
-On catalog `2026-10-15.1`, the combined edits above produce a waist radius near
+On catalog `2026-10-28.1`, the combined edits above produce a waist radius near
 `1.1149 mm`: the `1.8–2.2 mm` interval is **not met**, so the recipe and saved
 summary exit with code `1`. This is a completed simulation with a failing design,
 not a command error. Inspect the result before deciding which edit to revise;

@@ -12,9 +12,9 @@ from pathlib import Path
 import sys
 from unittest.mock import patch
 
-from opensci_engine.catalog import CatalogError
-from opensci_engine.local import LocalRunError
-from opensci_engine.results import load_run
+from os_optics.catalog import CatalogError
+from os_optics.local import LocalRunError
+from os_optics.results import load_run
 
 from examples.beam_expander import run_example
 from examples.result_summary import summarize_run
@@ -43,9 +43,9 @@ def main(argv=None):
     }
     before = snapshot(directory)
     forbidden = AssertionError("Saved-result inspection must not simulate")
-    with patch("opensci_engine.validate", side_effect=forbidden), \
-         patch("opensci_engine.validate_with_ray_paths", side_effect=forbidden), \
-         patch("opensci_engine.local.run_optical_project", side_effect=forbidden):
+    with patch("os_optics.validate", side_effect=forbidden), \
+         patch("os_optics.validate_with_ray_paths", side_effect=forbidden), \
+         patch("os_optics.local.run_optical_project", side_effect=forbidden):
         compact = summarize_run(directory)
         detailed = summarize_run(directory, details=True)
     assert before == snapshot(directory), "Inspection modified saved artifacts"
@@ -65,7 +65,7 @@ def main(argv=None):
     assert {key: value for key, value in detailed.items() if key != "power_budget_details"} == compact
     assert all(key in compact for key in ("outcome", "requirement_outcome", "observations", "targets"))
     report = {
-        "engine_version": version("opensci-engine"),
+        "engine_version": version("os-optics"),
         "catalog_version": summary["identity"]["catalog_version"],
         "result_hash": summary["identity"]["result_hash"],
         "status": summary["status"],

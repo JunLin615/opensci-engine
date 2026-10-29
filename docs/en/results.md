@@ -18,16 +18,16 @@ One run produces a complete record of the design and its simulation. The results
 | `optical_scene.glb` | 3D scene in glTF binary format |
 
 ```bash
-opensci-engine results describe run
-opensci-engine results monitor run output
-opensci-engine project verify run
+os-optics results describe run
+os-optics results monitor run output
+os-optics project verify run
 ```
 
 `output` is the observation-plane identifier in the beam-expander example. Use `results describe` to discover the planes available in your own run.
 
 ## Interpret the result
 
-These compact controls are available in 0.9.0; install the matching package as
+These compact controls are available in 0.10.0; install the matching package as
 described in [version matching](installation.md#match-the-examples-to-the-installed-version).
 
 When a quantity lies outside a component model's declared wavelength, angle or beam
@@ -39,8 +39,8 @@ domain when you need a `MET` or `UNMET` assessment; see the
 [metasurface validation record](../interop-validation.md) for worked cases.
 
 ```bash
-opensci-engine results targets run
-opensci-engine results freshness run --project project.json
+os-optics results targets run
+os-optics results freshness run --project project.json
 ```
 
 Read these dimensions separately:
@@ -94,7 +94,7 @@ python examples/result_summary.py run-example
 python examples/result_summary.py run-example --details
 ```
 
-The helper checks saved artifact integrity before summarizing the run through the public results API. It preserves execution, requirement and quantity information alongside the legacy status fields. This command expects the native local-run artifacts produced by the beam-expander example or `opensci-engine project run`; the ideal-lens output is a low-level result bundle. The reusable Python functions in [result_summary.py](../../examples/result_summary.py) are `summarize_results(results, *, artifacts=None, details=False)` and `summarize_run(directory, *, details=False)`. Both return a dictionary suitable for JSON output.
+The helper checks saved artifact integrity before summarizing the run through the public results API. It preserves execution, requirement and quantity information alongside the legacy status fields. This command expects the native local-run artifacts produced by the beam-expander example or `os-optics project run`; the ideal-lens output is a low-level result bundle. The reusable Python functions in [result_summary.py](../../examples/result_summary.py) are `summarize_results(results, *, artifacts=None, details=False)` and `summarize_run(directory, *, details=False)`. Both return a dictionary suitable for JSON output.
 
 The example scripts and saved-run summary command use `requirement_outcome` for exit
 behavior. The raw aggregate `status` remains in the record alongside
@@ -128,9 +128,9 @@ The radius bound must be finite and nonnegative; `nan` is also invalid. Inspect 
 ## View and share
 
 ```bash
-opensci-engine view run
-opensci-engine view run --write-html view.html
-opensci-engine view run --snapshot shots
+os-optics view run
+os-optics view run --write-html view.html
+os-optics view run --snapshot shots
 ```
 
 The browser viewer includes camera presets, selectable components, beam visibility controls, and English/Chinese labels. Snapshots include orthographic PNG views, `scene_summary.json`, and a legend.
@@ -138,10 +138,10 @@ The browser viewer includes camera presets, selectable components, beam visibili
 ## Export tables
 
 ```bash
-opensci-engine export arrivals run --format csv --out arrivals.csv
-opensci-engine export rays run --format jsonl --out rays.jsonl
-opensci-engine results columns arrivals
-opensci-engine results metrics --name waist_distance_x_mm
+os-optics export arrivals run --format csv --out arrivals.csv
+os-optics export rays run --format jsonl --out rays.jsonl
+os-optics results columns arrivals
+os-optics results metrics --name waist_distance_x_mm
 ```
 
 Exports include monitors, arrivals, rays, paths, segments, power budgets, superpositions, wavefronts, irradiance, and metric definitions. Use `export --help` for formats and selectors. Wavefront exports use traced optical-path differences; irradiance maps use the paraxial Gaussian superposition model.
@@ -150,7 +150,7 @@ From Python:
 
 ```python
 from pathlib import Path
-from opensci_engine.results import load_run
+from os_optics.results import load_run
 
 results = load_run("run")
 print(results.describe())

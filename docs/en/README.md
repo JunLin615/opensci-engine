@@ -4,7 +4,7 @@
 
 Start with a working optical design, then explore its results and adapt it to your experiment.
 
-1. [Install OpenSci Engine](installation.md) — Python, virtual environments, uv, and upgrades.
+1. [Install OS Optics](installation.md) — Python, virtual environments, uv, and upgrades.
 2. [Run your first design](getting-started.md) — generate a project, simulate it, and open the 3D view.
 3. [Work with the catalog](catalog.md) — find optics, manage releases, and reproduce a project.
 4. [Read and export results](results.md) — validation, beam data, visualization, and CSV exports.
@@ -25,6 +25,6 @@ Start with a working optical design, then explore its results and adapt it to yo
 
 Install the package into your Python environment before running these scripts. `uv tool install` provides an isolated CLI; use the [pip installation](installation.md) for Python imports.
 
-These guides and examples use **opensci-engine 0.9.0**; see [version matching](installation.md#match-the-examples-to-the-installed-version) for the matching installation. Commands expose their options through `--help`; Python APIs are documented in the installed package and the [PyPI reference](https://pypi.org/project/opensci-engine/).
+These guides and examples use **os-optics 0.10.0**; see [version matching](installation.md#match-the-examples-to-the-installed-version) for the matching installation. Commands expose their options through `--help`; Python APIs are documented in the installed package and the [PyPI reference](https://pypi.org/project/os-optics/).
 
-[OpenSci website](https://opensci-optics.com/) · [Package releases](https://pypi.org/project/opensci-engine/#history) · [Ask a question](https://github.com/JunLin615/opensci-engine/issues/new/choose)
+[OpenSci website](https://opensci-optics.com/) · [Package releases](https://pypi.org/project/os-optics/#history) · [Ask a question](https://github.com/JunLin615/os-optics/issues/new/choose)

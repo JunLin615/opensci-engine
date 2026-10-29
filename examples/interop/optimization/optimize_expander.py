@@ -1,4 +1,4 @@
-"""External optimization and tolerance loop over an OpenSci Project (requires opensci-engine 0.9.0).
+"""External optimization and tolerance loop over an OpenSci Project (requires os-optics 0.10.0).
 
 A catalog-free Keplerian beam expander (two declared ideal thin lenses, f = 50 mm
 and 150 mm, 532 nm, 0.5 mm source waist) is collimated by moving lens L2. SciPy
@@ -117,8 +117,8 @@ class EngineObjective:
     """Edit, run in memory, read the target metric; log every evaluation with its run identity."""
 
     def __init__(self, log_path, *, max_divergence_rad=1e-3, compute_budget=None, max_evaluations=1000):
-        from opensci_engine.local import load_project, run_optical_project
-        from opensci_engine.results import load_run
+        from os_optics.local import load_project, run_optical_project
+        from os_optics.results import load_run
 
         self._load_project, self._run, self._load_run = load_project, run_optical_project, load_run
         self.log_path = Path(log_path)
@@ -270,7 +270,7 @@ def run_example(out_dir, *, optuna_trials=60, seed=1, sobol_n=128,
     status = comparison_status(all(c["value"] is not None and c["value"] <= c["tolerance"] for c in checks.values()))
     identities = {r["identity"]["engine_build_id"] for r in log if r["identity"]}
     report = {
-        "example": "interop/optimization", "outcome": status, "requires": "opensci-engine>=0.9.0",
+        "example": "interop/optimization", "outcome": status, "requires": "os-optics>=0.10.0",
         "best_feasible_evaluation": best["evaluation"], "max_divergence_rad": max_divergence_rad,
         "compute_budget": compute_budget, "max_evaluations": max_evaluations,
         "environment": environment("scipy", "optuna", "SALib", "numpy"),
